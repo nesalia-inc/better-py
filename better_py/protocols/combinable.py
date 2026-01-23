@@ -5,7 +5,7 @@ same type, similar to semigroups (combine) and monads (combine with identity).
 """
 
 from typing import Protocol, TypeVar, runtime_checkable
-from better_py.protocols import T
+from better_py.protocols.types import T
 
 
 @runtime_checkable

@@ -6,7 +6,7 @@ reduce in Python.
 """
 
 from typing import Protocol, TypeVar, runtime_checkable
-from better_py.protocols import T, U
+from better_py.protocols.types import T, U
 
 
 @runtime_checkable

@@ -76,10 +76,18 @@ class TestTypeVariables:
         assert len(set(type_vars)) == len(type_vars)
 
     def test_exports(self):
-        """All type variables should be exported from __init__."""
+        """All type variables and protocols should be exported from __init__."""
         from better_py.protocols import __all__
 
         expected = {
+            # Core protocols
+            "Mappable",
+            "Mappable1",
+            "Reducible",
+            "Reducible1",
+            "Combinable",
+            "Monoid",
+            # Type variables
             "T",
             "U",
             "V",

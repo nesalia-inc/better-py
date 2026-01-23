@@ -6,7 +6,7 @@ languages.
 """
 
 from typing import Protocol, TypeVar, runtime_checkable
-from better_py.protocols import T, U
+from better_py.protocols.types import T, U
 
 T_contra = TypeVar("T_contra", contravariant=True)
 

@@ -4,6 +4,9 @@ This package contains Protocol-based definitions for functional programming
 patterns, following the approach of collections.abc.
 """
 
+from better_py.protocols.combinable import Combinable, Monoid
+from better_py.protocols.mappable import Mappable, Mappable1
+from better_py.protocols.reducible import Reducible, Reducible1
 from better_py.protocols.types import (
     E,
     K,
@@ -19,6 +22,14 @@ from better_py.protocols.types import (
 )
 
 __all__ = [
+    # Core protocols
+    "Mappable",
+    "Mappable1",
+    "Reducible",
+    "Reducible1",
+    "Combinable",
+    "Monoid",
+    # Type variables
     "T",
     "U",
     "V",
