@@ -114,7 +114,7 @@ class IO(Mappable[T], Generic[T]):
         Example:
             >>> IO(lambda: 1 / 0).recover(lambda _: 0).unsafe_run()  # 0
         """
-        def handler():
+        def handler() -> T:
             try:
                 return self._value()
             except Exception as e:
@@ -135,8 +135,8 @@ class IO(Mappable[T], Generic[T]):
             >>> attempts = 0
             >>> io = IO(lambda: 1 if (global attempts) >= 1 else exec("attempts += 1") or 1/0)
         """
-        def handler():
-            last_error = None
+        def handler() -> T:
+            last_error: Exception | None = None
             for _ in range(times + 1):
                 try:
                     return self._value()
@@ -186,7 +186,7 @@ class IO(Mappable[T], Generic[T]):
         if not isinstance(other, IO):
             return False
         # IO instances are compared by their results
-        return self._value() == other._value()
+        return self._value() == other._value()  # type: ignore[no-any-return]
 
 
 __all__ = ["IO"]

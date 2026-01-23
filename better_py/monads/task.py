@@ -9,10 +9,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import lru_cache
-from typing import Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 from typing_extensions import override
 
 from better_py.protocols import Mappable
+
+if TYPE_CHECKING:
+    from better_py.monads import IO
 
 T = TypeVar("T")
 U = TypeVar("U")

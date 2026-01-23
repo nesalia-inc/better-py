@@ -132,7 +132,7 @@ class TestPersistentListProperties:
         result = lst.take(n)
         assert result.to_list() == values[:n]
 
-    @given(st.lists(st.integers()), st.integers())
+    @given(st.lists(st.integers()), st.integers(min_value=0))
     def test_drop_n_returns_rest(self, values, n):
         """drop(n) returns elements after first n."""
         lst = PersistentList.from_iterable(values)

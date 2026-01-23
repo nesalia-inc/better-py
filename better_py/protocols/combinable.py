@@ -74,7 +74,7 @@ class Monoid(Protocol[T]):
         ...
 
     @staticmethod
-    def identity() -> T:  # type: ignore[empty-body]
+    def identity() -> T:
         """Return the identity element for this type.
 
         The identity element satisfies:
