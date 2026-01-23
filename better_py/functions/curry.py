@@ -7,7 +7,7 @@ into a sequence of functions that each take a single argument.
 from __future__ import annotations
 
 from collections.abc import Callable
-from functools import partial, wraps
+from functools import wraps
 from inspect import signature
 from typing import Any, TypeVar
 
@@ -122,11 +122,6 @@ def flip(func: Callable[[T, U], V]) -> Callable[[U, T], V]:
         return func(y, x)
 
     return flipped
-
-
-def __curry_placeholders__():
-    """Internal function for curry placeholder support."""
-    pass
 
 
 class _Placeholder:
