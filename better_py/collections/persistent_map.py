@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from collections.abc import ItemsView, Iterable, KeysView, ValuesView
 from dataclasses import dataclass
-from typing import Generic, TypeVar, override
+from typing import Generic, TypeVar
+from typing_extensions import override
 
 from better_py.protocols import Mappable
 
