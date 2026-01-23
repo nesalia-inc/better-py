@@ -5,7 +5,9 @@ single value by combining its elements, similar to fold in Haskell or
 reduce in Python.
 """
 
-from typing import Protocol, TypeVar, runtime_checkable
+from collections.abc import Callable
+from typing import Protocol, runtime_checkable
+
 from better_py.protocols.types import T, U
 
 

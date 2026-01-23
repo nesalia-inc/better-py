@@ -1,7 +1,6 @@
 """Tests for Reducible protocol."""
 
-from typing import Callable
-import pytest
+from collections.abc import Callable
 
 from better_py.protocols import T, U
 from better_py.protocols.reducible import Reducible, Reducible1
@@ -94,6 +93,7 @@ class TestReducibleProtocol:
 
     def test_reduce_with_complex_function(self):
         """reduce should work with complex reduction functions."""
+
         def reducer(acc, x):
             if x % 2 == 0:
                 return acc + [x]
@@ -139,6 +139,7 @@ class TestReducible1Protocol:
 
     def test_reducible1_allows_untyped_reduce(self):
         """Reducible1 should allow untyped reduce implementations."""
+
         class UntypedReducible:
             def reduce(self, f, initial):
                 result = initial

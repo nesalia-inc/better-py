@@ -1,7 +1,6 @@
 """Tests for Mappable protocol."""
 
-from typing import Callable
-import pytest
+from collections.abc import Callable
 
 from better_py.protocols import T, U
 from better_py.protocols.mappable import Mappable, Mappable1
@@ -71,6 +70,7 @@ class TestMappableProtocol:
 
     def test_map_with_complex_function(self):
         """map should work with complex transformations."""
+
         def transform(x: int) -> str:
             return f"Number: {x * 2}"
 
@@ -86,6 +86,7 @@ class TestMappableProtocol:
 
     def test_map_composition_law(self):
         """map composition: map(f ∘ g) == map(g) ∘ map(f)."""
+
         def f(x: int) -> int:
             return x * 2
 
@@ -113,6 +114,7 @@ class TestMappable1Protocol:
 
     def test_mappable1_allows_untyped_map(self):
         """Mappable1 should allow untyped map implementations."""
+
         class UntypedBox:
             def map(self, f):
                 return UntypedBox(f(self.value))

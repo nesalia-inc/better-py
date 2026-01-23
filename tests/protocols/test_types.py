@@ -1,16 +1,13 @@
 """Tests for core type definitions."""
 
-import pytest
-from typing import get_args
-
 from better_py.protocols import (
     E,
     K,
     R,
     S,
     T,
-    T_contra,
     T_co,
+    T_contra,
     U,
     U_co,
     V,

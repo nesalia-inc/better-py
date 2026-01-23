@@ -4,7 +4,8 @@ The Combinable protocol defines the ability to combine two values of the
 same type, similar to semigroups (combine) and monads (combine with identity).
 """
 
-from typing import Protocol, TypeVar, runtime_checkable
+from typing import Protocol, runtime_checkable
+
 from better_py.protocols.types import T
 
 

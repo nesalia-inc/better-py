@@ -1,8 +1,5 @@
 """Tests for Combinable protocol."""
 
-import pytest
-
-from better_py.protocols import T
 from better_py.protocols.combinable import Combinable, Monoid
 
 
