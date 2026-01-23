@@ -23,6 +23,7 @@ from better_py.protocols.types import (
     W,
 )
 from better_py.protocols.updatable import DeepUpdatable, Updatable
+from better_py.protocols.validable import Validable
 
 __all__ = [
     # Core protocols
@@ -36,6 +37,7 @@ __all__ = [
     "DeepUpdatable",
     "Traversable",
     "Parseable",
+    "Validable",
     # Type variables
     "T",
     "U",
