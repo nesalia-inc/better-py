@@ -6,30 +6,29 @@ in a type-safe way, returning new instances with modified values.
 
 from __future__ import annotations
 
-from typing import Protocol, TypeVar, runtime_checkable
+from typing import Protocol, runtime_checkable
 
-from better_py.protocols.types import T
+from better_py.protocols.types import T_co
 
-K = TypeVar("K")
-V = TypeVar("V")
+K = type("K")  # Placeholder for key type
 
 
 @runtime_checkable
-class Updatable(Protocol[T]):
+class Updatable(Protocol[T_co]):
     """Protocol for immutable update operations.
 
     An Updatable type supports updating nested fields in immutable data
     structures, returning new instances with the modifications applied.
 
     Type Parameters:
-        T: The type being updated
+        T_co: The type being updated (covariant)
 
     Example:
         >>> data = {"user": {"name": "Alice", "age": 30}}
         >>> updated = set_in(data, ["user", "age"], 31)  # New instance with updated age
     """
 
-    def set(self, key: str | int, value: object) -> T:
+    def set(self, key: str | int, value: object) -> T_co:
         """Set a field to a new value.
 
         Args:
@@ -44,7 +43,7 @@ class Updatable(Protocol[T]):
         """
         ...
 
-    def update(self, **changes: object) -> T:
+    def update(self, **changes: object) -> T_co:
         """Update multiple fields at once.
 
         Args:
@@ -58,7 +57,7 @@ class Updatable(Protocol[T]):
         """
         ...
 
-    def delete(self, key: str | int) -> T:
+    def delete(self, key: str | int) -> T_co:
         """Delete a field.
 
         Args:
@@ -72,7 +71,7 @@ class Updatable(Protocol[T]):
         """
         ...
 
-    def merge(self, other: dict | T) -> T:
+    def merge(self, other: dict | T_co) -> T_co:
         """Merge another structure into this one.
 
         Args:
@@ -88,13 +87,13 @@ class Updatable(Protocol[T]):
 
 
 @runtime_checkable
-class DeepUpdatable(Protocol[T]):
+class DeepUpdatable(Protocol[T_co]):
     """Protocol for deep immutable updates.
 
     Supports updating nested fields using dot notation paths.
     """
 
-    def set_in(self, path: list[str | int], value: object) -> T:
+    def set_in(self, path: list[str | int], value: object) -> T_co:
         """Set a nested field using a path.
 
         Args:
@@ -109,7 +108,7 @@ class DeepUpdatable(Protocol[T]):
         """
         ...
 
-    def update_in(self, path: list[str | int], **changes: object) -> T:
+    def update_in(self, path: list[str | int], **changes: object) -> T_co:
         """Update multiple fields at a nested level.
 
         Args:
@@ -124,7 +123,7 @@ class DeepUpdatable(Protocol[T]):
         """
         ...
 
-    def delete_in(self, path: list[str | int], key: str | int) -> T:
+    def delete_in(self, path: list[str | int], key: str | int) -> T_co:
         """Delete a field at a nested level.
 
         Args:

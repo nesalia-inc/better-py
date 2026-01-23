@@ -9,27 +9,27 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Protocol, TypeVar, runtime_checkable
 
-from better_py.protocols.types import T
+from better_py.protocols.types import T_co
 
 Applicative = TypeVar("Applicative")
 
 
 @runtime_checkable
-class Traversable(Protocol[T]):
+class Traversable(Protocol[T_co]):
     """Protocol for traversable data structures.
 
     A Traversable type can be traversed with an effectful function,
     transforming its contents while preserving structure.
 
     Type Parameters:
-        T: The element type
+        T_co: The element type (covariant)
 
     Example:
         >>> from better_py.monads import Maybe
         >>> traverse(lambda x: Maybe.some(x * 2), [1, 2, 3])  # Maybe.some([2, 4, 6])
     """
 
-    def traverse(self, f: Callable[[T], Applicative]) -> Applicative:
+    def traverse(self, f: Callable[[T_co], Applicative]) -> Applicative:
         """Transform contents with an effectful function.
 
         Args:

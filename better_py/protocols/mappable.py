@@ -6,22 +6,20 @@ languages.
 """
 
 from collections.abc import Callable
-from typing import Protocol, TypeVar, runtime_checkable
+from typing import Protocol, runtime_checkable
 
-from better_py.protocols.types import T, U
-
-T_contra = TypeVar("T_contra", contravariant=True)
+from better_py.protocols.types import T_co, U
 
 
 @runtime_checkable
-class Mappable(Protocol[T]):
+class Mappable(Protocol[T_co]):
     """Protocol for types that support mapping operations.
 
     A Mappable is a container or context that can have a function applied
     to its contents, producing a new Mappable with the result.
 
     Type Parameters:
-        T: The type of values in the Mappable
+        T_co: The type of values in the Mappable (covariant)
 
     Example:
         >>> class Box(Mappable):
@@ -29,11 +27,11 @@ class Mappable(Protocol[T]):
         ...         return Box(f(self.value))
     """
 
-    def map(self, f: "Callable[[T], U]") -> "Mappable[U]":
+    def map(self, f: "Callable[[T_co], U]") -> "Mappable[U]":
         """Apply a function to the contained value.
 
         Args:
-            f: A function from T to U
+            f: A function from T_co to U
 
         Returns:
             A new Mappable containing the result of applying f
@@ -46,7 +44,7 @@ class Mappable(Protocol[T]):
 
 
 @runtime_checkable
-class Mappable1(Protocol[T]):
+class Mappable1(Protocol[T_co]):
     """Alternative Mappable protocol with method-only definition.
 
     This is a simpler version that only requires the map method without

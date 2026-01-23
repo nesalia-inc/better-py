@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Generic, TypeVar, override
+from typing import Generic, TypeVar
+from typing_extensions import override
 
 from better_py.protocols import Mappable
 

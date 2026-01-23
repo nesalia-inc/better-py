@@ -8,30 +8,30 @@ reduce in Python.
 from collections.abc import Callable
 from typing import Protocol, runtime_checkable
 
-from better_py.protocols.types import T, U
+from better_py.protocols.types import T_co, U
 
 
 @runtime_checkable
-class Reducible(Protocol[T]):
+class Reducible(Protocol[T_co]):
     """Protocol for types that support reduction operations.
 
     A Reducible is a container that can be collapsed to a single value
     by combining its elements with a binary function.
 
     Type Parameters:
-        T: The type of elements in the Reducible
+        T_co: The type of elements in the Reducible (covariant)
 
     Example:
         >>> numbers = [1, 2, 3, 4, 5]
         >>> numbers.reduce(lambda acc, x: acc + x, 0)  # 15
     """
 
-    def reduce(self, f: "Callable[[U, T], U]", initial: U) -> U:
+    def reduce(self, f: "Callable[[U, T_co], U]", initial: U) -> U:
         """Reduce the structure to a single value.
 
         Args:
             f: A binary function that combines an accumulator (U)
-               with an element (T) to produce a new accumulator (U)
+               with an element (T_co) to produce a new accumulator (U)
             initial: The initial accumulator value
 
         Returns:
@@ -43,7 +43,7 @@ class Reducible(Protocol[T]):
         """
         ...
 
-    def fold_left(self, f: "Callable[[U, T], U]", initial: U) -> U:
+    def fold_left(self, f: "Callable[[U, T_co], U]", initial: U) -> U:
         """Left-associative fold (alias for reduce).
 
         Args:
@@ -61,7 +61,7 @@ class Reducible(Protocol[T]):
 
 
 @runtime_checkable
-class Reducible1(Protocol[T]):
+class Reducible1(Protocol[T_co]):
     """Simplified Reducible protocol with basic reduce only."""
 
     def reduce(self, f, initial):  # type: ignore[no-untyped-def]
