@@ -1,6 +1,7 @@
 """Monad implementations for better-py."""
 
+from better_py.monads.either import Either
 from better_py.monads.maybe import Maybe
 from better_py.monads.result import Result
 
-__all__ = ["Maybe", "Result"]
+__all__ = ["Maybe", "Result", "Either"]
