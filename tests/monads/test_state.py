@@ -1,0 +1,75 @@
+"""Tests for State monad."""
+
+from better_py.monads import State
+
+
+class TestState:
+    """Tests for State monad."""
+
+    def test_state_run(self):
+        """run should execute the state computation."""
+        state = State(lambda s: (s * 2, s + 1))
+        value, new_state = state.run(5)
+        assert value == 10
+        assert new_state == 6
+
+    def test_state_eval(self):
+        """eval should return only the result value."""
+        state = State(lambda s: (s * 2, s + 1))
+        value = state.eval(5)
+        assert value == 10
+
+    def test_state_execute(self):
+        """execute should return only the final state."""
+        state = State(lambda s: (s * 2, s + 1))
+        new_state = state.execute(5)
+        assert new_state == 6
+
+    def test_state_get(self):
+        """get should return the current state."""
+        state = State.get()
+        value, new_state = state.run(42)
+        assert value == 42
+        assert new_state == 42
+
+    def test_state_put(self):
+        """put should replace the state."""
+        state = State.put(100)
+        value, new_state = state.run(0)
+        assert value is None
+        assert new_state == 100
+
+    def test_state_modify(self):
+        """modify should transform the state."""
+        state = State.modify(lambda x: x * 2)
+        value, new_state = state.run(5)
+        assert value is None
+        assert new_state == 10
+
+    def test_state_map(self):
+        """map should transform the result value."""
+        state = State(lambda s: (s, s)).map(lambda x: x * 2)
+        value, new_state = state.run(5)
+        assert value == 10
+        assert new_state == 5
+
+    def test_state_flat_map(self):
+        """flat_map should chain state computations."""
+        def add_state(x):
+            return State(lambda s: (x + s, s + 1))
+
+        state = State(lambda s: (s, s)).flat_map(add_state)
+        value, new_state = state.run(5)
+        assert value == 10  # 5 + 5
+        assert new_state == 6
+
+    def test_state_counter(self):
+        """State can be used to implement a counter."""
+        def increment():
+            return State.modify(lambda x: x + 1).flat_map(lambda _: State.get())
+
+        # Increment 3 times and get final value
+        counter = increment().flat_map(lambda _: increment()).flat_map(lambda _: increment())
+        value, final_state = counter.run(0)
+        assert final_state == 3
+        assert value == 3
