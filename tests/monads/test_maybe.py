@@ -146,9 +146,7 @@ class TestMaybeMap:
 
     def test_map_chain(self):
         """Multiple map operations should chain."""
-        result = (
-            Maybe.some(5).map(lambda x: x * 2).map(lambda x: x + 1).map(lambda x: x / 2)
-        )
+        result = Maybe.some(5).map(lambda x: x * 2).map(lambda x: x + 1).map(lambda x: x / 2)
         assert result.unwrap() == 5.5
 
     def test_map_preserves_nothing(self):
@@ -164,6 +162,7 @@ class TestMaybeMap:
 
     def test_map_with_complex_function(self):
         """map() should work with complex functions."""
+
         def transform(x: int) -> str:
             return f"Number: {x * 2}"
 
