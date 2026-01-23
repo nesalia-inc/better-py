@@ -86,6 +86,7 @@ class TestTypeVariables:
             "Monoid",
             "Updatable",
             "DeepUpdatable",
+            "Traversable",
             # Type variables
             "T",
             "U",
