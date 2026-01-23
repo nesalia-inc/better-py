@@ -84,6 +84,8 @@ class TestTypeVariables:
             "Reducible1",
             "Combinable",
             "Monoid",
+            "Updatable",
+            "DeepUpdatable",
             # Type variables
             "T",
             "U",

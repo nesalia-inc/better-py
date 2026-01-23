@@ -20,6 +20,7 @@ from better_py.protocols.types import (
     V,
     W,
 )
+from better_py.protocols.updatable import DeepUpdatable, Updatable
 
 __all__ = [
     # Core protocols
@@ -29,6 +30,8 @@ __all__ = [
     "Reducible1",
     "Combinable",
     "Monoid",
+    "Updatable",
+    "DeepUpdatable",
     # Type variables
     "T",
     "U",
