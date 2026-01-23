@@ -87,6 +87,7 @@ class TestTypeVariables:
             "Updatable",
             "DeepUpdatable",
             "Traversable",
+            "Parseable",
             # Type variables
             "T",
             "U",

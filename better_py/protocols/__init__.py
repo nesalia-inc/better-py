@@ -6,6 +6,7 @@ patterns, following the approach of collections.abc.
 
 from better_py.protocols.combinable import Combinable, Monoid
 from better_py.protocols.mappable import Mappable, Mappable1
+from better_py.protocols.parseable import Parseable
 from better_py.protocols.reducible import Reducible, Reducible1
 from better_py.protocols.traversable import Traversable
 from better_py.protocols.types import (
@@ -34,6 +35,7 @@ __all__ = [
     "Updatable",
     "DeepUpdatable",
     "Traversable",
+    "Parseable",
     # Type variables
     "T",
     "U",
