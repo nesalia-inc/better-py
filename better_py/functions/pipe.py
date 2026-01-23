@@ -7,14 +7,13 @@ similar to Unix pipes or F#'s pipe operator.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TypeVar
+from typing import Any, TypeVar
 
 T = TypeVar("T")
 U = TypeVar("U")
-V = TypeVar("V")
 
 
-def pipe(value: T, *functions: Callable[[T], U]) -> U:
+def pipe(value: T, *functions: Callable[..., Any]) -> Any:
     """Pipe a value through a series of functions.
 
     Applies functions to value in left-to-right order.
@@ -37,7 +36,7 @@ def pipe(value: T, *functions: Callable[[T], U]) -> U:
         This is the eager version. For lazy evaluation, consider using
         a generator-based approach.
     """
-    result = value
+    result: Any = value
     for func in functions:
         result = func(result)
     return result
@@ -86,9 +85,9 @@ class Pipeline:
             initial_value: Optional initial value
         """
         self._value = initial_value
-        self._operations: list[Callable] = []
+        self._operations: list[Callable[[Any], Any]] = []
 
-    def map(self, func: Callable[[T], U]) -> Pipeline:
+    def map(self, func: Callable[[T], U]) -> "Pipeline":
         """Add a map operation to the pipeline.
 
         Args:
@@ -100,7 +99,7 @@ class Pipeline:
         self._operations.append(lambda x: [func(item) for item in x])
         return self
 
-    def filter(self, predicate: Callable[[T], bool]) -> Pipeline:
+    def filter(self, predicate: Callable[[T], bool]) -> "Pipeline":
         """Add a filter operation to the pipeline.
 
         Args:
@@ -112,7 +111,7 @@ class Pipeline:
         self._operations.append(lambda x: [item for item in x if predicate(item)])
         return self
 
-    def reduce(self, func: Callable, initial: U) -> Pipeline:
+    def reduce(self, func: Callable[[Any, T], Any], initial: Any) -> "Pipeline":
         """Add a reduce operation to the pipeline.
 
         Args:
@@ -122,7 +121,7 @@ class Pipeline:
         Returns:
             Self for chaining
         """
-        def reduce_op(x):
+        def reduce_op(x: Any) -> Any:
             if isinstance(x, list):
                 result = initial
                 for item in x:
@@ -133,7 +132,7 @@ class Pipeline:
         self._operations.append(reduce_op)
         return self
 
-    def apply(self, func: Callable[[T], U]) -> Pipeline:
+    def apply(self, func: Callable[[Any], Any]) -> "Pipeline":
         """Add a custom operation to the pipeline.
 
         Args:
@@ -145,7 +144,7 @@ class Pipeline:
         self._operations.append(func)
         return self
 
-    def execute(self, value: T) -> U:
+    def execute(self, value: T) -> Any:
         """Execute the pipeline on a value.
 
         Args:
@@ -154,7 +153,7 @@ class Pipeline:
         Returns:
             The result after all operations
         """
-        result = value
+        result: Any = value
         for operation in self._operations:
             result = operation(result)
         return result
@@ -174,7 +173,7 @@ class Pipeline:
         return new_pipeline
 
 
-def flow(*functions: Callable) -> Callable:
+def flow(*functions: Callable[..., Any]) -> Callable[[T], Any]:
     """Create a reusable flow from functions.
 
     Similar to pipe but returns a function that can be called later.
@@ -192,7 +191,7 @@ def flow(*functions: Callable) -> Callable:
         >>> process(5)  # 12
         12
     """
-    def flowed(value: T) -> U:
+    def flowed(value: T) -> Any:
         return pipe(value, *functions)
     return flowed
 

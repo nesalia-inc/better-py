@@ -9,15 +9,13 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from functools import wraps
-from typing import TypeVar
+from typing import Any, TypeVar
 
 T = TypeVar("T")
 U = TypeVar("U")
-V = TypeVar("V")
-W = TypeVar("W")
 
 
-def compose(*functions: Callable[[T], U]) -> Callable[[T], U]:
+def compose(*functions: Callable[..., Any]) -> Callable[[T], Any]:
     """Compose functions from right to left.
 
     Composes functions so that compose(f, g, h)(x) is equivalent to f(g(h(x))).
@@ -44,8 +42,8 @@ def compose(*functions: Callable[[T], U]) -> Callable[[T], U]:
     if len(functions) == 1:
         return functions[0]
 
-    def composed(x: T) -> U:
-        result = x
+    def composed(x: T) -> Any:
+        result: Any = x
         for func in reversed(functions):
             result = func(result)
         return result
@@ -53,7 +51,7 @@ def compose(*functions: Callable[[T], U]) -> Callable[[T], U]:
     return composed
 
 
-def compose_left(*functions: Callable[[T], U]) -> Callable[[T], U]:
+def compose_left(*functions: Callable[..., Any]) -> Callable[[T], Any]:
     """Compose functions from left to right.
 
     Composes functions so that compose_left(f, g, h)(x) is equivalent to h(g(f(x))).
@@ -80,8 +78,8 @@ def compose_left(*functions: Callable[[T], U]) -> Callable[[T], U]:
     if len(functions) == 1:
         return functions[0]
 
-    def composed(x: T) -> U:
-        result = x
+    def composed(x: T) -> Any:
+        result: Any = x
         for func in functions:
             result = func(result)
         return result
