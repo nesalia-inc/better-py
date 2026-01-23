@@ -204,7 +204,7 @@ class Task(Mappable[T], Generic[T]):
         return Task(lambda: value)
 
     @staticmethod
-    def from_io(io_value) -> Task[T]:
+    def from_io(io_value: "IO[T]") -> "Task[T]":
         """Create a Task from an IO computation.
 
         Args:
@@ -228,7 +228,7 @@ class Task(Mappable[T], Generic[T]):
         if not isinstance(other, Task):
             return False
         # Compare by running both tasks
-        return self.run() == other.run()
+        return self.run() == other.run()  # type: ignore[no-any-return]
 
 
 __all__ = ["Task"]

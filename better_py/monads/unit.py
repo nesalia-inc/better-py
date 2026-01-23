@@ -13,6 +13,7 @@ from typing_extensions import override
 from better_py.protocols import Mappable
 
 A = TypeVar("A")
+B = TypeVar("B")
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,7 +33,7 @@ class Unit(Mappable[A], Generic[A]):
 
     value: A | None = None
 
-    def map(self, f):
+    def map(self, f: "Callable[[A], B]") -> "Unit[B]":
         """Apply a function to the value.
 
         Args:

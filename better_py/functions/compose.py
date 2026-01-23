@@ -110,7 +110,7 @@ def decorator(func: Callable[[T], U]) -> Callable[[Callable[..., T]], Callable[.
     """
     def wrapper(f: Callable[..., T]) -> Callable[..., U]:
         @wraps(f)
-        def wrapped(*args, **kwargs):
+        def wrapped(*args: Any, **kwargs: Any) -> U:
             return func(f(*args, **kwargs))
         return wrapped
     return wrapper

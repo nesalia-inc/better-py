@@ -131,6 +131,8 @@ class Result(Mappable[T], Generic[T, E]):
         """
         if self._error is not None:
             raise ValueError(f"Cannot unwrap Error: {self._error}")
+        # _value is not None when _error is None
+        assert self._value is not None
         return self._value
 
     def unwrap_or(self, default: T) -> T:
@@ -146,7 +148,11 @@ class Result(Mappable[T], Generic[T, E]):
             >>> Result.ok(42).unwrap_or(0)  # 42
             >>> Result.error("failed").unwrap_or(0)  # 0
         """
-        return self._value if self._error is None else default
+        if self._error is None:
+            # _value is not None when _error is None
+            assert self._value is not None
+            return self._value
+        return default
 
     def unwrap_or_else(self, supplier: Callable[[], T]) -> T:
         """Get the success value or compute a default.
@@ -161,7 +167,11 @@ class Result(Mappable[T], Generic[T, E]):
             >>> Result.ok(42).unwrap_or_else(lambda: 0)  # 42
             >>> Result.error("failed").unwrap_or_else(lambda: 0)  # 0
         """
-        return self._value if self._error is None else supplier()
+        if self._error is None:
+            # _value is not None when _error is None
+            assert self._value is not None
+            return self._value
+        return supplier()
 
     def unwrap_error(self) -> E:
         """Get the error value, raising an error if Ok.

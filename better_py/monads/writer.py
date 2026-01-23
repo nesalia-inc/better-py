@@ -90,7 +90,7 @@ class Writer(Mappable[A], Generic[W, A]):
         """
         return Writer(self.log, (self.log, self.value))
 
-    def pass_(self) -> Writer[W, A]:
+    def pass_(self) -> "Writer[W, W]":
         """Pass the log through unchanged.
 
         Returns:
@@ -123,7 +123,7 @@ class Writer(Mappable[A], Generic[W, A]):
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Writer):
             return False
-        return self.log == other.log and self.value == other.value
+        return self.log == other.log and self.value == other.value  # type: ignore[no-any-return]
 
 
 __all__ = ["Writer"]
