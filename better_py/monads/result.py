@@ -196,6 +196,87 @@ class Result(Mappable[T], Generic[T, E]):
             return Result(None, self._error)
         return Result(f(self._value), None)
 
+    def bind(self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
+        """Chain operations that return Result (monadic bind).
+
+        Also known as flatMap or andThen.
+
+        Args:
+            f: Function that takes a value and returns a Result
+
+        Returns:
+            The result of applying f if Ok, otherwise Error
+
+        Example:
+            >>> def divide(x): return Result.ok(10 / x) if x != 0 else Result.error("Div by zero")
+            >>> Result.ok(2).bind(divide)  # Ok(5.0)
+            >>> Result.ok(0).bind(divide)  # Error('Div by zero')
+            >>> Result.error("failed").bind(divide)  # Error('failed')
+        """
+        if self._error is not None:
+            return Result(None, self._error)
+        return f(self._value)
+
+    def flat_map(self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
+        """Alias for bind.
+
+        Args:
+            f: Function that takes a value and returns a Result
+
+        Returns:
+            The result of applying f if Ok, otherwise Error
+
+        Example:
+            >>> Result.ok(5).flat_map(lambda x: Result.ok(x * 2))  # Ok(10)
+        """
+        return self.bind(f)
+
+    def and_then(self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
+        """Alias for bind (more readable chaining).
+
+        Args:
+            f: Function that takes a value and returns a Result
+
+        Returns:
+            The result of applying f if Ok, otherwise Error
+
+        Example:
+            >>> Result.ok(5).and_then(lambda x: Result.ok(x * 2))  # Ok(10)
+        """
+        return self.bind(f)
+
+    def map_error(self, f: Callable[[E], E]) -> Result[T, E]:
+        """Apply a function to the error value.
+
+        Args:
+            f: Function to apply to the error
+
+        Returns:
+            Ok(value) if Ok, otherwise Error(f(error))
+
+        Example:
+            >>> Result.ok(42).map_error(str.upper)  # Ok(42)
+            >>> Result.error("failed").map_error(str.upper)  # Error('FAILED')
+        """
+        if self._error is None:
+            return Result(self._value, None)
+        return Result(None, f(self._error))
+
+    def or_else(self, default: Result[T, E]) -> Result[T, E]:
+        """Return this Result, or default if this is Error.
+
+        Args:
+            default: The Result to return if this is Error
+
+        Returns:
+            This Result if Ok, otherwise default
+
+        Example:
+            >>> Result.ok(5).or_else(Result.ok(10))  # Ok(5)
+            >>> Result.error("failed").or_else(Result.ok(10))  # Ok(10)
+        """
+        return self if self._error is None else default
+
     @override
     def __repr__(self) -> str:
         if self._error is None:
