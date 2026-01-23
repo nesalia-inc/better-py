@@ -67,8 +67,8 @@ class TestTypeVariables:
 
     def test_t_is_not_covariant_or_contravariant(self):
         """T should be invariant (default)."""
-        assert not hasattr(T, "__covariant__")
-        assert not hasattr(T, "__contravariant__")
+        assert T.__covariant__ is False
+        assert T.__contravariant__ is False
 
     def test_type_variables_are_unique(self):
         """Each TypeVar should be unique."""
