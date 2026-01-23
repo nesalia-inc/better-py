@@ -188,6 +188,8 @@ class Try(Mappable[T], Generic[T]):
         if self._exception is not None:
             return Try(None, self._exception)
         try:
+            # _value is not None when _exception is None
+            assert self._value is not None
             return Try(f(self._value), None)
         except BaseException as e:
             return Try(None, e)
@@ -209,6 +211,8 @@ class Try(Mappable[T], Generic[T]):
         if self._exception is not None:
             return Try(None, self._exception)
         try:
+            # _value is not None when _exception is None
+            assert self._value is not None
             result = f(self._value)
             return result
         except BaseException as e:
@@ -233,6 +237,8 @@ class Try(Mappable[T], Generic[T]):
         """
         if self._exception is not None:
             return on_failure(self._exception)
+        # _value is not None when _exception is None
+        assert self._value is not None
         return on_success(self._value)
 
     def to_option(self) -> Maybe[T]:
@@ -249,6 +255,8 @@ class Try(Mappable[T], Generic[T]):
 
         if self._exception is not None:
             return Maybe.nothing()
+        # _value is not None when _exception is None
+        assert self._value is not None
         return Maybe.some(self._value)
 
     @override
