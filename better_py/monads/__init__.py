@@ -2,8 +2,9 @@
 
 from better_py.monads.either import Either
 from better_py.monads.maybe import Maybe
+from better_py.monads.reader import Reader
 from better_py.monads.result import Result
 from better_py.monads.try_ import Try
 from better_py.monads.validation import Validation
 
-__all__ = ["Maybe", "Result", "Either", "Validation", "Try"]
+__all__ = ["Maybe", "Result", "Either", "Validation", "Try", "Reader"]
