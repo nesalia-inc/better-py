@@ -89,7 +89,9 @@ class AsyncResult(Mappable[T], Generic[T, E]):
             >>> AsyncResult.from_value(None, "error")  # Error('error')
         """
         from better_py.monads import Result
-        return AsyncResult(Result.from_value(value, error))
+        if value is None:
+            return AsyncResult(Result.error(error))
+        return AsyncResult(Result.ok(value))
 
     async def is_ok_async(self) -> bool:
         """Check if this is Ok (async version).
@@ -201,11 +203,11 @@ class AsyncResult(Mappable[T], Generic[T, E]):
         """
         return AsyncResult(self._result.map_error(f))
 
-    async def bind(self, f: Callable[[T], AsyncResult[U, E]]) -> AsyncResult[U, E]:
+    async def bind(self, f: Callable[[T], AsyncResult[U, E] | Awaitable[AsyncResult[U, E]]]) -> AsyncResult[U, E]:
         """Chain operations that return AsyncResult (async version).
 
         Args:
-            f: Function that takes a value and returns an AsyncResult
+            f: Function that takes a value and returns an AsyncResult (or awaitable)
 
         Returns:
             The result of applying f if Ok, otherwise Error
@@ -216,7 +218,11 @@ class AsyncResult(Mappable[T], Generic[T, E]):
         from better_py.monads import Result
         if self._result.is_error():
             return AsyncResult(Result.error(self._result.unwrap_error()))
-        return await f(self._result.unwrap())
+        # f may return AsyncResult or Awaitable[AsyncResult]
+        result = f(self._result.unwrap())
+        if isinstance(result, AsyncResult):
+            return result
+        return await result
 
     async def recover(self, f: Callable[[E], T]) -> AsyncResult[T, E]:
         """Recover from an error (async version).

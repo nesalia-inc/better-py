@@ -121,19 +121,22 @@ class AsyncMaybe(Mappable[T], Generic[T]):
         """
         return self._maybe.unwrap()
 
-    async def unwrap_or_else(self, default: T) -> T:
+    async def unwrap_or_else(self, default: T | Callable[[], T]) -> T:
         """Get the value or a default (async version).
 
         Args:
-            default: The default value
+            default: The default value or a function that produces it
 
         Returns:
             The value, or default if Nothing
 
         Example:
-            >>> await AsyncMaybe.nothing().unwrap_or_else(0)  # 0
+            >>> await AsyncMaybe.nothing().unwrap_or_else(lambda: 0)  # 0
         """
-        return self._maybe.unwrap_or_else(default)
+        if callable(default):
+            return self._maybe.unwrap_or_else(default)
+        # If default is a value, wrap it in a lambda
+        return self._maybe.unwrap_or_else(lambda: default)
 
     def map(self, f: Callable[[T], U]) -> AsyncMaybe[U]:
         """Apply a function to the value.
@@ -167,11 +170,11 @@ class AsyncMaybe(Mappable[T], Generic[T]):
         result = await f(self._maybe.unwrap())
         return AsyncMaybe(Maybe.some(result))
 
-    async def bind(self, f: Callable[[T], AsyncMaybe[U]]) -> AsyncMaybe[U]:
+    async def bind(self, f: Callable[[T], AsyncMaybe[U] | Awaitable[AsyncMaybe[U]]]) -> AsyncMaybe[U]:
         """Chain operations that return AsyncMaybe (async version).
 
         Args:
-            f: Function that takes a value and returns an AsyncMaybe
+            f: Function that takes a value and returns an AsyncMaybe (or awaitable)
 
         Returns:
             The result of applying f if Some, otherwise Nothing
@@ -182,9 +185,13 @@ class AsyncMaybe(Mappable[T], Generic[T]):
         from better_py.monads import Maybe
         if self._maybe.is_nothing():
             return AsyncMaybe(Maybe.nothing())
-        return await f(self._maybe.unwrap())
+        # f may return AsyncMaybe or Awaitable[AsyncMaybe]
+        result = f(self._maybe.unwrap())
+        if isinstance(result, AsyncMaybe):
+            return result
+        return await result
 
-    def to_maybe(self) -> Maybe:
+    def to_maybe(self) -> Maybe[T]:
         """Convert to Maybe.
 
         Returns:
