@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "better-py"
+name = "better-py-fp"
 version = "0.1.0"
 description = "Functional programming patterns for Python"
 readme = "README.md"
