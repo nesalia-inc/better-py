@@ -340,6 +340,8 @@ class PersistentList(Mappable[T], Reducible[T], Generic[T]):
     def drop(self, n: int) -> PersistentList[T]:
         """Drop the first n elements.
 
+        Complexity: O(n) time, O(1) extra space
+
         Args:
             n: Number of elements to drop
 
@@ -353,23 +355,24 @@ class PersistentList(Mappable[T], Reducible[T], Generic[T]):
         if n <= 0:
             return self
 
+        if n >= self._length:
+            return PersistentList()
+
+        # Traverse to the nth node
         current = self._node
         for _ in range(n):
             if current is None:
                 return PersistentList()
             current = current.tail
 
-        # Build new list from current node
-        result: PersistentList[T] = PersistentList()
-        items = []
-        while current is not None:
-            items.append(current.head)
-            current = current.tail
+        # Recalculate length by counting remaining nodes
+        remaining_length = 0
+        temp = current
+        while temp is not None:
+            remaining_length += 1
+            temp = temp.tail
 
-        for item in reversed(items):
-            result = result.prepend(item)
-
-        return result
+        return PersistentList(current, remaining_length)
 
     def to_list(self) -> list[T]:
         """Convert to a Python list.
