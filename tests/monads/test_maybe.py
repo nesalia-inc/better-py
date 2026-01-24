@@ -15,11 +15,27 @@ class TestMaybeCreation:
         assert not maybe.is_nothing()
         assert maybe.unwrap() == 42
 
-    def test_some_with_none_creates_nothing(self):
-        """some(None) creates Nothing (None is treated as absence)."""
+    def test_some_with_none_creates_some_none(self):
+        """some(None) creates Some(None) (None is a valid value)."""
         maybe = Maybe.some(None)
-        assert maybe.is_nothing()
-        assert not maybe.is_some()
+        assert maybe.is_some()
+        assert not maybe.is_nothing()
+        assert maybe.unwrap() is None
+
+    def test_some_none_factory(self):
+        """some_none() creates Some(None) explicitly."""
+        maybe = Maybe.some_none()
+        assert maybe.is_some()
+        assert not maybe.is_nothing()
+        assert maybe.unwrap() is None
+
+    def test_some_none_vs_nothing(self):
+        """some_none() should differ from nothing()."""
+        some_none = Maybe.some_none()
+        nothing = Maybe.nothing()
+        assert some_none.is_some()
+        assert nothing.is_nothing()
+        assert some_none != nothing
 
     def test_nothing(self):
         """nothing() should create an empty Maybe."""
@@ -325,3 +341,56 @@ class TestMaybeApplicative:
         result = Maybe.zip(Maybe.some(42))
         assert result.is_some()
         assert result.unwrap() == (42,)
+
+
+class TestMaybeSomeNoneOperations:
+    """Tests for operations with Some(None)."""
+
+    def test_some_none_map(self):
+        """map should work with Some(None)."""
+        result = Maybe.some_none().map(lambda x: x or "default")
+        assert result.is_some()
+        assert result.unwrap() == "default"
+
+    def test_some_none_flat_map(self):
+        """flat_map should work with Some(None)."""
+        def handle_none(x):
+            if x is None:
+                return Maybe.some("was None")
+            return Maybe.some(f"was {x}")
+
+        result = Maybe.some_none().flat_map(handle_none)
+        assert result.is_some()
+        assert result.unwrap() == "was None"
+
+    def test_some_none_unwrap_or(self):
+        """unwrap_or should return None (the contained value), not default."""
+        result = Maybe.some_none().unwrap_or("default")
+        assert result is None
+
+    def test_some_none_or_else(self):
+        """or_else should return Some(None), not default."""
+        result = Maybe.some_none().or_else(Maybe.some("default"))
+        assert result.is_some()
+        assert result.unwrap() is None
+
+    def test_some_none_equality(self):
+        """Two Some(None) should be equal."""
+        assert Maybe.some_none() == Maybe.some_none()
+        assert Maybe.some(None) == Maybe.some_none()
+
+    def test_some_none_repr(self):
+        """Some(None) should have correct repr."""
+        assert repr(Maybe.some_none()) == "Some(None)"
+
+    def test_some_none_in_zip(self):
+        """zip should work with Some(None)."""
+        result = Maybe.zip(Maybe.some(1), Maybe.some_none(), Maybe.some(3))
+        assert result.is_some()
+        assert result.unwrap() == (1, None, 3)
+
+    def test_some_none_in_lift2(self):
+        """lift2 should work with Some(None)."""
+        result = Maybe.lift2(lambda x, y: f"{x}-{y}", Maybe.some(1), Maybe.some_none())
+        assert result.is_some()
+        assert result.unwrap() == "1-None"
