@@ -265,6 +265,10 @@ class PersistentMap(Mappable1[tuple[K, V]], Generic[K, V]):
     def map_keys(self, f: Callable[[K], U]) -> PersistentMap[U, V]:
         """Apply a function to all keys (values unchanged).
 
+        Warning: If the function produces duplicate keys, only the last
+        value will be kept. Consider using map_keys_collect() to collect
+        all values when key collisions occur.
+
         Args:
             f: Function taking key and returning new key
 
@@ -274,8 +278,43 @@ class PersistentMap(Mappable1[tuple[K, V]], Generic[K, V]):
         Example:
             >>> PersistentMap.of({1: "a"}).map_keys(lambda k: k * 2)
             PersistentMap({2: 'a'})
+
+        Collision behavior:
+            >>> # Keys 1 and 3 both map to 0 (integer division)
+            >>> # Only the last value is kept: 'c' overwrites 'a'
+            >>> PersistentMap.of({1: "a", 2: "b", 3: "c"}).map_keys(lambda k: k // 2)
+            PersistentMap({0: 'c', 1: 'b'})
         """
         new_data = {f(k): v for k, v in self._data.items()}
+        return PersistentMap(new_data)
+
+    def map_keys_collect(self, f: Callable[[K], U]) -> PersistentMap[U, list[V]]:
+        """Apply a function to all keys, collecting values on collision.
+
+        When the function produces duplicate keys, all corresponding values
+        are collected into a list. This prevents data loss during key transformation.
+
+        Args:
+            f: Function taking key and returning new key
+
+        Returns:
+            A new map with transformed keys, where values are lists of original values
+
+        Example:
+            >>> # Keys 1 and 3 both map to 0, values are collected
+            >>> PersistentMap.of({1: "a", 2: "b", 3: "c"}).map_keys_collect(lambda k: k // 2)
+            PersistentMap({0: ['a', 'c'], 1: ['b']})
+
+        Single values are wrapped in a list:
+            >>> PersistentMap.of({1: "a", 2: "b"}).map_keys_collect(lambda k: k * 2)
+            PersistentMap({2: ['a'], 4: ['b']})
+        """
+        new_data: dict[U, list[V]] = {}
+        for k, v in self._data.items():
+            new_key = f(k)
+            if new_key not in new_data:
+                new_data[new_key] = []
+            new_data[new_key].append(v)
         return PersistentMap(new_data)
 
     def merge(self, other: PersistentMap[K, V]) -> PersistentMap[K, V]:

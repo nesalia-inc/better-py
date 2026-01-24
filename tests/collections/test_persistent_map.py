@@ -187,3 +187,49 @@ class TestPersistentMap:
         m2 = m.set("b", 2).delete("a")
         assert m.to_dict() == {"a": 1}
         assert m2.to_dict() == {"b": 2}
+
+    def test_map_keys_collision_loses_data(self):
+        """map_keys should lose data on key collisions (last wins)."""
+        m = PersistentMap.of({1: "a", 2: "b", 3: "c"})
+        result = m.map_keys(lambda k: k // 2)
+        # Iteration order: 1, 2, 3
+        # 1 // 2 = 0 -> 'a'
+        # 2 // 2 = 1 -> 'b' (gets overwritten)
+        # 3 // 2 = 1 -> 'c'
+        assert result.size() == 2
+        assert result.get(0) == "a"
+        assert result.get(1) == "c"  # Last value wins
+
+    def test_map_keys_no_collision(self):
+        """map_keys should work correctly when no collisions occur."""
+        m = PersistentMap.of({1: "a", 2: "b"})
+        result = m.map_keys(lambda k: k * 2)
+        assert result.size() == 2
+        assert result.get(2) == "a"
+        assert result.get(4) == "b"
+
+    def test_map_keys_collect_with_collisions(self):
+        """map_keys_collect should collect values on key collisions."""
+        m = PersistentMap.of({1: "a", 2: "b", 3: "c"})
+        result = m.map_keys_collect(lambda k: k // 2)
+        # Iteration order: 1, 2, 3
+        # 1 // 2 = 0 -> ['a']
+        # 2 // 2 = 1 -> ['b']
+        # 3 // 2 = 1 -> ['b', 'c']
+        assert result.size() == 2
+        assert result.get(0) == ["a"]
+        assert result.get(1) == ["b", "c"]
+
+    def test_map_keys_collect_no_collisions(self):
+        """map_keys_collect should wrap single values in lists."""
+        m = PersistentMap.of({1: "a", 2: "b"})
+        result = m.map_keys_collect(lambda k: k * 2)
+        assert result.size() == 2
+        assert result.get(2) == ["a"]
+        assert result.get(4) == ["b"]
+
+    def test_map_keys_collect_empty(self):
+        """map_keys_collect should handle empty map."""
+        m = PersistentMap.empty()
+        result = m.map_keys_collect(lambda k: k * 2)
+        assert result.is_empty()
