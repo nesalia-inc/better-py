@@ -141,10 +141,13 @@ class TestIO:
         assert io.unsafe_run() == 42
 
     def test_equality_same_result(self):
-        """IO instances with same results should be equal."""
+        """IO instances are compared by identity, not result."""
         io1 = IO(lambda: 42)
         io2 = IO(lambda: 42)
-        assert io1 == io2
+        # Different instances are not equal, even if they produce the same result
+        assert io1 != io2
+        # Same instance is equal to itself
+        assert io1 == io1
 
     def test_equality_different_results(self):
         """IO instances with different results should not be equal."""
