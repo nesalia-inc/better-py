@@ -7,11 +7,9 @@ with effects, combining Functor and Foldable operations.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Protocol, TypeVar, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from better_py.protocols.types import T_co
-
-Applicative = TypeVar("Applicative")
 
 
 @runtime_checkable
@@ -29,7 +27,7 @@ class Traversable(Protocol[T_co]):
         >>> traverse(lambda x: Maybe.some(x * 2), [1, 2, 3])  # Maybe.some([2, 4, 6])
     """
 
-    def traverse(self, f: Callable[[T_co], Applicative]) -> Applicative:
+    def traverse(self, f: Callable[[T_co], Any]) -> Any:
         """Transform contents with an effectful function.
 
         Args:
@@ -43,7 +41,7 @@ class Traversable(Protocol[T_co]):
         """
         ...
 
-    def sequence(self) -> Applicative:
+    def sequence(self) -> Any:
         """Extract effects from a traversable of applicatives.
 
         Returns:
