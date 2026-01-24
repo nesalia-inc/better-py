@@ -106,12 +106,17 @@ class TestPersistentListProperties:
 
     @given(st.lists(st.integers()))
     def test_get_returns_correct_element(self, values):
-        """get(index) returns element at that index."""
+        """get(index) returns element at that index, including negative indices."""
         lst = PersistentList.from_iterable(values)
+        # Test positive indices
         for i, val in enumerate(values):
             assert lst.get(i) == val
+        # Test negative indices
+        for i, val in enumerate(values):
+            assert lst.get(-len(values) + i) == val
+        # Test out of bounds
         assert lst.get(len(values)) is None
-        assert lst.get(-1) is None
+        assert lst.get(-len(values) - 1) is None
 
     @given(st.lists(st.integers()), st.integers())
     def test_filter_removes_matching_elements(self, values, threshold):

@@ -73,3 +73,43 @@ class TestState:
         value, final_state = counter.run(0)
         assert final_state == 3
         assert value == 3
+
+
+class TestStateRegressionTests:
+    """Regression tests to ensure fixed bugs don't resurface."""
+
+    def test_map_executes_once(self):
+        """map should execute state transformation exactly once.
+
+        Regression test for issue #002: State monad double execution bug.
+        """
+        count = [0]
+
+        def counting_state(s):
+            count[0] += 1
+            return (s, s)
+
+        state = State(counting_state)
+        mapped = state.map(lambda x: x)
+        result = mapped.run(0)
+
+        assert count[0] == 1, f"Expected 1 execution, got {count[0]}"
+        assert result == (0, 0)
+
+    def test_flat_map_executes_once_per_step(self):
+        """flat_map should execute each state transformation exactly once.
+
+        Regression test for issue #002: State monad double execution bug.
+        """
+        count = [0]
+
+        def counting_transform(x):
+            count[0] += 1
+            return State(lambda s: (x + s, s))
+
+        state = State(lambda s: (10, s))
+        result = state.flat_map(counting_transform).run(5)
+
+        # Initial state (1) + flat_map (1) = 2 total executions
+        assert count[0] == 1, f"Expected 1 execution in flat_map, got {count[0]}"
+        assert result == (15, 5)

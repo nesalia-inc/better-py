@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar, cast
 from typing_extensions import override
 
 from better_py.protocols import Mappable
@@ -174,11 +174,17 @@ class Validation(Mappable[T], Generic[E, T]):
             return Validation(self._value, [])
         return Validation(None, f(self._errors))
 
-    def ap(self, other: Validation[E, Callable[[T], U]]) -> Validation[E, U]:
-        """Apply a Validation containing a function to this Validation.
+    def ap(self, other: Validation[E, T]) -> Validation[E, U]:
+        """Apply this Validation (containing a function) to another Validation (containing a value).
+
+        This is used for applicative style programming where you have a Validation
+        containing a function and another Validation containing a value.
+
+        Type Parameters:
+            U: The return type of the function (self contains Callable[[T], U])
 
         Args:
-            other: Validation containing a function
+            other: Validation containing a value to apply the function to
 
         Returns:
             Valid(f(value)) if both are Valid, otherwise Invalid with accumulated errors
@@ -188,6 +194,9 @@ class Validation(Mappable[T], Generic[E, T]):
             >>> val = Validation.valid(5)
             >>> add.ap(val)  # Valid(6)
         """
+        # Accumulate errors from both if both are Invalid (issue #001)
+        if self._errors and other._errors:
+            return Validation(None, self._errors + other._errors)
         if self._errors:
             return Validation(None, self._errors)
         if other._errors:
@@ -195,7 +204,10 @@ class Validation(Mappable[T], Generic[E, T]):
         # Both _value fields are not None when _errors is empty
         assert self._value is not None
         assert other._value is not None
-        return Validation(other._value(self._value), [])
+        # self contains the function, other contains the value
+        # Cast is needed because self._value is T | None but we know it's Callable[[T], U] here
+        func = cast(Callable[[T], U], self._value)
+        return Validation(func(other._value), [])
 
     def flat_map(self, f: Callable[[T], Validation[E, U]]) -> Validation[E, U]:
         """Chain operations that return Validation.

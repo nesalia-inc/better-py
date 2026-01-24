@@ -230,8 +230,11 @@ class Task(Mappable[T], Generic[T]):
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Task):
             return False
-        # Compare by running both tasks
-        return self.run() == other.run()  # type: ignore[no-any-return]
+        # If both are cached, compare cached results (no execution)
+        # Otherwise compare by function identity to avoid executing side effects
+        if self.is_cached() and other.is_cached():
+            return self.peek() == other.peek()
+        return self._compute is other._compute
 
 
 __all__ = ["Task"]

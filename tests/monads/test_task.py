@@ -195,14 +195,21 @@ class TestTask:
         task = Task.from_io(io)
         assert task.run() == 42
 
-    def test_equality_same_result(self):
-        """Task instances with same results should be equal."""
-        task1 = Task(lambda: 42)
-        task2 = Task(lambda: 42)
+    def test_equality_same_function(self):
+        """Task instances with same function should be equal."""
+        func = lambda: 42
+        task1 = Task(func)
+        task2 = Task(func)
         assert task1 == task2
 
+    def test_equality_different_functions(self):
+        """Task instances with different functions should not be equal."""
+        task1 = Task(lambda: 42)
+        task2 = Task(lambda: 42)
+        assert task1 != task2  # Different lambda functions
+
     def test_equality_different_results(self):
-        """Task instances with different results should not be equal."""
+        """Task instances with different result functions should not be equal."""
         task1 = Task(lambda: 42)
         task2 = Task(lambda: 43)
         assert task1 != task2
@@ -211,6 +218,16 @@ class TestTask:
         """Task should not be equal to non-Task."""
         task = Task(lambda: 42)
         assert task != 42
+
+    def test_equality_both_cached(self):
+        """Cached tasks should compare by their results."""
+        task1 = Task(lambda: 42)
+        task2 = Task(lambda: 42)
+        # Cache both tasks
+        task1.run()
+        task2.run()
+        # Now they should compare as equal (both cached with same result)
+        assert task1 == task2
 
     def test_repr_uncached(self):
         """repr should show uncached status."""
@@ -222,3 +239,46 @@ class TestTask:
         task = Task(lambda: 42)
         task.run()
         assert repr(task) == "Task(cached=True)"
+
+
+class TestTaskRegressionTests:
+    """Regression tests to ensure fixed bugs don't resurface."""
+
+    def test_equality_no_side_effects(self):
+        """Task equality should not execute the computation.
+
+        Regression test for issue #003: IO/Task equality side effects.
+        """
+        count = [0]
+
+        def side_effect():
+            count[0] += 1
+            return count[0]
+
+        task1 = Task(side_effect)
+        task2 = Task(side_effect)
+
+        result = task1 == task2
+
+        # Side effects should not occur during equality check
+        assert count[0] == 0, "Equality check executed side effects"
+        assert result is True
+
+    def test_equality_comparison_does_not_mutate(self):
+        """Task equality should not mutate state."""
+        state = {"value": 0}
+
+        def mutate():
+            state["value"] += 1
+            return state["value"]
+
+        task1 = Task(mutate)
+        task2 = Task(mutate)
+
+        # Compare multiple times
+        _ = task1 == task2
+        _ = task1 == task2
+        _ = task1 == task2
+
+        # State should be unchanged
+        assert state["value"] == 0, "Equality check mutated state"

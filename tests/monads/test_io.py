@@ -140,14 +140,21 @@ class TestIO:
         io = IO.delay(42)
         assert io.unsafe_run() == 42
 
-    def test_equality_same_result(self):
-        """IO instances with same results should be equal."""
-        io1 = IO(lambda: 42)
-        io2 = IO(lambda: 42)
+    def test_equality_same_function(self):
+        """IO instances with same function should be equal."""
+        func = lambda: 42
+        io1 = IO(func)
+        io2 = IO(func)
         assert io1 == io2
 
+    def test_equality_different_functions(self):
+        """IO instances with different functions should not be equal."""
+        io1 = IO(lambda: 42)
+        io2 = IO(lambda: 42)
+        assert io1 != io2  # Different lambda functions
+
     def test_equality_different_results(self):
-        """IO instances with different results should not be equal."""
+        """IO instances with different result functions should not be equal."""
         io1 = IO(lambda: 42)
         io2 = IO(lambda: 43)
         assert io1 != io2
@@ -161,3 +168,46 @@ class TestIO:
         """repr should show IO."""
         io = IO(lambda: 42)
         assert repr(io) == "IO(...)"
+
+
+class TestIORegressionTests:
+    """Regression tests to ensure fixed bugs don't resurface."""
+
+    def test_equality_no_side_effects(self):
+        """IO equality should not execute the computation.
+
+        Regression test for issue #003: IO/Task equality side effects.
+        """
+        count = [0]
+
+        def side_effect(x):
+            count.append(1)
+            return x
+
+        io1 = IO(side_effect)
+        io2 = IO(side_effect)
+
+        result = io1 == io2
+
+        # Side effects should not occur during equality check
+        assert count[0] == 0, "Equality check executed side effects"
+        assert result is True
+
+    def test_equality_comparison_does_not_mutate(self):
+        """IO equality should not mutate state."""
+        state = {"value": 0}
+
+        def mutate():
+            state["value"] += 1
+            return state["value"]
+
+        io1 = IO(mutate)
+        io2 = IO(mutate)
+
+        # Compare multiple times
+        _ = io1 == io2
+        _ = io1 == io2
+        _ = io1 == io2
+
+        # State should be unchanged
+        assert state["value"] == 0, "Equality check mutated state"
