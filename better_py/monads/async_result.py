@@ -90,6 +90,8 @@ class AsyncResult(Mappable[T], Generic[T, E]):
         """
         from better_py.monads import Result
         if value is None:
+            # error must not be None when value is None
+            assert error is not None
             return AsyncResult(Result.error(error))
         return AsyncResult(Result.ok(value))
 
