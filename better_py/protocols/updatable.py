@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from better_py.protocols.types import T
+from better_py.protocols.types import T, T_co
 
 K = type("K")  # Placeholder for key type
 
@@ -71,7 +71,7 @@ class Updatable(Protocol[T]):
         """
         ...
 
-    def merge(self, other: dict | T) -> T:
+    def merge(self, other: dict[str, object] | T) -> T:
         """Merge another structure into this one.
 
         Args:
@@ -87,7 +87,7 @@ class Updatable(Protocol[T]):
 
 
 @runtime_checkable
-class DeepUpdatable(Protocol[T]):
+class DeepUpdatable(Protocol[T_co]):
     """Protocol for deep immutable updates.
 
     Supports updating nested fields using dot notation paths.
