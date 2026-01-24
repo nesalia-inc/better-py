@@ -16,7 +16,7 @@ U = TypeVar("U")
 V = TypeVar("V")
 
 
-def curry(func: Callable[..., T]) -> Callable:
+def curry(func: Callable[..., T]) -> Callable[..., T]:
     """Convert a function into a curried function.
 
     A curried function can be called with some arguments and will return
@@ -40,7 +40,7 @@ def curry(func: Callable[..., T]) -> Callable:
     sig = signature(func)
     total_params = len(sig.parameters)
 
-    def curried(*args, **kwargs):
+    def curried(*args: Any, **kwargs: Any) -> Any:
         # Bind provided arguments
         bound = sig.bind_partial(*args, **kwargs)
         bound.apply_defaults()
@@ -51,7 +51,7 @@ def curry(func: Callable[..., T]) -> Callable:
 
         # Otherwise return a function waiting for more arguments
         @wraps(func)
-        def waiting(*more_args, **more_kwargs):
+        def waiting(*more_args: Any, **more_kwargs: Any) -> Any:
             new_args = args + more_args
             new_kwargs = {**kwargs, **more_kwargs}
             return curried(*new_args, **new_kwargs)
@@ -84,7 +84,7 @@ def partial_right(func: Callable[..., T], *args: Any, **kwargs: Any) -> Callable
     """
     sig = signature(func)
 
-    def wrapped(*left_args, **left_kwargs):
+    def wrapped(*left_args: Any, **left_kwargs: Any) -> T:
         # Combine left args with right args
         total_args_needed = len(sig.parameters)
         right_args_count = len(args)
@@ -118,8 +118,8 @@ def flip(func: Callable[[T, U], V]) -> Callable[[U, T], V]:
         >>> flipped_subtract(5, 10)  # subtract(10, 5) = 5
         5
     """
-    def flipped(x: T, y: U) -> V:
-        return func(y, x)
+    def flipped(y: U, x: T) -> V:
+        return func(x, y)
 
     return flipped
 
@@ -136,7 +136,7 @@ class _Placeholder:
         >>> # Fill second argument now, leave first and third for later
     """
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "_"
 
 
