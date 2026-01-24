@@ -141,3 +141,72 @@ class TestPlaceholder:
         _1 = _
         _2 = _
         assert _1 is _2
+
+
+class TestCurryWithDefaults:
+    """Tests for curry with default parameters."""
+
+    def test_curry_with_defaults_uses_defaults_at_call_time(self):
+        """curry should not apply defaults early, but use them at final call."""
+        def func(a, b, c=10, d=20):
+            return a + b + c + d
+
+        curried = curry(func)
+
+        # Should wait for a and b, then apply defaults
+        result = curried(1)(2)
+        assert result == 33  # 1 + 2 + 10 + 20
+
+    def test_curry_with_defaults_can_override_first_default(self):
+        """curry should allow overriding the first default parameter."""
+        def func(a, b, c=10, d=20):
+            return a + b + c + d
+
+        curried = curry(func)
+
+        # Provide a, b, and override c
+        result = curried(1)(2, 5)
+        assert result == 28  # 1 + 2 + 5 + 20
+
+    def test_curry_with_defaults_can_override_all_defaults(self):
+        """curry should allow overriding all default parameters."""
+        def func(a, b, c=10, d=20):
+            return a + b + c + d
+
+        curried = curry(func)
+
+        # Provide a, b, and override both c and d
+        result = curried(1)(2, 5, 3)
+        assert result == 11  # 1 + 2 + 5 + 3
+
+    def test_curry_with_defaults_mixed_application(self):
+        """curry with defaults should support mixed application styles."""
+        def func(a, b, c=10, d=20):
+            return a + b + c + d
+
+        curried = curry(func)
+
+        # Can provide multiple args at once
+        result1 = curried(1, 2)  # Uses defaults
+        assert result1 == 33
+
+        result2 = curried(1, 2, 5)  # Override c
+        assert result2 == 28
+
+        result3 = curried(1, 2, 5, 3)  # Override c and d
+        assert result3 == 11
+
+    def test_curry_with_all_defaults(self):
+        """curry should work with functions that have all default parameters."""
+        def func(a=1, b=2, c=3):
+            return a + b + c
+
+        curried = curry(func)
+
+        # Should be callable with no args (all defaults)
+        result = curried()
+        assert result == 6  # 1 + 2 + 3
+
+        # Should allow overriding defaults
+        result2 = curried(10)
+        assert result2 == 15  # 10 + 2 + 3
