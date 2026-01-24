@@ -205,6 +205,8 @@ class Result(Mappable[T], Generic[T, E]):
         """
         if self._error is not None:
             return Result(None, self._error)
+        # _value is not None when _error is None
+        assert self._value is not None
         return Result(f(self._value), None)
 
     def bind(self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
@@ -226,6 +228,8 @@ class Result(Mappable[T], Generic[T, E]):
         """
         if self._error is not None:
             return Result(None, self._error)
+        # _value is not None when _error is None
+        assert self._value is not None
         return f(self._value)
 
     def flat_map(self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
