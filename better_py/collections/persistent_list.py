@@ -6,7 +6,7 @@ providing O(1) prepend and O(n) index access.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 from typing_extensions import override
@@ -208,7 +208,7 @@ class PersistentList(Mappable[T], Reducible[T], Generic[T]):
 
         return current.head if current else None
 
-    def map(self, f) -> PersistentList[U]:
+    def map(self, f: Callable[[T], U]) -> PersistentList[U]:
         """Apply a function to each element.
 
         Args:
@@ -226,7 +226,7 @@ class PersistentList(Mappable[T], Reducible[T], Generic[T]):
             result = result.prepend(f(item))
         return result
 
-    def filter(self, predicate) -> PersistentList[T]:
+    def filter(self, predicate: Callable[[T], bool]) -> PersistentList[T]:
         """Filter elements by a predicate.
 
         Args:
@@ -245,7 +245,7 @@ class PersistentList(Mappable[T], Reducible[T], Generic[T]):
                 result = result.append(item)
         return result
 
-    def reduce(self, f, initial):
+    def reduce(self, f: Callable[[U, T], U], initial: U) -> U:
         """Reduce the list to a single value.
 
         Args:
@@ -263,6 +263,22 @@ class PersistentList(Mappable[T], Reducible[T], Generic[T]):
         for item in self:
             result = f(result, item)
         return result
+
+    def fold_left(self, f: Callable[[U, T], U], initial: U) -> U:
+        """Left-associative fold (alias for reduce).
+
+        Args:
+            f: Function to combine values
+            initial: Initial value
+
+        Returns:
+            The folded value
+
+        Example:
+            >>> PersistentList.of(1, 2, 3).fold_left(lambda x, y: x - y, 0)
+            -6
+        """
+        return self.reduce(f, initial)
 
     def reverse(self) -> PersistentList[T]:
         """Reverse the list.
@@ -352,7 +368,6 @@ class PersistentList(Mappable[T], Reducible[T], Generic[T]):
         """
         return list(self)
 
-    @override
     def __iter__(self) -> Iterator[T]:
         """Iterate over elements."""
         current = self._node
@@ -360,7 +375,6 @@ class PersistentList(Mappable[T], Reducible[T], Generic[T]):
             yield current.head
             current = current.tail
 
-    @override
     def __len__(self) -> int:
         """Get the length."""
         return self._length
