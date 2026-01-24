@@ -5,7 +5,7 @@ A PersistentMap is an immutable dictionary with structural sharing.
 
 from __future__ import annotations
 
-from collections.abc import ItemsView, Iterable, KeysView, ValuesView
+from collections.abc import Callable, ItemsView, Iterable, KeysView, ValuesView
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 from typing_extensions import override
@@ -230,7 +230,7 @@ class PersistentMap(Mappable[tuple[K, V]], Generic[K, V]):
         """
         return self._data.items()
 
-    def map(self, f) -> PersistentMap[K, U]:
+    def map(self, f: Callable[[K, V], U]) -> PersistentMap[K, U]:
         """Apply a function to all values.
 
         Args:
@@ -246,7 +246,7 @@ class PersistentMap(Mappable[tuple[K, V]], Generic[K, V]):
         new_data = {k: f(k, v) for k, v in self._data.items()}
         return PersistentMap(new_data)
 
-    def map_values(self, f) -> PersistentMap[K, U]:
+    def map_values(self, f: Callable[[V], U]) -> PersistentMap[K, U]:
         """Apply a function to all values (keys unchanged).
 
         Args:
@@ -262,7 +262,7 @@ class PersistentMap(Mappable[tuple[K, V]], Generic[K, V]):
         new_data = {k: f(v) for k, v in self._data.items()}
         return PersistentMap(new_data)
 
-    def map_keys(self, f) -> PersistentMap[U, V]:
+    def map_keys(self, f: Callable[[K], U]) -> PersistentMap[U, V]:
         """Apply a function to all keys (values unchanged).
 
         Args:
