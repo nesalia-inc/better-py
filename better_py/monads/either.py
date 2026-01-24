@@ -142,6 +142,8 @@ class Either(Mappable[R], Generic[L, R]):
         """
         if self._left is not None:
             return Either.right(self._left)
+        # _right is not None when _left is None
+        assert self._right is not None
         return Either.left(self._right)
 
     def map(self, f: Callable[[R], U]) -> Either[L, U]:
@@ -159,6 +161,8 @@ class Either(Mappable[R], Generic[L, R]):
         """
         if self._right is None:
             return Either(self._left, None)
+        # _right is not None here
+        assert self._right is not None
         return Either(None, f(self._right))
 
     def map_left(self, f: Callable[[L], L]) -> Either[L, R]:
@@ -176,6 +180,8 @@ class Either(Mappable[R], Generic[L, R]):
         """
         if self._left is None:
             return Either(None, self._right)
+        # _left is not None here
+        assert self._left is not None
         return Either(f(self._left), None)
 
     def flat_map(self, f: Callable[[R], Either[L, U]]) -> Either[L, U]:
@@ -194,6 +200,8 @@ class Either(Mappable[R], Generic[L, R]):
         """
         if self._right is None:
             return Either(self._left, None)
+        # _right is not None here
+        assert self._right is not None
         return f(self._right)
 
     def fold(self, on_left: Callable[[L], U], on_right: Callable[[R], U]) -> U:
@@ -212,6 +220,8 @@ class Either(Mappable[R], Generic[L, R]):
         """
         if self._left is not None:
             return on_left(self._left)
+        # _right is not None when _left is None
+        assert self._right is not None
         return on_right(self._right)
 
     @override
