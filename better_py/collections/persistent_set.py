@@ -5,7 +5,7 @@ A PersistentSet is an immutable set with structural sharing.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 from typing_extensions import override

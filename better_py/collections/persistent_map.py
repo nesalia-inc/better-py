@@ -230,7 +230,7 @@ class PersistentMap(Mappable1[tuple[K, V]], Generic[K, V]):
         """
         return self._data.items()
 
-    def map(self, f: Callable[[K, V], U]) -> PersistentMap[K, U]:  # type: ignore[override]
+    def map(self, f: Callable[[K, V], U]) -> PersistentMap[K, U]:
         """Apply a function to all values.
 
         Args:
