@@ -185,8 +185,12 @@ class IO(Mappable[T], Generic[T]):
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, IO):
             return False
-        # IO instances are compared by their results
-        return self._value() == other._value()  # type: ignore[no-any-return]
+        # IO instances are compared by identity, not execution result
+        # to avoid executing side effects during equality checks
+        return self is other
+
+    def __hash__(self) -> int:
+        return id(self)
 
 
 __all__ = ["IO"]

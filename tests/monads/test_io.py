@@ -141,10 +141,13 @@ class TestIO:
         assert io.unsafe_run() == 42
 
     def test_equality_same_result(self):
-        """IO instances with same results should be equal."""
+        """IO instances are compared by identity, not result."""
         io1 = IO(lambda: 42)
         io2 = IO(lambda: 42)
-        assert io1 == io2
+        # Different instances are not equal, even if they produce the same result
+        assert io1 != io2
+        # Same instance is equal to itself
+        assert io1 == io1
 
     def test_equality_different_results(self):
         """IO instances with different results should not be equal."""
@@ -161,3 +164,19 @@ class TestIO:
         """repr should show IO."""
         io = IO(lambda: 42)
         assert repr(io) == "IO(...)"
+
+    def test_equality_no_side_effects(self):
+        """IO equality should not execute the computation."""
+        count = [0]
+
+        def computation():
+            count[0] += 1
+            return 42
+
+        io1 = IO(computation)
+        io2 = IO(computation)
+
+        result = io1 == io2
+
+        # Side effects should not occur during equality check
+        assert count[0] == 0, f"Equality check executed side effects: {count[0]} executions"

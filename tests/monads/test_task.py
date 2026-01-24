@@ -196,10 +196,13 @@ class TestTask:
         assert task.run() == 42
 
     def test_equality_same_result(self):
-        """Task instances with same results should be equal."""
+        """Task instances are compared by identity, not result."""
         task1 = Task(lambda: 42)
         task2 = Task(lambda: 42)
-        assert task1 == task2
+        # Different instances are not equal, even if they produce the same result
+        assert task1 != task2
+        # Same instance is equal to itself
+        assert task1 == task1
 
     def test_equality_different_results(self):
         """Task instances with different results should not be equal."""
@@ -222,3 +225,19 @@ class TestTask:
         task = Task(lambda: 42)
         task.run()
         assert repr(task) == "Task(cached=True)"
+
+    def test_equality_no_side_effects(self):
+        """Task equality should not execute the computation."""
+        count = [0]
+
+        def computation():
+            count[0] += 1
+            return 42
+
+        task1 = Task(computation)
+        task2 = Task(computation)
+
+        result = task1 == task2
+
+        # Side effects should not occur during equality check
+        assert count[0] == 0, f"Equality check executed side effects: {count[0]} executions"
