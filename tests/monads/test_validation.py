@@ -179,6 +179,15 @@ class TestValidationAp:
         result = invalid_fn.ap(invalid_value)
         assert result.is_invalid()
 
+    def test_ap_accumulates_errors(self):
+        """ap should accumulate errors when both Validations are Invalid."""
+        invalid_fn = Validation.invalid(["error1", "error2"])
+        invalid_value = Validation.invalid(["error3"])
+        result = invalid_fn.ap(invalid_value)
+
+        assert result.is_invalid()
+        assert result.unwrap_errors() == ["error1", "error2", "error3"]
+
 
 class TestValidationFold:
     """Tests for fold operation."""
