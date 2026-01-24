@@ -98,7 +98,10 @@ class State(Mappable[A], Generic[S, A]):
         Example:
             >>> state.map(lambda x: x * 2)
         """
-        return State(lambda s: (f(self._run(s)[0]), self._run(s)[1]))
+        def new_run(s: S) -> tuple[B, S]:
+            value, new_state = self._run(s)
+            return (f(value), new_state)
+        return State(new_run)
 
     def flat_map(self, f: Callable[[A], State[S, B]]) -> State[S, B]:
         """Chain operations that return State.
@@ -112,7 +115,10 @@ class State(Mappable[A], Generic[S, A]):
         Example:
             >>> state.flat_map(lambda x: State(lambda s: (x + s, s)))
         """
-        return State(lambda s: f(self._run(s)[0])._run(self._run(s)[1]))
+        def new_run(s: S) -> tuple[B, S]:
+            value, new_state = self._run(s)
+            return f(value)._run(new_state)
+        return State(new_run)
 
     @staticmethod
     def get() -> State[S, S]:
