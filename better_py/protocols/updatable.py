@@ -93,7 +93,7 @@ class DeepUpdatable(Protocol[T_co]):
     Supports updating nested fields using dot notation paths.
     """
 
-    def set_in(self, path: list[str | int], value: object) -> T:
+    def set_in(self, path: list[str | int], value: object) -> T_co:
         """Set a nested field using a path.
 
         Args:
@@ -108,7 +108,7 @@ class DeepUpdatable(Protocol[T_co]):
         """
         ...
 
-    def update_in(self, path: list[str | int], **changes: object) -> T:
+    def update_in(self, path: list[str | int], **changes: object) -> T_co:
         """Update multiple fields at a nested level.
 
         Args:
@@ -123,7 +123,7 @@ class DeepUpdatable(Protocol[T_co]):
         """
         ...
 
-    def delete_in(self, path: list[str | int], key: str | int) -> T:
+    def delete_in(self, path: list[str | int], key: str | int) -> T_co:
         """Delete a field at a nested level.
 
         Args:

@@ -5,12 +5,12 @@ A PersistentMap is an immutable dictionary with structural sharing.
 
 from __future__ import annotations
 
-from collections.abc import Callable, ItemsView, Iterable, KeysView, ValuesView
+from collections.abc import Callable, ItemsView, Iterable, Iterator, KeysView, ValuesView
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 from typing_extensions import override
 
-from better_py.protocols import Mappable
+from better_py.protocols import Mappable1
 
 K = TypeVar("K")
 V = TypeVar("V")
@@ -18,7 +18,7 @@ U = TypeVar("U")
 
 
 @dataclass(frozen=True, slots=True)
-class PersistentMap(Mappable[tuple[K, V]], Generic[K, V]):
+class PersistentMap(Mappable1[tuple[K, V]], Generic[K, V]):
     """Immutable map with structural sharing.
 
     A PersistentMap is an immutable dictionary that never mutates.
@@ -230,7 +230,7 @@ class PersistentMap(Mappable[tuple[K, V]], Generic[K, V]):
         """
         return self._data.items()
 
-    def map(self, f: Callable[[K, V], U]) -> PersistentMap[K, U]:
+    def map(self, f: Callable[[K, V], U]) -> PersistentMap[K, U]:  # type: ignore[override]
         """Apply a function to all values.
 
         Args:
@@ -320,7 +320,7 @@ class PersistentMap(Mappable[tuple[K, V]], Generic[K, V]):
     def __hash__(self) -> int:
         return hash(tuple(sorted(self._data.items())))
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[K]:
         """Iterate over keys."""
         return iter(self._data)
 

@@ -330,9 +330,9 @@ class PersistentSet(Reducible[T], Generic[T]):
         return self._data == other._data
 
     def __hash__(self) -> int:
-        return hash(tuple(sorted(self._data)))
+        return hash(frozenset(self._data))
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[T]:
         """Iterate over elements."""
         return iter(self._data)
 

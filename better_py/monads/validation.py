@@ -195,7 +195,7 @@ class Validation(Mappable[T], Generic[E, T]):
         # Both _value fields are not None when _errors is empty
         assert self._value is not None
         assert other._value is not None
-        return Validation(self._value(other._value), [])
+        return Validation(other._value(self._value), [])
 
     def flat_map(self, f: Callable[[T], Validation[E, U]]) -> Validation[E, U]:
         """Chain operations that return Validation.
