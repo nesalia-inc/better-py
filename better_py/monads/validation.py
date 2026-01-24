@@ -115,6 +115,8 @@ class Validation(Mappable[T], Generic[E, T]):
         """
         if self._errors:
             raise ValueError(f"Cannot unwrap Invalid: {self._errors}")
+        # _value is not None when _errors is empty
+        assert self._value is not None
         return self._value
 
     def unwrap_errors(self) -> list[E]:
@@ -149,6 +151,8 @@ class Validation(Mappable[T], Generic[E, T]):
         """
         if self._errors:
             return Validation(None, self._errors)
+        # _value is not None when _errors is empty
+        assert self._value is not None
         return Validation(f(self._value), [])
 
     def map_errors(self, f: Callable[[list[E]], list[E]]) -> Validation[E, T]:
@@ -165,6 +169,8 @@ class Validation(Mappable[T], Generic[E, T]):
             Invalid(['! error'])
         """
         if not self._errors:
+            # _value is not None when _errors is empty
+            assert self._value is not None
             return Validation(self._value, [])
         return Validation(None, f(self._errors))
 
@@ -186,6 +192,9 @@ class Validation(Mappable[T], Generic[E, T]):
             return Validation(None, self._errors)
         if other._errors:
             return Validation(None, other._errors)
+        # Both _value fields are not None when _errors is empty
+        assert self._value is not None
+        assert other._value is not None
         return Validation(self._value(other._value), [])
 
     def flat_map(self, f: Callable[[T], Validation[E, U]]) -> Validation[E, U]:
@@ -204,9 +213,13 @@ class Validation(Mappable[T], Generic[E, T]):
         """
         if self._errors:
             return Validation(None, self._errors)
+        # _value is not None when _errors is empty
+        assert self._value is not None
         result = f(self._value)
         if result._errors:
             return Validation(None, result._errors)
+        # result._value is not None when result._errors is empty
+        assert result._value is not None
         return Validation(result._value, [])
 
     def fold(self, on_invalid: Callable[[list[E]], U], on_valid: Callable[[T], U]) -> U:
@@ -228,6 +241,8 @@ class Validation(Mappable[T], Generic[E, T]):
         """
         if self._errors:
             return on_invalid(self._errors)
+        # _value is not None when _errors is empty
+        assert self._value is not None
         return on_valid(self._value)
 
     def to_result(self) -> Result[T, E]:
@@ -244,6 +259,8 @@ class Validation(Mappable[T], Generic[E, T]):
 
         if self._errors:
             return Result.error(self._errors[0])
+        # _value is not None when _errors is empty
+        assert self._value is not None
         return Result.ok(self._value)
 
     @override
