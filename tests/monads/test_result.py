@@ -257,3 +257,57 @@ class TestResultGenericTypes:
         """Result error type should be preserved."""
         result: Result[int, str] = Result.error("failed")
         assert result.unwrap_error() == "failed"
+
+
+class TestResultApplicative:
+    """Tests for Result applicative operations."""
+
+    def test_ap_both_ok(self):
+        """ap should apply function when both are Ok."""
+        add = Result.ok(lambda x: x + 1)
+        value = Result.ok(5)
+        result = value.ap(add)
+        assert result.is_ok()
+        assert result.unwrap() == 6
+
+    def test_ap_function_error(self):
+        """ap should return Error when function is Error."""
+        error_fn = Result.error("bad")
+        value = Result.ok(5)
+        result = value.ap(error_fn)
+        assert result.is_error()
+
+    def test_ap_value_error(self):
+        """ap should return Error when value is Error."""
+        add = Result.ok(lambda x: x + 1)
+        error_value = Result.error("bad")
+        result = error_value.ap(add)
+        assert result.is_error()
+
+    def test_lift2_both_ok(self):
+        """lift2 should apply function when both are Ok."""
+        result = Result.lift2(lambda x, y: x + y, Result.ok(1), Result.ok(2))
+        assert result.is_ok()
+        assert result.unwrap() == 3
+
+    def test_lift2_first_error(self):
+        """lift2 should return Error when first is Error."""
+        result = Result.lift2(lambda x, y: x + y, Result.error("bad"), Result.ok(2))
+        assert result.is_error()
+
+    def test_lift3_all_ok(self):
+        """lift3 should apply function when all are Ok."""
+        result = Result.lift3(lambda x, y, z: x + y + z, Result.ok(1), Result.ok(2), Result.ok(3))
+        assert result.is_ok()
+        assert result.unwrap() == 6
+
+    def test_zip_all_ok(self):
+        """zip should combine all Ok values into a tuple."""
+        result = Result.zip(Result.ok(1), Result.ok(2), Result.ok(3))
+        assert result.is_ok()
+        assert result.unwrap() == (1, 2, 3)
+
+    def test_zip_one_error(self):
+        """zip should return Error when any is Error."""
+        result = Result.zip(Result.ok(1), Result.error("bad"), Result.ok(3))
+        assert result.is_error()

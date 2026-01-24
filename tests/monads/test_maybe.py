@@ -242,3 +242,86 @@ class TestMaybeGenericTypes:
         """Maybe should work with dict."""
         maybe: Maybe[str, int] = Maybe.some({"a": 1})
         assert maybe.unwrap() == {"a": 1}
+
+
+class TestMaybeApplicative:
+    """Tests for Maybe applicative operations."""
+
+    def test_ap_both_some(self):
+        """ap should apply function when both are Some."""
+        add = Maybe.some(lambda x: x + 1)
+        value = Maybe.some(5)
+        result = value.ap(add)
+        assert result.is_some()
+        assert result.unwrap() == 6
+
+    def test_ap_function_nothing(self):
+        """ap should return Nothing when function is Nothing."""
+        nothing_fn = Maybe.nothing()
+        value = Maybe.some(5)
+        result = nothing_fn.ap(value)
+        assert result.is_nothing()
+
+    def test_ap_value_nothing(self):
+        """ap should return Nothing when value is Nothing."""
+        add = Maybe.some(lambda x: x + 1)
+        nothing_value = Maybe.nothing()
+        result = add.ap(nothing_value)
+        assert result.is_nothing()
+
+    def test_ap_both_nothing(self):
+        """ap should return Nothing when both are Nothing."""
+        nothing_fn = Maybe.nothing()
+        nothing_value = Maybe.nothing()
+        result = nothing_fn.ap(nothing_value)
+        assert result.is_nothing()
+
+    def test_lift2_both_some(self):
+        """lift2 should apply function when both are Some."""
+        result = Maybe.lift2(lambda x, y: x + y, Maybe.some(1), Maybe.some(2))
+        assert result.is_some()
+        assert result.unwrap() == 3
+
+    def test_lift2_first_nothing(self):
+        """lift2 should return Nothing when first is Nothing."""
+        result = Maybe.lift2(lambda x, y: x + y, Maybe.nothing(), Maybe.some(2))
+        assert result.is_nothing()
+
+    def test_lift2_second_nothing(self):
+        """lift2 should return Nothing when second is Nothing."""
+        result = Maybe.lift2(lambda x, y: x + y, Maybe.some(1), Maybe.nothing())
+        assert result.is_nothing()
+
+    def test_lift3_all_some(self):
+        """lift3 should apply function when all are Some."""
+        result = Maybe.lift3(lambda x, y, z: x + y + z, Maybe.some(1), Maybe.some(2), Maybe.some(3))
+        assert result.is_some()
+        assert result.unwrap() == 6
+
+    def test_lift3_one_nothing(self):
+        """lift3 should return Nothing when any is Nothing."""
+        result = Maybe.lift3(lambda x, y, z: x + y + z, Maybe.some(1), Maybe.nothing(), Maybe.some(3))
+        assert result.is_nothing()
+
+    def test_zip_all_some(self):
+        """zip should combine all Some values into a tuple."""
+        result = Maybe.zip(Maybe.some(1), Maybe.some(2), Maybe.some(3))
+        assert result.is_some()
+        assert result.unwrap() == (1, 2, 3)
+
+    def test_zip_one_nothing(self):
+        """zip should return Nothing when any is Nothing."""
+        result = Maybe.zip(Maybe.some(1), Maybe.nothing(), Maybe.some(3))
+        assert result.is_nothing()
+
+    def test_zip_empty(self):
+        """zip should return Some(()) when no arguments."""
+        result = Maybe.zip()
+        assert result.is_some()
+        assert result.unwrap() == ()
+
+    def test_zip_single(self):
+        """zip should work with a single value."""
+        result = Maybe.zip(Maybe.some(42))
+        assert result.is_some()
+        assert result.unwrap() == (42,)
