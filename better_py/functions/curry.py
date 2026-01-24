@@ -22,6 +22,10 @@ def curry(func: Callable[..., T]) -> Callable[..., T]:
     A curried function can be called with some arguments and will return
     a function waiting for the remaining arguments.
 
+    Default parameters are NOT filled in automatically. The function executes
+    when all required arguments (those without defaults) are provided. Optional
+    parameters with defaults can be provided to override defaults.
+
     Args:
         func: Function to curry
 
@@ -36,17 +40,36 @@ def curry(func: Callable[..., T]) -> Callable[..., T]:
         6
         >>> curried_add(1, 2)(3)  # 6
         6
+
+    With defaults (defaults not applied until final call):
+        >>> def func(a, b, c=10, d=20):
+        ...     return a + b + c + d
+        >>> curried = curry(func)
+        >>> curried(1)(2)  # Uses defaults: 1 + 2 + 10 + 20 = 33
+        33
+        >>> curried(1)(2, 5)  # Override c: 1 + 2 + 5 + 20 = 28
+        28
+        >>> curried(1)(2, 5, 3)  # Override c and d: 1 + 2 + 5 + 3 = 11
+        11
     """
     sig = signature(func)
-    total_params = len(sig.parameters)
+
+    # Count required parameters (those without defaults)
+    # Exclude VAR_POSITIONAL (*args) and VAR_KEYWORD (**kwargs)
+    required_params = sum(
+        1
+        for p in sig.parameters.values()
+        if p.default is p.empty and p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD)
+    )
 
     def curried(*args: Any, **kwargs: Any) -> Any:
-        # Bind provided arguments
+        # Bind provided arguments (without applying defaults)
         bound = sig.bind_partial(*args, **kwargs)
-        bound.apply_defaults()
 
-        # If we have all required arguments, call the function
-        if len(bound.arguments) >= total_params:
+        # Apply defaults only when we're ready to call the function
+        # This ensures defaults are used at call time, not during currying
+        if len(bound.arguments) >= required_params:
+            bound.apply_defaults()
             return func(*bound.args, **bound.kwargs)
 
         # Otherwise return a function waiting for more arguments
