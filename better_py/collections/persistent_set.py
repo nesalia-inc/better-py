@@ -5,7 +5,7 @@ A PersistentSet is an immutable set with structural sharing.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 from typing_extensions import override
@@ -13,6 +13,7 @@ from typing_extensions import override
 from better_py.protocols import Reducible
 
 T = TypeVar("T")
+U = TypeVar("U")
 
 
 @dataclass(frozen=True, slots=True)
@@ -240,7 +241,7 @@ class PersistentSet(Reducible[T], Generic[T]):
         """
         return self._data >= other._data
 
-    def map(self, f) -> PersistentSet:
+    def map(self, f: Callable[[T], T]) -> "PersistentSet[T]":
         """Apply a function to all elements.
 
         Args:
@@ -255,7 +256,7 @@ class PersistentSet(Reducible[T], Generic[T]):
         """
         return PersistentSet({f(x) for x in self._data})
 
-    def filter(self, predicate) -> PersistentSet[T]:
+    def filter(self, predicate: Callable[[T], bool]) -> PersistentSet[T]:
         """Filter elements by a predicate.
 
         Args:
@@ -270,7 +271,7 @@ class PersistentSet(Reducible[T], Generic[T]):
         """
         return PersistentSet({x for x in self._data if predicate(x)})
 
-    def reduce(self, f, initial):
+    def reduce(self, f: Callable[[U, T], U], initial: U) -> U:
         """Reduce the set to a single value.
 
         Args:
@@ -288,6 +289,22 @@ class PersistentSet(Reducible[T], Generic[T]):
         for item in self._data:
             result = f(result, item)
         return result
+
+    def fold_left(self, f: Callable[[U, T], U], initial: U) -> U:
+        """Left-associative fold (alias for reduce).
+
+        Args:
+            f: Function to combine values
+            initial: Initial value
+
+        Returns:
+            The folded value
+
+        Example:
+            >>> PersistentSet.of(1, 2, 3).fold_left(lambda x, y: x - y, 0)
+            -6
+        """
+        return self.reduce(f, initial)
 
     def to_set(self) -> set[T]:
         """Convert to a Python set.
