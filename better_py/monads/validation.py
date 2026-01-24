@@ -188,6 +188,9 @@ class Validation(Mappable[T], Generic[E, T]):
             >>> val = Validation.valid(5)
             >>> add.ap(val)  # Valid(6)
         """
+        if self._errors and other._errors:
+            # Accumulate errors from both sides
+            return Validation(None, self._errors + other._errors)
         if self._errors:
             return Validation(None, self._errors)
         if other._errors:
@@ -195,7 +198,7 @@ class Validation(Mappable[T], Generic[E, T]):
         # Both _value fields are not None when _errors is empty
         assert self._value is not None
         assert other._value is not None
-        return Validation(other._value(self._value), [])
+        return Validation(self._value(other._value), [])
 
     def flat_map(self, f: Callable[[T], Validation[E, U]]) -> Validation[E, U]:
         """Chain operations that return Validation.
