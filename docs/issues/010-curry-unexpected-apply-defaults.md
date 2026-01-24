@@ -1,10 +1,5 @@
 # Issue 010: curry() Uses apply_defaults() Unexpectedly
 
-**Severity:** Medium
-**Status:** Open
-**Location:** `better_py/curry.py:46`
-**Priority:** P2 - Medium Priority
-
 ## Description
 
 The `curry` function calls `apply_defaults()` unconditionally, which means default values are filled in even when not all arguments are provided. This leads to unexpected behavior where curried functions may return results instead of waiting for more arguments.

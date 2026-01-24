@@ -1,10 +1,5 @@
 # Issue 002: State.map() and flat_map() Execute State Transformation Twice
 
-**Severity:** Critical
-**Status:** Open
-**Location:** `better_py/monads/state.py:89-115`
-**Priority:** P0 - Must Fix
-
 ## Description
 
 The `map` and `flat_map` methods in the `State` monad call `self._run(s)` twice instead of once and storing the result. This causes the state transformation to be executed twice, which is a performance issue and can lead to incorrect behavior when the state computation has side effects.

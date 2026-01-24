@@ -1,14 +1,5 @@
 # Issue 007: Missing Applicative Operations (ap, lift2, zip)
 
-**Severity:** Medium
-**Status:** Open
-**Location:**
-- `better_py/monads/maybe.py`
-- `better_py/monads/result.py`
-- `better_py/monads/either.py`
-
-**Priority:** P2 - Medium Priority
-
 ## Description
 
 The library only provides the `ap` (apply) method on the `Validation` monad. Other monads (`Maybe`, `Result`, `Either`) lack applicative operations, making the library inconsistent and preventing generic applicative patterns.

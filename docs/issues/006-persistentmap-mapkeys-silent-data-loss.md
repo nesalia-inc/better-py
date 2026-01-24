@@ -1,10 +1,5 @@
 # Issue 006: PersistentMap.map_keys() Silently Loses Data on Key Collisions
 
-**Severity:** High
-**Status:** Open
-**Location:** `better_py/collections/persistent_map.py:265-279`
-**Priority:** P1 - High Priority
-
 ## Description
 
 The `map_keys` method in `PersistentMap` transforms keys using a function, but when the transformation produces duplicate keys, values are silently lost. There is no way to specify a collision resolution strategy.

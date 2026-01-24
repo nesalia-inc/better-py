@@ -1,10 +1,5 @@
 # Issue 004: PersistentList.append() Has O(n) Performance Inefficient Implementation
 
-**Severity:** High
-**Status:** Open
-**Location:** `better_py/collections/persistent_list.py:138-157`
-**Priority:** P1 - High Priority
-
 ## Description
 
 The `append` method in `PersistentList` converts the entire linked list to a Python list, appends the item, then converts back to a `PersistentList`. This is highly inefficient, especially when called in a loop.

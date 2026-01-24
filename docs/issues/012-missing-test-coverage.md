@@ -1,10 +1,5 @@
 # Issue 012: Missing Test Coverage for Edge Cases and Error Conditions
 
-**Severity:** Medium
-**Status:** Open
-**Location:** Various test files
-**Priority:** P2 - Medium Priority
-
 ## Description
 
 The test suite has several gaps in coverage, particularly for edge cases, error conditions, and verifying correct behavior in failure scenarios.

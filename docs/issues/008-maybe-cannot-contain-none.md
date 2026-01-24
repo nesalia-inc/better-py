@@ -1,10 +1,5 @@
 # Issue 008: Maybe Cannot Distinguish None from Nothing
 
-**Severity:** Medium
-**Status:** Open
-**Location:** `better_py/monads/maybe.py:69-84`
-**Priority:** P2 - Medium Priority
-
 ## Description
 
 The `Maybe` monad treats `None` as "no value", making it impossible to distinguish between:

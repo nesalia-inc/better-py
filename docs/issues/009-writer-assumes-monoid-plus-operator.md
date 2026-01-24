@@ -1,10 +1,5 @@
 # Issue 009: Writer Assumes Monoid Uses + Operator
 
-**Severity:** Medium
-**Status:** Open
-**Location:** `better_py/monads/writer.py:28` and throughout
-**Priority:** P2 - Medium Priority
-
 ## Description
 
 The `Writer` monad assumes the log type uses the `+` operator for monoid combination. This works for built-in types like `list`, `str`, and `int`, but fails for custom types that need different combination strategies.

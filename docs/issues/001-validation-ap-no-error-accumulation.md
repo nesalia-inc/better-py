@@ -1,10 +1,5 @@
 # Issue 001: Validation.ap() Does Not Accumulate Errors
 
-**Severity:** Critical
-**Status:** Open
-**Location:** `better_py/monads/validation.py:177-198`
-**Priority:** P0 - Must Fix
-
 ## Description
 
 The `ap` method in the `Validation` monad is supposed to accumulate errors from both Validations when both are Invalid. This is the core feature that distinguishes `Validation` from `Result` - the ability to collect multiple validation errors and report them all at once.

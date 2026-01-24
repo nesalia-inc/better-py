@@ -1,10 +1,5 @@
 # Issue 011: PersistentList.get() Does Not Support Negative Indexing
 
-**Severity:** Low
-**Status:** Open
-**Location:** `better_py/collections/persistent_list.py:187-209`
-**Priority:** P3 - Low Priority
-
 ## Description
 
 The `get` method in `PersistentList` rejects negative indices, breaking Python's standard indexing convention where negative indices count from the end of the sequence.

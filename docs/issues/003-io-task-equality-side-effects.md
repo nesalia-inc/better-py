@@ -1,13 +1,5 @@
 # Issue 003: IO.__eq__() and Task.__eq__() Execute Side Effects
 
-**Severity:** Critical
-**Status:** Open
-**Location:**
-- `better_py/monads/io.py:185-189`
-- `better_py/monads/task.py:230-234`
-
-**Priority:** P0 - Must Fix
-
 ## Description
 
 The `__eq__` method in both `IO` and `Task` monads executes the wrapped computation when comparing instances. This is a serious violation of the principle that equality checks should be side-effect-free.

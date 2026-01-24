@@ -1,10 +1,5 @@
 # Issue 005: PersistentList.drop() Creates Unnecessary Intermediate Lists
 
-**Severity:** High
-**Status:** Open
-**Location:** `better_py/collections/persistent_list.py:309-341`
-**Priority:** P1 - High Priority
-
 ## Description
 
 The `drop` method in `PersistentList` traverses the linked list to find the starting point, then builds a Python list, then converts it back to a `PersistentList` by reversing and prepending. This is inefficient for a linked list.
