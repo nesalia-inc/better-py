@@ -270,3 +270,29 @@ class TestPersistentList:
             .take(3)
         )
         assert result.to_list() == [6, 8, 10]
+
+
+class TestPersistentListPerformance:
+    """Performance tests for PersistentList to track optimization efforts."""
+
+    def test_append_performance(self, benchmark):
+        """Benchmark append performance (currently O(n) per call)."""
+        def build_with_append():
+            lst = PersistentList.empty()
+            for i in range(100):
+                lst = lst.append(i)
+            return lst
+
+        result = benchmark(build_with_append)
+        assert result.to_list() == list(range(100))
+
+    def test_prepend_reverse_performance(self, benchmark):
+        """Benchmark prepend+reverse performance (O(n) total)."""
+        def build_with_prepend_reverse():
+            lst = PersistentList.empty()
+            for i in range(100):
+                lst = lst.prepend(i)
+            return lst.reverse()
+
+        result = benchmark(build_with_prepend_reverse)
+        assert result.to_list() == list(range(100))
