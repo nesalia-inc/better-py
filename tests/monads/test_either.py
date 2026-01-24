@@ -283,3 +283,57 @@ class TestEitherPracticalExamples:
             .map_left(lambda e: f"Retry: {e}")
         )
         assert result.unwrap_left() == "Retry: Network: connection failed"
+
+
+class TestEitherApplicative:
+    """Tests for Either applicative operations."""
+
+    def test_ap_both_right(self):
+        """ap should apply function when both are Right."""
+        add = Either.right(lambda x: x + 1)
+        value = Either.right(5)
+        result = value.ap(add)
+        assert result.is_right()
+        assert result.unwrap_right() == 6
+
+    def test_ap_function_left(self):
+        """ap should return Left when function is Left."""
+        left_fn = Either.left("bad")
+        value = Either.right(5)
+        result = value.ap(left_fn)
+        assert result.is_left()
+
+    def test_ap_value_left(self):
+        """ap should return Left when value is Left."""
+        add = Either.right(lambda x: x + 1)
+        left_value = Either.left("bad")
+        result = left_value.ap(add)
+        assert result.is_left()
+
+    def test_lift2_both_right(self):
+        """lift2 should apply function when both are Right."""
+        result = Either.lift2(lambda x, y: x + y, Either.right(1), Either.right(2))
+        assert result.is_right()
+        assert result.unwrap_right() == 3
+
+    def test_lift2_first_left(self):
+        """lift2 should return Left when first is Left."""
+        result = Either.lift2(lambda x, y: x + y, Either.left("bad"), Either.right(2))
+        assert result.is_left()
+
+    def test_lift3_all_right(self):
+        """lift3 should apply function when all are Right."""
+        result = Either.lift3(lambda x, y, z: x + y + z, Either.right(1), Either.right(2), Either.right(3))
+        assert result.is_right()
+        assert result.unwrap_right() == 6
+
+    def test_zip_all_right(self):
+        """zip should combine all Right values into a tuple."""
+        result = Either.zip(Either.right(1), Either.right(2), Either.right(3))
+        assert result.is_right()
+        assert result.unwrap_right() == (1, 2, 3)
+
+    def test_zip_one_left(self):
+        """zip should return Left when any is Left."""
+        result = Either.zip(Either.right(1), Either.left("bad"), Either.right(3))
+        assert result.is_left()

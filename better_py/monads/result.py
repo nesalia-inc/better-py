@@ -260,6 +260,90 @@ class Result(Mappable[T], Generic[T, E]):
         """
         return self.bind(f)
 
+    def ap(self, fn: Result[Callable[[T], U], E]) -> Result[U, E]:
+        """Apply a Result containing a function to this Result.
+
+        Args:
+            fn: A Result containing a function
+
+        Returns:
+            Ok(f(value)) if both are Ok, otherwise Error
+
+        Example:
+            >>> add = Result.ok(lambda x: x + 1)
+            >>> value = Result.ok(5)
+            >>> add.ap(value)  # Ok(6)
+            >>> Result.error("bad").ap(value)  # Error('bad')
+            >>> add.ap(Result.error("bad"))  # Error('bad')
+        """
+        if self._error is not None or fn._error is not None:
+            if self._error is not None:
+                return Result(None, self._error)
+            return Result(None, fn._error)
+        assert self._value is not None
+        assert fn._value is not None
+        return Result(fn._value(self._value), None)
+
+    @staticmethod
+    def lift2(f: Callable[[T, U], object], ma: Result[T, E], mb: Result[U, E]) -> Result[object, E]:
+        """Lift a binary function to operate on Result values.
+
+        Args:
+            f: A binary function
+            ma: First Result value
+            mb: Second Result value
+
+        Returns:
+            Ok(f(a, b)) if both are Ok, otherwise Error
+
+        Example:
+            >>> Result.lift2(lambda x, y: x + y, Result.ok(1), Result.ok(2))  # Ok(3)
+            >>> Result.lift2(lambda x, y: x + y, Result.ok(1), Result.error("bad"))  # Error('bad')
+        """
+        curried = ma.map(lambda x: lambda y: f(x, y))
+        return mb.ap(curried)
+
+    @staticmethod
+    def lift3(f: Callable[[T, U, object], object], ma: Result[T, E], mb: Result[U, E], mc: Result[object, E]) -> Result[object, E]:
+        """Lift a ternary function to operate on Result values.
+
+        Args:
+            f: A ternary function
+            ma: First Result value
+            mb: Second Result value
+            mc: Third Result value
+
+        Returns:
+            Ok(f(a, b, c)) if all are Ok, otherwise Error
+
+        Example:
+            >>> Result.lift3(lambda x, y, z: x + y + z, Result.ok(1), Result.ok(2), Result.ok(3))  # Ok(6)
+        """
+        curried = ma.map(lambda x: lambda y: lambda z: f(x, y, z))
+        return mc.ap(mb.ap(curried))
+
+    @staticmethod
+    def zip(*results: Result[T, E]) -> Result[tuple[T, ...], E]:
+        """Combine multiple Result values into a tuple.
+
+        Args:
+            *results: Result values to combine
+
+        Returns:
+            Ok(tuple of values) if all are Ok, otherwise Error
+
+        Example:
+            >>> Result.zip(Result.ok(1), Result.ok(2), Result.ok(3))  # Ok((1, 2, 3))
+            >>> Result.zip(Result.ok(1), Result.error("bad"), Result.ok(3))  # Error('bad')
+        """
+        vals: list[T] = []
+        for r in results:
+            if r._error is not None:
+                return Result(None, r._error)
+            assert r._value is not None
+            vals.append(r._value)
+        return Result(tuple(vals), None)
+
     def map_error(self, f: Callable[[E], E]) -> Result[T, E]:
         """Apply a function to the error value.
 

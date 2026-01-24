@@ -220,6 +220,87 @@ class Maybe(Mappable[T], Generic[T]):
         """
         return self.bind(f)
 
+    def ap(self, fn: Maybe[Callable[[T], U]]) -> Maybe[U]:
+        """Apply a Maybe containing a function to this Maybe.
+
+        Args:
+            fn: A Maybe containing a function
+
+        Returns:
+            Some(f(value)) if both are Some, otherwise Nothing
+
+        Example:
+            >>> add = Maybe.some(lambda x: x + 1)
+            >>> value = Maybe.some(5)
+            >>> add.ap(value)  # Some(6)
+            >>> Maybe.nothing().ap(value)  # Nothing
+            >>> add.ap(Maybe.nothing())  # Nothing
+        """
+        if self._value is None or fn._value is None:
+            return Maybe(None)
+        assert fn._value is not None
+        return Maybe(fn._value(self._value))
+
+    @staticmethod
+    def lift2(f: Callable[[T, U], object], ma: Maybe[T], mb: Maybe[U]) -> Maybe[object]:
+        """Lift a binary function to operate on Maybe values.
+
+        Args:
+            f: A binary function
+            ma: First Maybe value
+            mb: Second Maybe value
+
+        Returns:
+            Some(f(a, b)) if both are Some, otherwise Nothing
+
+        Example:
+            >>> Maybe.lift2(lambda x, y: x + y, Maybe.some(1), Maybe.some(2))  # Some(3)
+            >>> Maybe.lift2(lambda x, y: x + y, Maybe.some(1), Maybe.nothing())  # Nothing
+        """
+        curried = ma.map(lambda x: lambda y: f(x, y))
+        return mb.ap(curried)
+
+    @staticmethod
+    def lift3(f: Callable[[T, U, object], object], ma: Maybe[T], mb: Maybe[U], mc: Maybe[object]) -> Maybe[object]:
+        """Lift a ternary function to operate on Maybe values.
+
+        Args:
+            f: A ternary function
+            ma: First Maybe value
+            mb: Second Maybe value
+            mc: Third Maybe value
+
+        Returns:
+            Some(f(a, b, c)) if all are Some, otherwise Nothing
+
+        Example:
+            >>> Maybe.lift3(lambda x, y, z: x + y + z, Maybe.some(1), Maybe.some(2), Maybe.some(3))  # Some(6)
+        """
+        curried = ma.map(lambda x: lambda y: lambda z: f(x, y, z))
+        return mc.ap(mb.ap(curried))
+
+    @staticmethod
+    def zip(*monads: Maybe[T]) -> Maybe[tuple[T, ...]]:
+        """Combine multiple Maybe values into a tuple.
+
+        Args:
+            *monads: Maybe values to combine
+
+        Returns:
+            Some(tuple of values) if all are Some, otherwise Nothing
+
+        Example:
+            >>> Maybe.zip(Maybe.some(1), Maybe.some(2), Maybe.some(3))  # Some((1, 2, 3))
+            >>> Maybe.zip(Maybe.some(1), Maybe.nothing(), Maybe.some(3))  # Nothing
+        """
+        result: list[T] = []
+        for m in monads:
+            if m._value is None:
+                return Maybe(None)
+            assert m._value is not None
+            result.append(m._value)
+        return Maybe(tuple(result))
+
     def or_else(self, default: Maybe[T]) -> Maybe[T]:
         """Return this Maybe, or default if this is Nothing.
 

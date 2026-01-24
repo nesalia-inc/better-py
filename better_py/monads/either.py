@@ -204,6 +204,90 @@ class Either(Mappable[R], Generic[L, R]):
         assert self._right is not None
         return f(self._right)
 
+    def ap(self, fn: Either[L, Callable[[R], U]]) -> Either[L, U]:
+        """Apply an Either containing a function to this Either.
+
+        Args:
+            fn: An Either containing a function
+
+        Returns:
+            Right(f(value)) if both are Right, otherwise Left
+
+        Example:
+            >>> add = Either.right(lambda x: x + 1)
+            >>> value = Either.right(5)
+            >>> add.ap(value)  # Right(6)
+            >>> Either.left("bad").ap(value)  # Left('bad')
+            >>> add.ap(Either.left("bad"))  # Left('bad')
+        """
+        if self._left is not None or fn._left is not None:
+            if self._left is not None:
+                return Either(self._left, None)
+            return Either(fn._left, None)
+        assert self._right is not None
+        assert fn._right is not None
+        return Either(None, fn._right(self._right))
+
+    @staticmethod
+    def lift2(f: Callable[[R, U], object], ma: Either[L, R], mb: Either[L, U]) -> Either[L, object]:
+        """Lift a binary function to operate on Either values.
+
+        Args:
+            f: A binary function
+            ma: First Either value
+            mb: Second Either value
+
+        Returns:
+            Right(f(a, b)) if both are Right, otherwise Left
+
+        Example:
+            >>> Either.lift2(lambda x, y: x + y, Either.right(1), Either.right(2))  # Right(3)
+            >>> Either.lift2(lambda x, y: x + y, Either.right(1), Either.left("bad"))  # Left('bad')
+        """
+        curried = ma.map(lambda x: lambda y: f(x, y))
+        return mb.ap(curried)
+
+    @staticmethod
+    def lift3(f: Callable[[R, U, object], object], ma: Either[L, R], mb: Either[L, U], mc: Either[L, object]) -> Either[L, object]:
+        """Lift a ternary function to operate on Either values.
+
+        Args:
+            f: A ternary function
+            ma: First Either value
+            mb: Second Either value
+            mc: Third Either value
+
+        Returns:
+            Right(f(a, b, c)) if all are Right, otherwise Left
+
+        Example:
+            >>> Either.lift3(lambda x, y, z: x + y + z, Either.right(1), Either.right(2), Either.right(3))  # Right(6)
+        """
+        curried = ma.map(lambda x: lambda y: lambda z: f(x, y, z))
+        return mc.ap(mb.ap(curried))
+
+    @staticmethod
+    def zip(*eithers: Either[L, R]) -> Either[L, tuple[R, ...]]:
+        """Combine multiple Either values into a tuple.
+
+        Args:
+            *eithers: Either values to combine
+
+        Returns:
+            Right(tuple of values) if all are Right, otherwise Left
+
+        Example:
+            >>> Either.zip(Either.right(1), Either.right(2), Either.right(3))  # Right((1, 2, 3))
+            >>> Either.zip(Either.right(1), Either.left("bad"), Either.right(3))  # Left('bad')
+        """
+        vals: list[R] = []
+        for e in eithers:
+            if e._left is not None:
+                return Either(e._left, None)
+            assert e._right is not None
+            vals.append(e._right)
+        return Either(None, tuple(vals))
+
     def fold(self, on_left: Callable[[L], U], on_right: Callable[[R], U]) -> U:
         """Fold both cases into a single value.
 
