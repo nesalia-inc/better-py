@@ -138,6 +138,10 @@ class PersistentList(Mappable[T], Reducible[T], Generic[T]):
     def append(self, item: T) -> PersistentList[T]:
         """Add an item to the end of the list.
 
+        Warning: This operation is O(n). Consider building lists using
+        prepend() and then reverse() for O(n) total time instead of
+        O(n²) when appending multiple items.
+
         Args:
             item: Item to append
 
@@ -145,6 +149,17 @@ class PersistentList(Mappable[T], Reducible[T], Generic[T]):
             A new list with the item at the end
 
         Example:
+            >>> # Bad: O(n²) when appending in a loop
+            >>> lst = PersistentList.empty()
+            >>> for i in range(3):
+            ...     lst = lst.append(i)  # Slow!
+
+            >>> # Good: O(n) by using prepend + reverse
+            >>> lst = PersistentList.empty()
+            >>> for i in range(3):
+            ...     lst = lst.prepend(i)
+            >>> lst = lst.reverse()  # PersistentList(0, 1, 2)
+
             >>> lst = PersistentList.of(1, 2)
             >>> lst.append(3)  # PersistentList(1, 2, 3)
         """
