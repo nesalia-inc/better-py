@@ -150,7 +150,11 @@ class Try(Mappable[T], Generic[T]):
             >>> Try.success(42).get_or_else(0)  # 42
             >>> Try.failure(ValueError("x")).get_or_else(0)  # 0
         """
-        return self._value if self._exception is None else default
+        if self._exception is None:
+            # _value is not None when _exception is None
+            assert self._value is not None
+            return self._value
+        return default
 
     def recover(self, f: Callable[[BaseException], T]) -> Try[T]:
         """Recover from a failure using a function.
@@ -170,6 +174,8 @@ class Try(Mappable[T], Generic[T]):
                 return Try(f(self._exception), None)
             except BaseException:
                 return Try(None, self._exception)
+        # _value is not None when _exception is None
+        assert self._value is not None
         return Try(self._value, None)
 
     def map(self, f: Callable[[T], U]) -> Try[U]:
