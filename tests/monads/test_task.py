@@ -222,3 +222,19 @@ class TestTask:
         task = Task(lambda: 42)
         task.run()
         assert repr(task) == "Task(cached=True)"
+
+    def test_equality_no_side_effects(self):
+        """Task equality should not execute the computation."""
+        count = [0]
+
+        def computation():
+            count[0] += 1
+            return 42
+
+        task1 = Task(computation)
+        task2 = Task(computation)
+
+        result = task1 == task2
+
+        # Side effects should not occur during equality check
+        assert count[0] == 0, f"Equality check executed side effects: {count[0]} executions"

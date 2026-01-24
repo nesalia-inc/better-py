@@ -161,3 +161,19 @@ class TestIO:
         """repr should show IO."""
         io = IO(lambda: 42)
         assert repr(io) == "IO(...)"
+
+    def test_equality_no_side_effects(self):
+        """IO equality should not execute the computation."""
+        count = [0]
+
+        def computation():
+            count[0] += 1
+            return 42
+
+        io1 = IO(computation)
+        io2 = IO(computation)
+
+        result = io1 == io2
+
+        # Side effects should not occur during equality check
+        assert count[0] == 0, f"Equality check executed side effects: {count[0]} executions"
