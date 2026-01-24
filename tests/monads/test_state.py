@@ -73,3 +73,31 @@ class TestState:
         value, final_state = counter.run(0)
         assert final_state == 3
         assert value == 3
+
+    def test_map_executes_once(self):
+        """map should execute the state transformation exactly once."""
+        count = [0]
+
+        def counting_state(s):
+            count[0] += 1
+            return (s, s)
+
+        state = State(counting_state)
+        mapped = state.map(lambda x: x)
+        result = mapped.run(0)
+
+        assert count[0] == 1, f"Expected 1 execution, got {count[0]}"
+
+    def test_flat_map_executes_once(self):
+        """flat_map should execute the state transformation exactly once."""
+        count = [0]
+
+        def counting_state(s):
+            count[0] += 1
+            return (s, s)
+
+        state = State(counting_state)
+        mapped = state.flat_map(lambda x: State(lambda s: (x, s)))
+        result = mapped.run(0)
+
+        assert count[0] == 1, f"Expected 1 execution, got {count[0]}"
