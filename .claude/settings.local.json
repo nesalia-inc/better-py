@@ -6,7 +6,15 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(uv run ruff check:*)",
-      "Bash(uv run mypy:*)"
+      "Bash(uv run mypy:*)",
+      "Bash(python:*)",
+      "Bash(gh issue create:*)",
+      "Bash(gh label create:*)",
+      "Bash(gh issue edit:*)",
+      "Bash(gh issue list:*)",
+      "Bash(git checkout:*)",
+      "Bash(gh pr create:*)",
+      "Bash(uv run python:*)"
     ]
   }
 }

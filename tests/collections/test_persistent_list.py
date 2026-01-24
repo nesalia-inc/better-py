@@ -87,7 +87,8 @@ class TestPersistentList:
         """get with out of bounds index should return None."""
         lst = PersistentList.of(1, 2, 3)
         assert lst.get(10) is None
-        assert lst.get(-1) is None
+        # Negative index out of bounds
+        assert lst.get(-10) is None
 
     def test_get_empty(self):
         """get on empty list should return None."""
@@ -270,3 +271,91 @@ class TestPersistentList:
             .take(3)
         )
         assert result.to_list() == [6, 8, 10]
+
+
+class TestPersistentListNegativeIndexing:
+    """Tests for negative indexing support in PersistentList."""
+
+    def test_get_negative_last_element(self):
+        """get with -1 should return last element."""
+        lst = PersistentList.of(1, 2, 3)
+        assert lst.get(-1) == 3
+
+    def test_get_negative_first_element(self):
+        """get with -3 should return first element for 3-element list."""
+        lst = PersistentList.of(1, 2, 3)
+        assert lst.get(-3) == 1
+
+    def test_get_negative_multiple_elements(self):
+        """get should work with various negative indices."""
+        lst = PersistentList.of(10, 20, 30, 40, 50)
+        assert lst.get(-1) == 50
+        assert lst.get(-2) == 40
+        assert lst.get(-3) == 30
+        assert lst.get(-4) == 20
+        assert lst.get(-5) == 10
+
+    def test_get_negative_out_of_bounds(self):
+        """get with negative index out of bounds should return None."""
+        lst = PersistentList.of(1, 2, 3)
+        assert lst.get(-4) is None
+        assert lst.get(-10) is None
+
+    def test_get_negative_on_empty(self):
+        """get with negative index on empty list should return None."""
+        lst = PersistentList.empty()
+        assert lst.get(-1) is None
+
+
+class TestPersistentListGetItem:
+    """Tests for __getitem__ (bracket notation) support."""
+
+    def test_getitem_positive_index(self):
+        """__getitem__ should return element at positive index."""
+        lst = PersistentList.of(1, 2, 3)
+        assert lst[0] == 1
+        assert lst[1] == 2
+        assert lst[2] == 3
+
+    def test_getitem_negative_last_element(self):
+        """__getitem__ with -1 should return last element."""
+        lst = PersistentList.of(1, 2, 3)
+        assert lst[-1] == 3
+
+    def test_getitem_negative_first_element(self):
+        """__getitem__ with -3 should return first element for 3-element list."""
+        lst = PersistentList.of(1, 2, 3)
+        assert lst[-3] == 1
+
+    def test_getitem_negative_multiple_elements(self):
+        """__getitem__ should work with various negative indices."""
+        lst = PersistentList.of(10, 20, 30, 40, 50)
+        assert lst[-1] == 50
+        assert lst[-2] == 40
+        assert lst[-3] == 30
+        assert lst[-4] == 20
+        assert lst[-5] == 10
+
+    def test_getitem_out_of_bounds_positive(self):
+        """__getitem__ with positive index out of bounds should raise IndexError."""
+        lst = PersistentList.of(1, 2, 3)
+        with pytest.raises(IndexError, match="PersistentList index out of range"):
+            _ = lst[3]
+        with pytest.raises(IndexError, match="PersistentList index out of range"):
+            _ = lst[10]
+
+    def test_getitem_out_of_bounds_negative(self):
+        """__getitem__ with negative index out of bounds should raise IndexError."""
+        lst = PersistentList.of(1, 2, 3)
+        with pytest.raises(IndexError, match="PersistentList index out of range"):
+            _ = lst[-4]
+        with pytest.raises(IndexError, match="PersistentList index out of range"):
+            _ = lst[-10]
+
+    def test_getitem_on_empty(self):
+        """__getitem__ on empty list should raise IndexError."""
+        lst = PersistentList.empty()
+        with pytest.raises(IndexError, match="PersistentList index out of range"):
+            _ = lst[0]
+        with pytest.raises(IndexError, match="PersistentList index out of range"):
+            _ = lst[-1]

@@ -187,16 +187,24 @@ class PersistentList(Mappable[T], Reducible[T], Generic[T]):
     def get(self, index: int) -> T | None:
         """Get element at index.
 
+        Supports negative indexing (counting from end of list).
+
         Args:
-            index: The index to get
+            index: The index to get. Negative values count from the end.
 
         Returns:
             The element at index, or None if out of bounds
 
         Example:
-            >>> PersistentList.of(1, 2, 3).get(1)  # 2
-            >>> PersistentList.of(1, 2, 3).get(10)  # None
+            >>> lst = PersistentList.of(1, 2, 3, 4, 5)
+            >>> lst.get(0)   # 1
+            >>> lst.get(-1)  # 5
+            >>> lst.get(10)  # None
         """
+        # Convert negative index to positive
+        if index < 0:
+            index = self._length + index
+
         if index < 0 or index >= self._length:
             return None
 
@@ -207,6 +215,44 @@ class PersistentList(Mappable[T], Reducible[T], Generic[T]):
             current = current.tail
 
         return current.head if current else None
+
+    def __getitem__(self, index: int) -> T:
+        """Get element at index using bracket notation.
+
+        Supports negative indexing (counting from end of list).
+
+        Args:
+            index: The index to get. Negative values count from the end.
+
+        Returns:
+            The element at index
+
+        Raises:
+            IndexError: if index is out of bounds
+
+        Example:
+            >>> lst = PersistentList.of(1, 2, 3)
+            >>> lst[0]   # 1
+            >>> lst[-1]  # 3
+            >>> lst[10]  # Raises IndexError
+        """
+        # Convert negative index to positive
+        if index < 0:
+            index = self._length + index
+
+        if index < 0 or index >= self._length:
+            raise IndexError("PersistentList index out of range")
+
+        current = self._node
+        for _ in range(index):
+            if current is None:
+                raise IndexError("PersistentList index out of range")
+            current = current.tail
+
+        if current is None:
+            raise IndexError("PersistentList index out of range")
+
+        return current.head
 
     def map(self, f: Callable[[T], U]) -> PersistentList[U]:
         """Apply a function to each element.
