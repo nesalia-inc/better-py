@@ -1,0 +1,368 @@
+---
+title: Introduction
+description: A modern, pragmatic functional programming library for Python - type-safe, immutable, and developer-friendly
+---
+
+import { Terminal, Package, Shield, Zap } from 'lucide-react';
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+
+# Welcome to better-py
+
+**better-py** is a modern, pragmatic functional programming library for Python that brings the power of functional programming to your codebase without the academic complexity.
+
+<Cards>
+  <Card
+    icon={<Terminal />}
+    title="Type-Safe"
+    description="Full generic type hints with mypy strict mode support"
+  />
+  <Card
+    icon={<Shield />}
+    title="Immutable"
+    description="Persistent collections with structural sharing"
+  />
+  <Card
+    icon={<Zap />}
+    title="Pragmatic"
+    description="OOP-first design that feels natural in Python"
+  />
+  <Card
+    icon={<Package />}
+    title="Comprehensive"
+    description="13+ monads, collections, and functional utilities"
+  />
+</Cards>
+
+---
+
+## What is better-py?
+
+better-py is a functional programming library designed for **real-world Python development**. Unlike traditional FP libraries that feel foreign in Python, better-py embraces Python's object-oriented nature while providing functional patterns that are:
+
+- **Type-safe** with full generic type hints
+- **Immutable** with persistent collections
+- **Composable** with method chaining and pipe operators
+- **Pythonic** with protocols like `collections.abc`
+
+### Why Functional Programming?
+
+Functional programming helps you write code that is:
+
+- **More predictable** - No hidden state mutations
+- **Easier to test** - Pure functions are simple to unit test
+- **More composable** - Small functions combine into complex behaviors
+- **Safer** - Immutable data prevents entire classes of bugs
+
+### The better-py Approach
+
+<Callout type="idea" title="Functional Entities as Objects">
+
+We don't just provide functions - we provide **objects that represent functional concepts**. Instead of:
+
+```python
+# Traditional FP (feels foreign)
+result = pipe(
+    data,
+    map(transform),
+    filter(predicate),
+    reduce(combine)
+)
+```
+
+You get:
+
+```python
+# better-py (feels Pythonic)
+result = (
+    MappableList(data)
+    .map(transform)
+    .filter(predicate)
+    .reduce(combine)
+)
+```
+
+</Callout>
+
+---
+
+## What's Included?
+
+### Monads (13 types)
+
+Monads are design patterns that structure computations. Think of them as **containers** with special rules for transformation.
+
+| Monad | Use Case | Description |
+|-------|----------|-------------|
+| **Maybe** | Optional values | Handle values that might not exist without `None` checks |
+| **Result** | Error handling | Explicit error handling without exceptions |
+| **Validation** | Form validation | Accumulate multiple validation errors |
+| **Try** | Exception handling | Wrap code that might raise exceptions |
+| **Either** | Two values | Represent one of two possible values |
+| **Reader** | Dependencies | Dependency injection and environment |
+| **Writer** | Logging | Computation with logging/output |
+| **State** | State management | Pure stateful computations |
+| **IO** | Side effects | Explicit side effect management |
+| **Task** | Lazy computation | Deferred async computation |
+| **AsyncMaybe** | Async optional | Async version of Maybe |
+| **AsyncResult** | Async errors | Async version of Result |
+| **Unit** | Void return | Functions with no return value |
+
+### Persistent Collections
+
+Immutable collections with **structural sharing** for efficient updates:
+
+| Collection | Description |
+|------------|-------------|
+| **PersistentList** | Immutable linked list with O(1) prepend |
+| **PersistentMap** | Immutable dictionary with efficient updates |
+| **PersistentSet** | Immutable set with algebraic operations |
+
+### Functional Utilities
+
+Tools for composing and transforming functions:
+
+| Utility | Description |
+|---------|-------------|
+| **compose** | Right-to-left function composition |
+| **compose_left** | Left-to-right function composition |
+| **curry** | Incremental argument application |
+| **pipe** | Left-to-right data pipelines |
+| **flow** | Alias for `compose_left` |
+| **partial_right** | Fix arguments from the right |
+| **flip** | Flip function arguments |
+
+### Protocols
+
+Type-safe protocols for functional patterns, inspired by `collections.abc`:
+
+| Protocol | Description |
+|----------|-------------|
+| **Mappable** | Objects that can be transformed |
+| **Reducible** | Objects that can be reduced |
+| **Combinable** | Objects that can be combined |
+| **Monoid** | Objects with combination and identity |
+| **Updatable** | Objects supporting immutable updates |
+| **DeepUpdatable** | Objects with nested immutable updates |
+| **Traversable** | Objects traversable with effects |
+| **Parseable** | Objects that can be parsed |
+| **Validable** | Objects that can be validated |
+
+---
+
+## Quick Example
+
+Here's a taste of what better-py can do:
+
+### Error Handling with Result
+
+```python
+from better_py import Result
+
+def divide(a: int, b: int) -> Result[int, str]:
+    if b == 0:
+        return Result.error("Division by zero")
+    return Result.ok(a // b)
+
+# Chain operations safely
+result = (
+    Result.ok(100)
+    .map(lambda x: x * 2)
+    .bind(lambda x: divide(x, 5))
+)
+
+# Result.ok(40)
+```
+
+### Optional Values with Maybe
+
+```python
+from better_py import Maybe
+
+# Handle optional database results
+user = Maybe.from_value(fetch_user(user_id))
+
+name = user \
+    .map(lambda u: u.name) \
+    .unwrap_or_else(lambda: "Guest")
+
+# "Guest" if user not found
+```
+
+### Data Validation
+
+```python
+from better_py import Validation
+
+def validate_email(email: str) -> Validation[str, str]:
+    if "@" in email:
+        return Validation.valid(email)
+    return Validation.invalid(["Invalid email"])
+
+def validate_age(age: int) -> Validation[str, int]:
+    if 0 < age < 120:
+        return Validation.valid(age)
+    return Validation.invalid(["Invalid age"])
+
+# Accumulate all errors
+email_result = validate_email("invalid")
+age_result = validate_age(150)
+
+# Using applicative style for parallel validation
+combined = email_result.ap(age_result)
+# Validation.invalid(["Invalid email", "Invalid age"])
+```
+
+### Immutable Collections
+
+```python
+from better_py import PersistentList
+
+# Create and transform immutably
+lst1 = PersistentList.of(1, 2, 3)
+lst2 = lst1.prepend(0).append(4)
+
+# Original unchanged
+assert lst1.to_list() == [1, 2, 3]
+assert lst2.to_list() == [0, 1, 2, 3, 4]
+```
+
+---
+
+## Installation
+
+```bash
+pip install better-py-fp
+```
+
+**Requirements**: Python 3.11+
+
+<Callout type="warning" title="Package Name">
+
+Note that the PyPI package name is `better-py-fp`, but you import it as `better_py`:
+
+```python
+from better_py import Maybe, Result, pipe
+```
+
+</Callout>
+
+---
+
+## What's Next?
+
+<Steps>
+  <Step>
+    ### Read the Core Concepts
+
+    Learn about monads, immutability, and type safety in the [Core Concepts](/docs/concepts) section.
+  </Step>
+  <Step>
+    ### Explore Monads
+
+    Dive into error handling with [Maybe](/docs/monads/maybe) and [Result](/docs/monads/result).
+  </Step>
+  <Step>
+    ### Build Something
+
+    Check out our [Guides](/docs/guides) and [Examples](/docs/examples) for real-world patterns.
+  </Step>
+</Steps>
+
+---
+
+## Design Philosophy
+
+<Callout type="success" title="Pragmatic Over Academic">
+
+better-py is designed for **practical Python development**, not academic purity. We prioritize:
+
+- **Developer Experience** - Intuitive APIs with IDE autocomplete
+- **Type Safety** - Full mypy strict mode support
+- **Performance** - Efficient immutable data structures
+- **Pythonic** - Feels natural in Python codebases
+
+</Callout>
+
+Read more about our philosophy in [MENTALITY.md](https://github.com/nesalia-inc/better-py/blob/main/MENTALITY.md).
+
+---
+
+## Comparison with Other Libraries
+
+| Feature | better-py | returns | toolz | fn.py |
+|---------|-----------|---------|-------|-------|
+| Type-safe protocols |  |  |  |  |
+| Method chaining |  |  |  |  |
+| Mypy strict mode |  |  |  |  |
+| Persistent collections |  |  |  |  |
+| 13+ monads |  |  |  |  |
+| Python 3.11+ |  |  |  |  (legacy) |
+
+---
+
+## Project Status
+
+**Current Version**: 0.1.0 (Alpha)
+
+This is an active project under development. The core APIs are stabilizing, but breaking changes may occur before 1.0.
+
+<Callout type="warning" title="Alpha Status">
+
+While the library is production-ready for many use cases, APIs may change between minor versions until 1.0. We welcome feedback and suggestions!
+
+</Callout>
+
+---
+
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](https://github.com/nesalia-inc/better-py/blob/main/CONTRIBUTING.md) for details.
+
+```bash
+git clone https://github.com/nesalia-inc/better-py.git
+cd better-py
+uv sync --all-extras
+uv run pytest
+```
+
+---
+
+## License
+
+MIT License - see [LICENSE](https://github.com/nesalia-inc/better-py/blob/main/LICENSE) for details.
+
+---
+
+## Acknowledgments
+
+Inspired by:
+
+- **[toolz](https://github.com/pytoolz/toolz)** - Functional iteration tools
+- **[returns](https://github.com/dry-python/returns)** - Monads for Python
+- **[cats](https://github.com/typelevel/cats)** - Functional programming in Scala
+- **[scalaz](https://github.com/scalaz/scalaz)** - Functional programming in Scala
+
+---
+
+<Cards>
+  <Card
+    title="Getting Started"
+    href="/docs/getting-started"
+    description="Install better-py and write your first functional code"
+  />
+  <Card
+    title="Core Concepts"
+    href="/docs/concepts"
+    description="Learn about monads, immutability, and type safety"
+  />
+  <Card
+    title="API Reference"
+    href="/docs/api"
+    description="Complete API documentation for all modules"
+  />
+  <Card
+    title="Examples"
+    href="/docs/examples"
+    description="Real-world examples and integration patterns"
+  />
+</Cards>

@@ -1,0 +1,31 @@
+---
+title: FastAPI Integration
+description: Using better-py with FastAPI
+---
+
+# FastAPI Integration
+
+Build robust APIs with FastAPI and better-py.
+
+## Example
+
+```python
+from fastapi import FastAPI
+from better_py import Result
+
+app = FastAPI()
+
+@app.get("/users/{user_id}")
+async def get_user(user_id: int) -> dict:
+    result = await fetch_user(user_id)
+    
+    if result.is_ok():
+        return {"user": result.unwrap().to_dict()}
+    else:
+        raise HTTPException(404, detail=result.unwrap_error())
+```
+
+## See Also
+
+- [Result Monad](/docs/monads/result)
+- [Error Handling Guide](/docs/guides/error-handling)

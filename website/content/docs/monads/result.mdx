@@ -1,0 +1,627 @@
+---
+title: Result Monad
+description: Explicit error handling without exceptions
+---
+
+import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+
+# Result Monad
+
+The `Result` monad represents operations that can succeed (`Ok`) or fail (`Error`). It's a type-safe alternative to using exceptions for error handling.
+
+---
+
+## Overview
+
+`Result` is used when an operation can fail with specific errors:
+
+```python
+from better_py import Result
+
+# Creating Results
+success = Result.ok(42)
+failure = Result.error("Something went wrong")
+
+# Checking result
+if result.is_ok():
+    value = result.unwrap()
+else:
+    error = result.unwrap_error()
+```
+
+<Callout type="success" title="When to Use Result">
+
+-  API calls that can fail
+-  Database operations
+-  File parsing
+-  Validation with specific error types
+-  Any operation with known error cases
+
+</Callout>
+
+<Callout type="warning" title="Result vs Maybe">
+
+Use **Result** when you need to know **why** something failed.
+Use **Maybe** when you only care **if** something exists.
+
+</Callout>
+
+---
+
+## Creating Result Values
+
+### Result.ok()
+
+Wrap a successful value:
+
+```python
+from better_py import Result
+
+user = Result.ok({"id": 1, "name": "Alice"})
+```
+
+### Result.error()
+
+Wrap an error:
+
+```python
+failure = Result.error("User not found")
+```
+
+### Result.from_value()
+
+Create from value and optional error:
+
+```python
+# Success (no error)
+Result.from_value(42)              # Result.ok(42)
+
+# Failure (error provided)
+Result.from_value(42, "failed")    # Result.error("failed")
+```
+
+---
+
+## Inspecting Result
+
+### is_ok()
+
+Check if result is successful:
+
+```python
+Result.ok(42).is_ok()              # True
+Result.error("bad").is_ok()        # False
+```
+
+### is_error()
+
+Check if result is an error:
+
+```python
+Result.ok(42).is_error()           # False
+Result.error("bad").is_error()     # True
+```
+
+---
+
+## Transforming Values
+
+### map()
+
+Transform the success value:
+
+```python
+Result.ok(5).map(lambda x: x * 2)           # Result.ok(10)
+Result.error("bad").map(lambda x: x * 2)    # Still error("bad")
+```
+
+```python
+# Real-world example
+def fetch_user(id: int) -> Result[User, str]:
+    ...
+
+def get_username(id: int) -> Result[str, str]:
+    return (
+        fetch_user(id)
+        .map(lambda user: user.name)
+    )
+```
+
+### map_error()
+
+Transform the error:
+
+```python
+Result.ok(42).map_error(str.upper)              # Still ok(42)
+Result.error("bad").map_error(str.upper)        # Result.error("BAD")
+```
+
+```python
+def add_context(result: Result[int, str]) -> Result[int, str]:
+    return result.map_error(lambda e: f"Context: {e}")
+```
+
+### bind() / flat_map() / and_then()
+
+Chain operations that return Result:
+
+```python
+def validate(id: int) -> Result[int, str]:
+    ...
+
+def fetch(id: int) -> Result[User, str]:
+    ...
+
+def check_permission(user: User) -> Result[User, str]:
+    ...
+
+# Chain them
+user = (
+    validate(user_id)
+    .bind(fetch)
+    .bind(check_permission)
+)
+```
+
+### ap()
+
+Applicative style:
+
+```python
+add = Result.ok(lambda x: x + 1)
+value = Result.ok(5)
+
+add.ap(value)  # Result.ok(6)
+
+# If either is error, error propagates
+error_add = Result.error(lambda: "Bad")
+error_add.ap(Result.ok(5))  # Result.error("Bad")
+```
+
+---
+
+## Extracting Values
+
+### unwrap()
+
+Get the success value (raises if Error):
+
+```python
+Result.ok(42).unwrap()            # 42
+Result.error("bad").unwrap()      # Raises ValueError
+```
+
+### unwrap_or()
+
+Get success value or default:
+
+```python
+Result.ok(42).unwrap_or(0)            # 42
+Result.error("bad").unwrap_or(0)     # 0
+```
+
+### unwrap_or_else()
+
+Get success value or compute default:
+
+```python
+Result.ok(42).unwrap_or_else(lambda: compute_default())    # 42
+Result.error("bad").unwrap_or_else(lambda: compute_default())   # computed
+```
+
+### unwrap_error()
+
+Get the error value (raises if Ok):
+
+```python
+Result.error("bad").unwrap_error()    # "bad"
+Result.ok(42).unwrap_error()          # Raises ValueError
+```
+
+### fold()
+
+Pattern matching on Result:
+
+```python
+def format_result(result: Result[int, str]) -> str:
+    return result.fold(
+        on_error=lambda err: f"Error: {err}",
+        on_ok=lambda val: f"Success: {val}"
+    )
+
+format_result(Result.ok(42))        # "Success: 42"
+format_result(Result.error("bad"))  # "Error: bad"
+```
+
+---
+
+## Combining Results
+
+### or_else()
+
+Provide alternative Result:
+
+```python
+def fetch_from_cache(id: int) -> Result[Data, str]:
+    ...
+
+def fetch_from_db(id: int) -> Result[Data, str]:
+    ...
+
+# Try cache, fall back to DB
+data = (
+    fetch_from_cache(id)
+    .or_else(lambda: fetch_from_db(id))
+)
+```
+
+### zip()
+
+Combine multiple Results:
+
+```python
+name = Result.ok("Alice")
+age = Result.ok(30)
+email = Result.error("missing")
+
+result = Result.zip(name, age, email)
+# Result.error("missing") - fails on first error
+```
+
+---
+
+## Pattern Matching
+
+Use Python's `match` statement:
+
+```python
+from better_py import Result
+
+def handle_result(result: Result[int, str]) -> str:
+    match result:
+        case Result(_error=None, _value=value):
+            return f"Success: {value}"
+        case Result(_error=error):
+            return f"Error: {error}"
+```
+
+Or use helper methods:
+
+```python
+if result.is_ok():
+    value = result.unwrap()
+    return f"Success: {value}"
+else:
+    error = result.unwrap_error()
+    return f"Error: {error}"
+```
+
+---
+
+## Real-World Examples
+
+### Example 1: API Error Handling
+
+```python
+from better_py import Result
+import requests
+
+def fetch_user(user_id: int) -> Result[dict, str]:
+    try:
+        response = requests.get(f"/api/users/{user_id}")
+        if response.status_code == 404:
+            return Result.error("User not found")
+        if response.status_code >= 400:
+            return Result.error(f"API error: {response.status_code}")
+        return Result.ok(response.json())
+    except requests.RequestException as e:
+        return Result.error(f"Network error: {e}")
+
+def get_user_name(user_id: int) -> Result[str, str]:
+    return (
+        fetch_user(user_id)
+        .map(lambda user: user.get("name"))
+        .bind(lambda name:
+            Result.ok(name) if name
+            else Result.error("User has no name")
+        )
+    )
+```
+
+### Example 2: File Operations
+
+```python
+from better_py import Result
+import json
+
+def read_config(path: str) -> Result[dict, str]:
+    """Read and parse config file"""
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        return Result.ok(data)
+    except FileNotFoundError:
+        return Result.error(f"Config file not found: {path}")
+    except json.JSONDecodeError as e:
+        return Result.error(f"Invalid JSON: {e}")
+    except Exception as e:
+        return Result.error(f"Unexpected error: {e}")
+
+def get_database_config(config_path: str) -> Result[dict, str]:
+    return (
+        read_config(config_path)
+        .bind(lambda config:
+            Result.from_value(
+                config.get("database"),
+                "Missing database config"
+            )
+        )
+    )
+```
+
+### Example 3: Validation Pipeline
+
+```python
+from better_py import Result
+
+def validate_positive(value: int) -> Result[int, str]:
+    if value > 0:
+        return Result.ok(value)
+    return Result.error(f"{value} is not positive")
+
+def validate_range(value: int) -> Result[int, str]:
+    if 0 <= value <= 100:
+        return Result.ok(value)
+    return Result.error(f"{value} is out of range")
+
+def validate_number(value: int) -> Result[int, str]:
+    return (
+        validate_positive(value)
+        .bind(validate_range)
+    )
+
+# Usage
+validate_number(50)    # Result.ok(50)
+validate_number(-5)   # Result.error("-5 is not positive")
+validate_number(150)  # Result.error("150 is out of range")
+```
+
+### Example 4: Database Operations
+
+```python
+from better_py import Result
+
+def create_user(name: str, email: str) -> Result[User, str]:
+    """Create user with validation"""
+    # Validate name
+    if len(name) < 2:
+        return Result.error("Name too short")
+    if len(name) > 50:
+        return Result.error("Name too long")
+
+    # Validate email
+    if "@" not in email:
+        return Result.error("Invalid email")
+
+    # Check duplicates
+    if db.find_by_email(email):
+        return Result.error("Email already exists")
+
+    # Create user
+    try:
+        user = db.insert(User(name=name, email=email))
+        return Result.ok(user)
+    except DatabaseError as e:
+        return Result.error(f"Database error: {e}")
+
+def register_user(data: dict) -> Result[User, str]:
+    return (
+        validate_input(data)
+        .bind(lambda d: create_user(d["name"], d["email"]))
+        .map(lambda user: send_welcome_email(user))
+    )
+```
+
+---
+
+## Common Patterns
+
+### Pattern 1: Error Recovery
+
+```python
+def fetch_with_fallback(id: int) -> Result[Data, str]:
+    return (
+        fetch_from_primary_db(id)
+        .or_else(lambda: fetch_from_cache(id))
+        .or_else(lambda: fetch_from_backup_db(id))
+    )
+```
+
+### Pattern 2: Error Enrichment
+
+```python
+def divide(a: int, b: int) -> Result[float, str]:
+    if b == 0:
+        return Result.error("Division by zero")
+    return Result.ok(a / b)
+
+def safe_divide(a: int, b: int) -> Result[float, str]:
+    return (
+        divide(a, b)
+        .map_error(lambda e: f"Cannot divide {a} by {b}: {e}")
+    )
+```
+
+### Pattern 3: Chaining Validations
+
+```python
+def process_order(order: dict) -> Result[ProcessedOrder, str]:
+    return (
+        validate_order(order)
+        .bind(lambda o: check_inventory(o))
+        .bind(lambda o: process_payment(o))
+        .bind(lambda o: ship_order(o))
+    )
+```
+
+### Pattern 4: Collecting Errors
+
+```python
+def validate_all(items: list) -> Result[list, list[str]]:
+    """Collect all validation errors"""
+    results = [validate_item(item) for item in items]
+    errors = [r.unwrap_error() for r in results if r.is_error()]
+
+    if errors:
+        return Result.error(errors)
+    return Result.ok([r.unwrap() for r in results])
+```
+
+---
+
+## Best Practices
+
+<Callout type="success" title="Do">
+
+ Use Result for operations with known error types
+ Make error types specific and informative
+ Use map_error to add context
+ Handle errors explicitly with is_ok/is_error
+ Use or_else for fallback behavior
+
+</Callout>
+
+<Callout type="error" title="Don't">
+
+ Use Result for simple optional values (use Maybe)
+ Call unwrap() without checking (use unwrap_or)
+ Use exceptions and Result inconsistently
+ Put exceptions in Result.error (use Try instead)
+ Ignore error cases
+
+</Callout>
+
+---
+
+## Type Safety
+
+Result is fully generic:
+
+```python
+from better_py import Result
+
+# Type checker tracks types
+result: Result[int, str] = Result.ok(42)
+mapped: Result[int, str] = result.map(lambda x: x * 2)
+to_str: Result[str, str] = mapped.map(str)
+
+# Error type is preserved
+error: Result[int, str] = Result.error("bad")
+still_error: Result[int, str] = error.map(lambda x: x * 2)
+```
+
+---
+
+## Error Type Design
+
+Choose meaningful error types:
+
+```python
+# Simple string errors
+Result.error("User not found")
+
+# Enum errors
+from enum import Enum
+class Error(Enum):
+    NOT_FOUND = "User not found"
+    INVALID = "Invalid input"
+    PERMISSION_DENIED = "Permission denied"
+
+Result.error(Error.NOT_FOUND)
+
+# Structured errors
+@dataclass
+class ErrorDetail:
+    code: str
+    message: str
+    context: dict
+
+Result.error(ErrorDetail(
+    code="NOT_FOUND",
+    message="User not found",
+    context={"user_id": 123}
+))
+
+# Union of error types
+ApiError = str | Error | ErrorDetail
+Result[int, ApiError]
+```
+
+---
+
+## Performance Notes
+
+- Result is a simple `@dataclass` - very low overhead
+- No try/except overhead for known error cases
+- Structural sharing when chaining operations
+
+---
+
+## Comparison: Result vs Maybe
+
+```python
+# Maybe: Value exists or not
+user = Maybe.from_value(find_user(1))
+name = user.map(lambda u: u.name).unwrap_or("Guest")
+
+# Result: Success or error with details
+user = fetch_user(1)
+if user.is_ok():
+    name = user.unwrap().name
+else:
+    print(f"Failed: {user.unwrap_error()}")
+```
+
+---
+
+## Comparison: Result vs Exceptions
+
+```python
+# With exceptions
+def divide(a: int, b: int) -> float:
+    if b == 0:
+        raise ZeroDivisionError("Division by zero")
+    return a / b
+
+try:
+    result = divide(10, 0)
+except ZeroDivisionError as e:
+    print(f"Error: {e}")
+
+# With Result
+def divide(a: int, b: int) -> Result[float, str]:
+    if b == 0:
+        return Result.error("Division by zero")
+    return Result.ok(a / b)
+
+result = divide(10, 0)
+if result.is_error():
+    print(f"Error: {result.unwrap_error()}")
+```
+
+<Callout type="info" title="When to Use Each">
+
+**Result**: Expected error cases that are part of your domain
+**Exceptions**: Unexpected errors (bugs, system failures)
+
+</Callout>
+
+---
+
+## See Also
+
+- [Maybe Monad](/docs/monads/maybe) - For optional values
+- [Validation Monad](/docs/monads/validation) - For accumulating errors
+- [Try Monad](/docs/monads/try) - For wrapping exceptions
+- [Error Handling Guide](/docs/guides/error-handling) - Practical patterns
+- [Result API Reference](/docs/api/monads/result) - Complete API documentation

@@ -1,0 +1,29 @@
+---
+title: pipe() API
+description: pipe function reference
+---
+
+# pipe()
+
+Left-to-right data pipeline.
+
+## Signature
+
+```python
+def pipe(value: Any, *functions: Callable) -> Any:
+    ...
+```
+
+## Example
+
+```python
+result = pipe(
+    5,
+    lambda x: x + 1,
+    lambda x: x * 2
+)  # 12
+```
+
+## See Also
+
+- [pipe Guide](/docs/utilities/pipe)

@@ -1,0 +1,30 @@
+---
+title: Reducible Protocol
+description: Objects that can be reduced
+---
+
+# Reducible Protocol
+
+The `Reducible` protocol represents objects that can be reduced to a single value.
+
+---
+
+## Overview
+
+```python
+from better_py.protocols import Reducible
+
+class Numbers(Reducible):
+    def reduce(self, func, initial):
+        result = initial
+        for n in self.numbers:
+            result = func(result, n)
+        return result
+```
+
+---
+
+## See Also
+
+- [Mappable](/docs/protocols/mappable) - Transform protocol
+- [Combinable](/docs/protocols/combinable) - Combine protocol

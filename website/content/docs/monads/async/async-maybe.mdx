@@ -1,0 +1,82 @@
+---
+title: AsyncMaybe Monad
+description: Asynchronous optional values
+---
+
+# AsyncMaybe Monad
+
+Async version of the Maybe monad for operations that might not return a value.
+
+---
+
+## Overview
+
+```python
+from better_py import AsyncMaybe
+
+async def fetch_user(id: int) -> AsyncMaybe[User]:
+    user = await db.find(id)
+    return AsyncMaybe.from_value(user)
+```
+
+---
+
+## Creating AsyncMaybe
+
+### AsyncMaybe.some()
+
+```python
+AsyncMaybe.some(value)
+```
+
+### AsyncMaybe.nothing()
+
+```python
+AsyncMaybe.nothing()
+```
+
+### AsyncMaybe.from_value()
+
+```python
+AsyncMaybe.from_value(await fetch_user(id))
+```
+
+---
+
+## Transforming AsyncMaybe
+
+### map()
+
+```python
+(await fetch_user(id)).map(lambda u: u.name)
+```
+
+### bind()
+
+```python
+(await fetch_user(id)).bind(lambda u: fetch_profile(u.id))
+```
+
+---
+
+## Real-World Example
+
+```python
+from better_py import AsyncMaybe
+
+async def get_user_email(user_id: int) -> AsyncMaybe[str]:
+    return (
+        AsyncMaybe.from_value(await db.find_user(user_id))
+        .map(lambda user: user.email)
+    )
+
+email = await get_user_email(123)
+# AsyncMaybe.some("user@example.com") or AsyncMaybe.nothing()
+```
+
+---
+
+## See Also
+
+- [Maybe Monad](/docs/monads/maybe) - Sync version
+- [AsyncResult](/docs/monads/async/async-result) - Async error handling

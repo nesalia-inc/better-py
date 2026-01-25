@@ -1,0 +1,468 @@
+---
+title: Editor Setup
+description: Configure your IDE for the best better-py development experience
+---
+
+# Editor Setup Guide
+
+Configure your editor for the best development experience with better-py, including type checking, autocomplete, and code quality tools.
+
+---
+
+## Overview
+
+better-py is designed to work excellently with:
+
+- **Type checkers** - mypy for static type checking
+- **IDEs** - VS Code and PyCharm with full autocomplete
+- **Linters** - Ruff for fast code quality checks
+- **Formatters** - Black or Ruff for consistent formatting
+
+---
+
+## VS Code Setup
+
+### Step 1: Install Required Extensions
+
+Install these extensions from the VS Code Marketplace:
+
+**Essential:**
+1. **Python** by Microsoft (`ms-python.python`)
+2. **Pylance** by Microsoft (`ms-python.vscode-pylance`)
+
+**Recommended:**
+3. **Ruff** by Astral (`astral-sh.ruff`)
+4. **Error Lens** (`usernamehw.errorlens`)
+
+**Optional:**
+5. **Python Test Explorer** (`littlefoxteam.vscode-python-test-adapter`)
+6. **GitLens** (`eamodio.gitlens`)
+
+### Step 2: Configure VS Code Settings
+
+Create `.vscode/settings.json`:
+
+```json
+{
+  // Python interpreter
+  "python.defaultInterpreterPath": ".venv/bin/python",
+
+  // Type checking with Pylance
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.extraPaths": ["./"],
+
+  // Auto-import suggestions
+  "python.analysis.autoImportCompletions": true,
+
+  // Code formatting
+  "python.formatting.provider": "black",
+  "editor.formatOnSave": true,
+
+  // Linting with Ruff
+  "python.linting.enabled": true,
+  "python.linting.ruffEnabled": true,
+  "python.linting.ruffArgs": ["--extend-select", "--fix"],
+
+  // Type checking on save (optional)
+  "editor.codeActionsOnSave": {
+    "source.fixAll.ruff": "explicit",
+    "source.organizeImports": "explicit"
+  },
+
+  // File-specific settings
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports": "explicit"
+    }
+  }
+}
+```
+
+### Step 3: Create Workspace Configuration
+
+Create `.vscode/tasks.json` for convenient tasks:
+
+```json
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run with mypy",
+      "type": "shell",
+      "command": "mypy",
+      "args": ["${file}", "--strict"],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run tests",
+      "type": "shell",
+      "command": "pytest",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Format code",
+      "type": "shell",
+      "command": "ruff",
+      "args": ["format", "${file}"],
+      "problemMatcher": []
+    }
+  ]
+}
+```
+
+### Step 4: Configure mypy
+
+Create `mypy.ini` or `.mypy.ini`:
+
+```ini
+[mypy]
+python_version = 3.11
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+show_error_context = true
+show_column_numbers = true
+pretty = true
+
+[mypy-tests.*]
+disallow_untyped_defs = false
+```
+
+Or use `pyproject.toml`:
+
+```toml
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+show_error_context = true
+show_column_numbers = true
+pretty = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+```
+
+---
+
+## PyCharm Setup
+
+### Step 1: Enable Type Checking
+
+1. Go to **Settings → Tools → External Tools**
+2. Click **+** to add a new tool
+3. Configure:
+
+```
+Name: mypy
+Program: $PyInterpreterDirectory$/mypy
+Arguments: --strict $FilePath$
+Working directory: $ProjectFileDir$
+```
+
+### Step 2: Configure Type Checking
+
+1. Go to **Settings → Editor → Inspections**
+2. Expand **Python**
+3. Enable:
+   - **Type checking** (under General tab)
+   - **PEP 8 coding style** violations
+
+### Step 3: Set Up Code Quality
+
+1. Go to **Settings → Tools → External Tools**
+2. Add Ruff:
+
+```
+Name: Ruff Check
+Program: ruff
+Arguments: check $FilePath$ --fix
+Working directory: $ProjectFileDir$
+```
+
+3. Add Ruff format:
+
+```
+Name: Ruff Format
+Program: ruff
+Arguments: format $FilePath$
+Working directory: $ProjectFileDir$
+```
+
+### Step 4: Configure Code Style
+
+1. Go to **Settings → Editor → Code Style → Python**
+2. Set **Indent** to 4 spaces
+3. Enable **Continuation indent**
+4. Go to **Wrapping and Braces** tab
+5. Set **Hard wrap at** to 100
+
+---
+
+## Neovim Setup
+
+For Neovim users, here's a basic configuration with Lazy.nvim:
+
+```lua
+-- init.lua
+return {
+  -- LSP configuration
+  {
+    'neovim/nvim-lspconfig',
+    config = function()
+      require('lspconfig').pylance.setup({
+        settings = {
+          python = {
+            analysis = {
+              typeCheckingMode = 'basic',
+              autoImportCompletions = true,
+            }
+          }
+        }
+      })
+    end
+  },
+
+  -- Completion
+  {
+    'hrsh7th/nvim-cmp',
+    dependencies = {
+      'hrsh7th/cmp-nvim-lsp',
+      'hrsh7th/cmp-buffer',
+    },
+  },
+
+  -- Type checking
+  {
+    'mfussenegger/nvim-lint',
+    config = function()
+      require('lint').linters_by_ft = {
+        python = { 'mypy' }
+      }
+    end
+  },
+
+  -- Formatting
+  {
+    'stevearc/conform.nvim',
+    opts = {
+      formatters_by_ft = {
+        python = { 'ruff_format' },
+      },
+    },
+  },
+}
+```
+
+---
+
+## Common Tools Configuration
+
+### mypy Configuration
+
+Create `pyproject.toml`:
+
+```toml
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+show_error_context = true
+show_column_numbers = true
+show_error_codes = true
+pretty = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+strict = false
+disallow_untyped_defs = false
+```
+
+### Ruff Configuration
+
+Add to `pyproject.toml`:
+
+```toml
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "I",   # isort
+  "B",   # flake8-bugbear
+  "C4",  # flake8-comprehensions
+  "UP",  # pyupgrade
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+```
+
+### Pytest Configuration
+
+Add to `pyproject.toml`:
+
+```toml
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra --strict-markers --tb=short"
+markers = [
+  "unit: Unit tests",
+  "integration: Integration tests",
+  "slow: Slow-running tests",
+]
+```
+
+---
+
+## Virtual Environment Setup
+
+### With venv
+
+```bash
+# Create
+python -m venv .venv
+
+# Activate (macOS/Linux)
+source .venv/bin/activate
+
+# Activate (Windows)
+.venv\Scripts\activate
+
+# Install better-py
+pip install better-py-fp
+```
+
+### With uv (recommended)
+
+```bash
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create project
+uv init my-project
+cd my-project
+
+# Install better-py
+uv pip install better-py-fp
+
+# Activate shell
+uv shell
+```
+
+---
+
+## Git Configuration
+
+Add `.gitignore`:
+
+```text
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+
+# Distribution
+dist/
+build/
+*.egg-info/
+```
+
+---
+
+<Callout type="success" title="Ready to Code!">
+
+Your editor is now configured for better-py development. You should have:
+
+-  Type checking with mypy
+-  Autocomplete with Pylance/PyCharm
+-  Code formatting with Ruff
+-  Linting with Ruff
+-  Test discovery with pytest
+
+</Callout>
+
+---
+
+## Troubleshooting
+
+### Pylance Not Working
+
+If type checking doesn't work:
+
+1. **Select the correct interpreter**
+   VS Code: `Cmd+Shift+P` → "Python: Select Interpreter"
+
+2. **Reload the window**
+   VS Code: `Cmd+Shift+P` → "Developer: Reload Window"
+
+3. **Check Python extension**
+   Ensure the Python extension is enabled
+
+### mypy Not Finding Packages
+
+If mypy can't find better-py:
+
+1. **Install mypy in the same environment**
+   ```bash
+   pip install mypy
+   ```
+
+2. **Create a mypy.ini file**
+   See above for configuration
+
+3. **Run with explicit package path**
+   ```bash
+   mypy --explicit-package-bases your_file.py
+   ```
+
+---
+
+## Next Steps
+
+With your editor configured:
+
+- [Quick Start](/docs/getting-started/quick-start) - Build your first project
+- [Core Concepts](/docs/concepts) - Learn functional programming concepts
+- [Best Practices](/docs/best-practices) - Write better code

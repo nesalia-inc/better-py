@@ -1,0 +1,457 @@
+---
+title: Protocols
+description: Type-safe protocols for extensible design
+---
+
+# Protocols
+
+Protocols in better-py provide a way to define type-safe interfaces that work across different types. They enable polymorphism and extensibility while maintaining type safety.
+
+---
+
+## What are Protocols?
+
+Protocols are **structural types** - they define interfaces that any type can implement by providing the required methods, without explicit inheritance:
+
+```python
+from better_py.protocols import Mappable
+
+# Any type with map method satisfies Mappable
+class MyContainer:
+    def map(self, fn):
+        # Implementation
+        ...
+
+# MyContainer is a Mappable!
+def process[T: Mappable](container: T) -> T:
+    return container.map(lambda x: x * 2)
+```
+
+---
+
+## Why Protocols?
+
+### 1. Flexibility
+
+Work with any compatible type:
+
+```python
+from better_py.protocols import Reducible
+
+def sum_all[T: Reducible](items: T) -> int:
+    return items.reduce(lambda acc, x: acc + x, 0)
+
+# Works with PersistentList
+sum_all(PersistentList.of(1, 2, 3))  # 6
+
+# Works with regular list
+sum_all([1, 2, 3])  # 6
+
+# Works with any custom Reducible
+```
+
+### 2. Type Safety
+
+```python
+from better_py.protocols import Monoid
+
+def combine[T: Monoid](a: T, b: T) -> T:
+    return a.combine(b)
+
+# Type-safe - only works with Monoids
+result = combine(PersistentList.of(1), PersistentList.of(2))
+```
+
+### 3. Composition
+
+Build reusable abstractions:
+
+```python
+from better_py.protocols import Mappable, Reducible
+
+def process[T: (Mappable, Reducible)](data: T) -> int:
+    return (
+        data.map(lambda x: x * 2)
+        .reduce(lambda acc, x: acc + x, 0)
+    )
+```
+
+---
+
+## Available Protocols
+
+### Mappable
+
+Types that support `map`:
+
+```python
+from better_py.protocols import Mappable
+
+protocol Mappable[T]:
+    def map[U](self, fn: Callable[[T], U]) -> Mappable[U]:
+        """Transform each element"""
+        ...
+```
+
+**Implemented by:**
+- `Maybe`
+- `Result`
+- `PersistentList`
+- Any custom type with `map`
+
+---
+
+### Reducible
+
+Types that support `reduce`:
+
+```python
+from better_py.protocols import Reducible
+
+protocol Reducible[T]:
+    def reduce[R](
+        self,
+        fn: Callable[[R, T], R],
+        initial: R
+    ) -> R:
+        """Reduce to single value"""
+        ...
+```
+
+**Implemented by:**
+- `PersistentList`
+- `PersistentMap`
+- `PersistentSet`
+- Python lists, dicts, sets
+
+---
+
+### Monoid
+
+Types that support `combine` and `empty`:
+
+```python
+from better_py.protocols import Monoid
+
+protocol Monoid[T]:
+    def combine(self, other: T) -> T:
+        """Combine two values"""
+        ...
+
+    @staticmethod
+    def empty() -> T:
+        """Return empty value"""
+        ...
+```
+
+**Implemented by:**
+- `PersistentList` (combine = append)
+- `PersistentMap` (merge)
+- `PersistentSet` (union)
+- `int` (addition)
+- `str` (concatenation)
+
+---
+
+### Combinable
+
+Types that can be combined:
+
+```python
+from better_py.protocols import Combinable
+
+protocol Combinable[T]:
+    def combine(self, other: T) -> T:
+        """Combine with another value"""
+        ...
+```
+
+**Examples:**
+```python
+# Numbers
+result = 3.combine(4)  # 7
+
+# Lists
+result = PersistentList.of(1, 2).combine(PersistentList.of(3, 4))
+# PersistentList(1, 2, 3, 4)
+
+# Strings
+result = "Hello".combine(" ")  # "Hello "
+```
+
+---
+
+### Updatable
+
+Types that support key-value updates:
+
+```python
+from better_py.protocols import Updatable
+
+protocol Updatable[K, V]:
+    def set(self, key: K, value: V) -> Updatable[K, V]:
+        """Set a key-value pair"""
+        ...
+
+    def delete(self, key: K) -> Updatable[K, V]:
+        """Delete a key"""
+        ...
+```
+
+**Implemented by:**
+- `PersistentMap`
+- Python dicts (returns mutable copy)
+
+---
+
+### Traversable
+
+Types that support `traverse`:
+
+```python
+from better_py.protocols import Traversable
+
+protocol Traversable[T]:
+    def traverse[M](
+        self,
+        fn: Callable[[T], M]
+    ) -> M:
+        """Transform with monadic function"""
+        ...
+```
+
+**Example:**
+```python
+from better_py import Maybe, PersistentList
+
+# Validate all items
+def validate_all(items: PersistentList[str]) -> Maybe[PersistentList[int]]:
+    return items.traverse(lambda s: parse_int(s))
+```
+
+---
+
+### Parseable
+
+Types that can be parsed:
+
+```python
+from better_py.protocols import Parseable
+
+protocol Parseable[T]:
+    @staticmethod
+    def parse(source: str) -> Result[T, str]:
+        """Parse from string"""
+        ...
+```
+
+**Example:**
+```python
+from better_py import Result
+
+class User(Parseable):
+    @staticmethod
+    def parse(source: str) -> Result[User, str]:
+        try:
+            data = json.loads(source)
+            return Result.ok(User.from_dict(data))
+        except Exception as e:
+            return Result.error(str(e))
+```
+
+---
+
+### Validable
+
+Types that can be validated:
+
+```python
+from better_py.protocols import Validable
+
+protocol Validable[T]:
+    def validate(self) -> Validation[T, str]:
+        """Validate the value"""
+        ...
+```
+
+**Example:**
+```python
+from better_py import Validation
+
+class Email(Validable):
+    def __init__(self, address: str):
+        self.address = address
+
+    def validate(self) -> Validation[Email, str]:
+        if "@" not in self.address:
+            return Validation.invalid(["Invalid email format"])
+        return Validation.valid(self)
+```
+
+---
+
+## Using Protocols
+
+### Generic Functions
+
+Write functions that work with any protocol implementation:
+
+```python
+from better_py.protocols import Monoid
+
+def combine_all[T: Monoid](items: list[T]) -> T:
+    """Combine all monoidal values"""
+    if not items:
+        return items[0].empty() if items else None
+
+    result = items[0]
+    for item in items[1:]:
+        result = result.combine(item)
+    return result
+
+# Works with any Monoid
+combine_all([PersistentList.of(1), PersistentList.of(2)])
+# PersistentList(1, 2)
+
+combine_all(["Hello", " ", "World"])
+# "Hello World"
+```
+
+### Type Constraints
+
+Ensure types support required operations:
+
+```python
+from better_py.protocols import Mappable, Reducible
+
+def process[T: (Mappable, Reducible)](data: T) -> float:
+    """Transform and reduce"""
+    return (
+        data.map(lambda x: x * 2)
+        .reduce(lambda acc, x: acc + x, 0)
+    ) / len(data)
+```
+
+### Protocol Composition
+
+Combine multiple protocols:
+
+```python
+from better_py.protocols import Mappable, Monoid
+
+def transform_and_combine[T: (Mappable, Monoid)](
+    items: T,
+    fn: Callable
+) -> T:
+    return items.map(fn).combine(items)
+```
+
+---
+
+## Implementing Protocols
+
+### Example: Custom Container
+
+```python
+from better_py.protocols import Mappable, Reducible
+from typing import Callable, TypeVar
+
+T = TypeVar('T')
+U = TypeVar('U')
+
+class Box(Mappable[T], Reducible[T]):
+    def __init__(self, value: T):
+        self.value = value
+
+    def map[U](self, fn: Callable[[T], U]) -> Box[U]:
+        return Box(fn(self.value))
+
+    def reduce[R](
+        self,
+        fn: Callable[[R, T], R],
+        initial: R
+    ) -> R:
+        return fn(initial, self.value)
+
+# Usage
+box = Box(5)
+result = box.map(lambda x: x * 2)  # Box(10)
+total = box.reduce(lambda acc, x: acc + x, 0)  # 5
+```
+
+### Example: Custom Monoid
+
+```python
+from better_py.protocols import Monoid
+
+@dataclass(frozen=True)
+class Money(Monoid):
+    amount: int
+    currency: str
+
+    def combine(self, other: Money) -> Money:
+        if self.currency != other.currency:
+            raise ValueError("Currency mismatch")
+        return Money(self.amount + other.amount, self.currency)
+
+    @staticmethod
+    def empty() -> Money:
+        return Money(0, "USD")
+
+# Usage
+wallet = Money(100, "USD").combine(Money(50, "USD"))
+# Money(150, "USD")
+```
+
+---
+
+## Protocol Benefits
+
+### 1. Extensibility
+
+Add new types without changing existing code:
+
+```python
+# Your custom type
+class CustomData:
+    def map(self, fn):
+        # Implementation
+        ...
+
+# Works with all Mappable functions!
+process_any_mappable(custom_data)
+```
+
+### 2. Testability
+
+Easy to create test doubles:
+
+```python
+class FakeDatabase(Reducible):
+    def reduce(self, fn, initial):
+        return fn(initial, test_data)
+
+# Test with fake DB
+test_with_database(FakeDatabase())
+```
+
+### 3. Reusability
+
+Write once, use everywhere:
+
+```python
+def sum_all[T: Reducible](items: T) -> int:
+    return items.reduce(lambda acc, x: acc + x, 0)
+
+# Works with lists, PersistentList, custom types...
+sum_all([1, 2, 3])
+sum_all(PersistentList.of(1, 2, 3))
+```
+
+---
+
+## Next Steps
+
+- **[Mappable Protocol](/docs/protocols/mappable)** - Complete guide
+- **[Monoid Protocol](/docs/protocols/monoid)** - Monoidal patterns
+- **[All Protocols](/docs/protocols)** - Protocol reference

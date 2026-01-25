@@ -1,0 +1,47 @@
+---
+title: Error Handling Guide
+description: Practical error handling strategies
+---
+
+# Error Handling Guide
+
+Comprehensive guide to error handling with better-py.
+
+## Overview
+
+Use **Result** for explicit error handling and **Maybe** for optional values.
+
+## Patterns
+
+### 1. Early Returns
+
+```python
+def process(data: dict) -> Result[Processed, str]:
+    # Validate
+    if not data.get("id"):
+        return Result.error("Missing id")
+    
+    # Process
+    return Result.ok(process_data(data))
+```
+
+### 2. Error Recovery
+
+```python
+result = (
+    fetch_from_cache(key)
+    .or_else(lambda: fetch_from_db(key))
+    .or_else(lambda: fetch_from_api(key))
+)
+```
+
+### 3. Error Enrichment
+
+```python
+result.map_error(lambda e: f"Context: {operation} | {e}")
+```
+
+## See Also
+
+- [Result Monad](/docs/monads/result)
+- [Maybe Monad](/docs/monads/maybe)

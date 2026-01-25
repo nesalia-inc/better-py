@@ -1,0 +1,54 @@
+---
+title: Migration Guide
+description: Migrating from other FP libraries
+---
+
+# Migration Guide
+
+Migrate from other functional programming libraries to better-py.
+
+## From returns
+
+```python
+# returns
+from returns import Maybe, Result
+
+# better-py
+from better_py import Maybe, Result
+
+# Similar API
+Maybe.some(42)
+Result.ok(42)
+```
+
+## From toolz
+
+```python
+# toolz
+from toolz import pipe, compose
+
+# better-py
+from better_py import pipe, compose
+
+# Same usage
+pipe(data, transform, save)
+```
+
+## From fn.py
+
+```python
+# fn.py
+from fn.op import curried
+
+# better-py
+from better_py import curry
+
+# Similar usage
+@curry
+def add(a, b):
+    return a + b
+```
+
+## See Also
+
+- [API Reference](/docs/api)

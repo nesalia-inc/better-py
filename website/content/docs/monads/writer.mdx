@@ -1,0 +1,88 @@
+---
+title: Writer Monad
+description: Computations with logging/output
+---
+
+# Writer Monad
+
+The `Writer` monad represents a computation that produces a value along with a log or output.
+
+---
+
+## Overview
+
+```python
+from better_py import Writer
+
+# Create a writer with a log
+writer = Writer(["Processing..."], 42)
+```
+
+<Callout type="success" title="When to Use Writer">
+
+-  Audit logging
+-  Debugging computations
+-  Building output alongside computation
+
+</Callout>
+
+---
+
+## Creating Writer Values
+
+### Writer()
+
+Create with log and value:
+
+```python
+from better_py import Writer
+
+writer = Writer(["Step 1", "Step 2"], "result")
+```
+
+### Helper constructors
+
+```python
+from better_py import Writer
+
+# For list logs
+Writer.list_writer(["Log"], value)
+
+# For string logs  
+Writer.str_writer("Log", value)
+
+# For numeric logs
+Writer.sum_writer(1, value)
+```
+
+---
+
+## Real-World Examples
+
+### Example 1: Audit Trail
+
+```python
+from better_py import Writer
+
+def transfer(amount: float, from_acc: Account, to_acc: Account) -> Writer[list[str], Transaction]:
+    return (
+        Writer([], None)
+        .tap(lambda _: [f"Transferring {amount} from {from_acc.id} to {to_acc.id}"])
+        .map(lambda _: from_acc.debit(amount))
+        .tap(lambda _: [f"Debited {amount} from {from_acc.id}"])
+        .bind(lambda new_from: to_acc.credit(amount).map(lambda new_to: (new_from, new_to)))
+    )
+
+logs, transaction = transfer(100, acc1, acc2).run()
+# logs = [
+#   "Transferring 100 from acc1 to acc2",
+#   "Debited 100 from acc1"
+# ]
+```
+
+---
+
+## See Also
+
+- [State Monad](/docs/monads/state) - For state management
+- [IO Monad](/docs/monads/io) - For side effects

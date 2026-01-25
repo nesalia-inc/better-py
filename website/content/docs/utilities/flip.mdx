@@ -1,0 +1,47 @@
+---
+title: flip
+description: Flip function arguments
+---
+
+# flip
+
+Flip the order of the first two arguments.
+
+---
+
+## Overview
+
+```python
+from better_py import flip
+
+def divide(a: int, b: int) -> float:
+    return a / b
+
+flipped_divide = flip(divide)
+result = flipped_divide(2, 10)  # 5.0 (10 / 2)
+```
+
+---
+
+## Real-World Examples
+
+### Callback Conversion
+
+```python
+from better_py import flip
+
+def fetch_user(id: int, callback: Callable[[User], None]):
+    user = db.find(id)
+    callback(user)
+
+# Flip to use callback-first
+with_callback = flip(fetch_user)
+with_callback(lambda user: print(user), 123)
+```
+
+---
+
+## See Also
+
+- [compose](/docs/utilities/compose) - Function composition
+- [partial_right](/docs/utilities/partial-right) - Right-side application

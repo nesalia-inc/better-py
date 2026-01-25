@@ -1,0 +1,211 @@
+---
+title: Validation Monad
+description: Accumulate multiple validation errors
+---
+
+# Validation Monad
+
+The `Validation` monad is similar to `Result` but **accumulates errors** instead of stopping at the first one. This is perfect for form validation where you want to show all errors at once.
+
+---
+
+## Overview
+
+```python
+from better_py import Validation
+
+# Creating Validation values
+valid = Validation.valid(42)
+invalid = Validation.invalid(["Error 1", "Error 2"])
+```
+
+<Callout type="success" title="When to Use Validation">
+
+-  Form validation with multiple fields
+-  Batch processing where all errors matter
+-  Configuration validation
+-  Any scenario where you need ALL errors
+
+</Callout>
+
+---
+
+## Creating Validation Values
+
+### Validation.valid()
+
+Wrap a valid value:
+
+```python
+from better_py import Validation
+
+email = Validation.valid("user@example.com")
+```
+
+### Validation.invalid()
+
+Wrap errors:
+
+```python
+errors = Validation.invalid([
+    "Email is required",
+    "Email must contain @"
+])
+```
+
+---
+
+## Inspecting Validation
+
+### is_valid() / is_invalid()
+
+```python
+Validation.valid(42).is_valid()           # True
+Validation.invalid(["bad"]).is_valid()    # False
+```
+
+### get_errors()
+
+Get error list:
+
+```python
+invalid = Validation.invalid(["Error 1", "Error 2"])
+errors = invalid.get_errors()  # ["Error 1", "Error 2"]
+```
+
+---
+
+## Combining Validations
+
+### ap()
+
+Apply function combining multiple validations:
+
+```python
+def validate_name(name: str) -> Validation[str, str]:
+    if len(name) >= 2:
+        return Validation.valid(name)
+    return Validation.invalid(["Name too short"])
+
+def validate_email(email: str) -> Validation[str, str]:
+    if "@" in email:
+        return Validation.valid(email)
+    return Validation.invalid(["Invalid email"])
+
+# Combine - accumulates ALL errors
+name_result = validate_name("A")
+email_result = validate_email("bademail")
+
+combined = name_result.ap(email_result)
+# Validation.invalid(["Name too short", "Invalid email"])
+```
+
+---
+
+## Real-World Examples
+
+### Example 1: Form Validation
+
+```python
+from better_py import Validation
+
+def validate_email(email: str) -> Validation[str, str]:
+    errors = []
+    if not email:
+        errors.append("Email is required")
+    elif "@" not in email:
+        errors.append("Email must contain @")
+    elif "." not in email:
+        errors.append("Email must contain .")
+    
+    return Validation.valid(email) if not errors else Validation.invalid(errors)
+
+def validate_password(password: str) -> Validation[str, str]:
+    errors = []
+    if len(password) < 8:
+        errors.append("Password must be at least 8 characters")
+    if not any(c.isdigit() for c in password):
+        errors.append("Password must contain a digit")
+    if not any(c.isupper() for c in password):
+        errors.append("Password must contain uppercase letter")
+    
+    return Validation.valid(password) if not errors else Validation.invalid(errors)
+
+def validate_age(age: int) -> Validation[int, str]:
+    if age < 0:
+        return Validation.invalid(["Age cannot be negative"])
+    if age > 120:
+        return Validation.invalid(["Age is unrealistic"])
+    return Validation.valid(age)
+
+def validate_form(email: str, password: str, age: int) -> Validation[dict, str]:
+    email_result = validate_email(email)
+    password_result = validate_password(password)
+    age_result = validate_age(age)
+    
+    return (
+        email_result
+        .ap(password_result)
+        .ap(age_result)
+        .map(lambda parts: {
+            "email": parts[0],
+            "password": parts[1],
+            "age": parts[2]
+        })
+    )
+
+# Usage
+result = validate_form("bad", "weak", 150)
+if result.is_valid():
+    form_data = result.unwrap()
+    print(f"Valid: {form_data}")
+else:
+    print(f"Errors: {result.get_errors()}")
+    # Errors: [
+    #   "Email must contain @",
+    #   "Email must contain .",
+    #   "Password must be at least 8 characters",
+    #   "Password must contain a digit",
+    #   "Password must contain uppercase letter",
+    #   "Age is unrealistic"
+    # ]
+```
+
+### Example 2: Configuration Validation
+
+```python
+def validate_config(config: dict) -> Validation[dict, str]:
+    host_result = validate_host(config.get("host"))
+    port_result = validate_port(config.get("port"))
+    
+    return host_result.ap(port_result).map(
+        lambda parts: {"host": parts[0], "port": parts[1]}
+    )
+```
+
+---
+
+## Best Practices
+
+<Callout type="success" title="Do">
+
+ Use Validation for form validation
+ Return ALL relevant errors
+ Make error messages specific and actionable
+
+</Callout>
+
+<Callout type="error" title="Don't">
+
+ Use Validation for sequential operations (use Result)
+ Return empty error lists (use Result.ok instead)
+ Mix Validation and Result inconsistently
+
+</Callout>
+
+---
+
+## See Also
+
+- [Result Monad](/docs/monads/result) - For error handling
+- [Form Validation Guide](/docs/guides/form-validation) - Practical patterns

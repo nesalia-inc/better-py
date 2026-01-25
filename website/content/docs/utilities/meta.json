@@ -1,0 +1,3 @@
+{
+  "pages": ["index", "compose", "curry", "pipe", "partial-right", "flip"]
+}

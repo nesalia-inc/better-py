@@ -1,0 +1,138 @@
+---
+title: PersistentList
+description: Immutable linked list with O(1) prepend
+---
+
+# PersistentList
+
+An immutable linked list with structural sharing for efficient prepend operations.
+
+---
+
+## Overview
+
+```python
+from better_py import PersistentList
+
+lst = PersistentList.of(1, 2, 3)
+new_lst = lst.prepend(0).append(4)
+
+# Original unchanged
+assert lst.to_list() == [1, 2, 3]
+```
+
+---
+
+## Creating PersistentList
+
+### PersistentList.of()
+
+```python
+lst = PersistentList.of(1, 2, 3)
+```
+
+### PersistentList.empty()
+
+```python
+empty = PersistentList.empty()
+```
+
+### PersistentList.from_iterable()
+
+```python
+lst = PersistentList.from_iterable([1, 2, 3])
+```
+
+---
+
+## Operations
+
+### prepend()
+
+O(1) prepend:
+
+```python
+lst = PersistentList.of(2, 3)
+new_lst = lst.prepend(1)  # [1, 2, 3]
+```
+
+### append()
+
+O(n) append:
+
+```python
+lst = PersistentList.of(1, 2)
+new_lst = lst.append(3)  # [1, 2, 3]
+```
+
+### head() / tail()
+
+```python
+lst = PersistentList.of(1, 2, 3)
+lst.head()  # Maybe(1)
+lst.tail()  # PersistentList(2, 3)
+```
+
+### map() / filter()
+
+```python
+lst = PersistentList.of(1, 2, 3, 4, 5)
+
+doubled = lst.map(lambda x: x * 2)  # [2, 4, 6, 8, 10]
+evens = lst.filter(lambda x: x % 2 == 0)  # [2, 4]
+```
+
+---
+
+## Real-World Examples
+
+### Example 1: Building Immutable History
+
+```python
+from better_py import PersistentList
+
+class History:
+    def __init__(self):
+        self.states = PersistentList.empty()
+        self.current = self.states
+    
+    def push(self, state):
+        self.states = self.states.prepend(state)
+        self.current = self.states
+    
+    def undo(self):
+        if not self.current.is_empty():
+            self.current = self.current.tail()
+    
+    def current_state(self):
+        return self.current.head().unwrap_or(None)
+
+history = History()
+history.push({"x": 0})
+history.push({"x": 1})
+history.push({"x": 2})
+
+history.current_state()  # {"x": 2}
+history.undo()
+history.current_state()  # {"x": 1}
+```
+
+---
+
+## Performance
+
+| Operation | Time Complexity |
+|-----------|----------------|
+| prepend() | O(1) |
+| append() | O(n) |
+| head() | O(1) |
+| tail() | O(1) |
+| map() | O(n) |
+| filter() | O(n) |
+
+---
+
+## See Also
+
+- [PersistentMap](/docs/collections/persistent-map) - Immutable maps
+- [Immutability](/docs/concepts/immutability) - Learn about immutability

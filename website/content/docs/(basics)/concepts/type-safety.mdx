@@ -1,0 +1,402 @@
+---
+title: Type Safety
+description: Leverage Python's type system for correctness
+---
+
+# Type Safety
+
+better-py is built with Python's type system from the ground up. All monads, collections, and utilities are fully generic and type-safe.
+
+---
+
+## Why Type Safety?
+
+### 1. Catch Errors Early
+
+```python
+from better_py import Result, Maybe
+
+# Type checker knows the types
+def divide(a: int, b: int) -> Result[int, str]:
+    if b == 0:
+        return Result.error("Division by zero")
+    return Result.ok(a // b)
+
+# Type error caught at compile time!
+result: Result[int, str] = divide(10, 2)
+
+#  Type error - wrong type
+value: Result[str, str] = divide(10, 2)  # Error!
+```
+
+### 2. Better IDE Support
+
+```python
+from better_py import Maybe
+
+# IDE knows the type inside Maybe
+result: Maybe[int] = Maybe.some(42)
+
+# IDE suggests int methods
+result.map(lambda x: x.bit_length())  # 
+result.map(lambda x: x.upper())  #  Error - int has no upper()
+```
+
+### 3. Safer Refactoring
+
+```python
+# Change return type
+def fetch_user(id: int) -> Maybe[User]:
+    ...
+
+# Type checker finds all places that break!
+user = fetch_user(1)
+name = user.map(lambda u: u.name)  # Still works
+age = user.map(lambda u: u.age)  # Still works
+```
+
+---
+
+## Generic Types in better-py
+
+All better-py types are fully generic:
+
+```python
+from better_py import Maybe, Result, PersistentList
+
+# Maybe[T]
+maybe_int: Maybe[int] = Maybe.some(42)
+maybe_str: Maybe[str] = Maybe.some("hello")
+
+# Result[T, E]
+result_ok: Result[int, str] = Result.ok(42)
+result_error: Result[int, str] = Result.error("failed")
+
+# PersistentList[T]
+list_int: PersistentList[int] = PersistentList.of(1, 2, 3)
+list_str: PersistentList[str] = PersistentList.of("a", "b", "c")
+```
+
+---
+
+## Type Transformations
+
+The type system tracks transformations:
+
+```python
+from better_py import Maybe
+
+# Type: Maybe[int]
+maybe_int = Maybe.some(42)
+
+# map transforms int -> str
+# Type: Maybe[str]
+maybe_str = maybe_int(str)  # Maybe.some("42")
+
+# bind transforms Maybe[str] -> Maybe[int]
+# Type: Maybe[int]
+maybe_back = maybe_str.bind(lambda s: Maybe.some(len(s)))  # Maybe.some(2)
+```
+
+### Result Transformations
+
+```python
+from better_py import Result
+
+# Type: Result[int, str]
+result: Result[int, str] = Result.ok(42)
+
+# map transforms int -> str
+# Type: Result[str, str]
+mapped = result.map(lambda x: str(x))  # Result.ok("42")
+
+# map_error transforms str -> int
+# Type: Result[str, int]
+error_mapped = result.map_error(lambda e: len(e))  # Result.ok("42")
+```
+
+---
+
+## Type Inference
+
+Python's type inference works well with better-py:
+
+```python
+from better_py import Maybe
+
+# Type inferred as Maybe[int]
+result = Maybe.some(42)
+
+# Function infers types
+def process(value: Maybe[int]) -> str:
+    return value.map(lambda x: x * 2).unwrap_or(0)
+```
+
+---
+
+## Mypy Configuration
+
+Configure mypy for better-py:
+
+```ini
+# mypy.ini
+[mypy]
+python_version = 3.11
+strict = True
+warn_return_any = True
+warn_unused_configs = True
+disallow_untyped_defs = True
+```
+
+### Running mypy
+
+```bash
+# Check all files
+mypy .
+
+# Check specific file
+mypy src/main.py
+
+# Strict mode
+mypy --strict src/
+```
+
+---
+
+## Common Type Patterns
+
+### Pattern 1: Type Aliases
+
+```python
+from better_py import Result
+
+# Create reusable type aliases
+UserId = int
+User = dict
+FetchUserResult = Result[User, str]
+
+def fetch_user(id: UserId) -> FetchUserResult:
+    ...
+```
+
+### Pattern 2: Generic Classes
+
+```python
+from better_py import Maybe, Result
+
+class Repository[T]:
+    def get(self, id: int) -> Maybe[T]:
+        ...
+
+    def save(self, item: T) -> Result[T, str]:
+        ...
+
+# Usage
+user_repo: Repository[User] = Repository()
+product_repo: Repository[Product] = Repository()
+```
+
+### Pattern 3: Type Guards
+
+```python
+from better_py import Maybe, Result
+
+def is_valid_user(user: dict) -> TypeGuard[User]:
+    return "name" in user and "email" in user
+
+def process(data: dict) -> Result[User, str]:
+    if is_valid_user(data):
+        return Result.ok(data)
+    return Result.error("Invalid user")
+```
+
+---
+
+## Type-Safe Error Handling
+
+### Explicit Error Types
+
+```python
+from better_py import Result
+
+# Define error types
+class DatabaseError(Exception): pass
+class ValidationError(Exception): pass
+
+# Result with specific error type
+def fetch_user(id: int) -> Result[User, DatabaseError | ValidationError]:
+    if id < 0:
+        return Result.error(ValidationError("Invalid ID"))
+    try:
+        user = db.query(id)
+        return Result.ok(user)
+    except Exception as e:
+        return Result.error(DatabaseError(str(e)))
+```
+
+### Type Narrowing
+
+```python
+from better_py import Result
+
+def process_result(result: Result[int, str]) -> int:
+    # Type narrowing
+    if result.is_ok():
+        # Type is Result[int, str] -> int
+        return result.unwrap() * 2
+    else:
+        # Type is Result[int, str] -> str
+        print(f"Error: {result.unwrap_error()}")
+        return 0
+```
+
+---
+
+## Type Safety with Monads
+
+### Maybe Type Safety
+
+```python
+from better_py import Maybe
+
+# Type-safe chaining
+def get_user_name(id: int) -> Maybe[str]:
+    return (
+        Maybe.from_value(find_user(id))
+        .map(lambda user: user.name)  # Type tracked: User -> str
+        .filter(lambda name: len(name) > 0)  # Maybe[str]
+    )
+
+# Return type: Maybe[str]
+```
+
+### Result Type Safety
+
+```python
+from better_py import Result
+
+def process_data(data: str) -> Result[int, str]:
+    return (
+        Result.ok(data)
+        .bind(lambda s: parse_int(s))  # Result[int, str]
+        .map(lambda i: i * 2)  # Result[int, str]
+    )
+
+# Type checker tracks success and error types
+```
+
+### Validation Type Safety
+
+```python
+from better_py import Validation
+
+def validate_form(data: dict) -> Validation[ValidData, str]:
+    name_result: Validation[str, str] = validate_name(data.get("name"))
+    email_result: Validation[str, str] = validate_email(data.get("email"))
+
+    # Type preserved through ap
+    return (
+        name_result
+        .ap(email_result)
+        .map(lambda parts: ValidData(
+            name=parts[0],
+            email=parts[1]
+        ))
+    )
+```
+
+---
+
+## Type Safety in Collections
+
+### PersistentList
+
+```python
+from better_py import PersistentList
+
+# Type: PersistentList[int]
+numbers = PersistentList.of(1, 2, 3)
+
+# map transforms types
+# Type: PersistentList[str]
+strings = numbers.map(str)  # ["1", "2", "3"]
+
+# filter preserves type
+# Type: PersistentList[int]
+evens = numbers.filter(lambda x: x % 2 == 0)  # [2]
+```
+
+### PersistentMap
+
+```python
+from better_py import PersistentMap
+
+# Type: PersistentMap[str, int]
+ages = PersistentMap({"Alice": 30, "Bob": 25})
+
+# map_values transforms value type
+# Type: PersistentMap[str, str]
+descriptions = ages.map_values(lambda age: f"{age} years old")
+```
+
+---
+
+## Best Practices
+
+### 1. Always Annotate Public APIs
+
+```python
+#  Good - explicit types
+def fetch_user(id: int) -> Maybe[User]:
+    ...
+
+#  Bad - no type hints
+def fetch_user(id):
+    ...
+```
+
+### 2. Use Specific Error Types
+
+```python
+#  Good - specific error type
+def divide(a: int, b: int) -> Result[float, DivisionError]:
+    ...
+
+#  Bad - generic error
+def divide(a: int, b: int) -> Result[float, Exception]:
+    ...
+```
+
+### 3. Leverage Type Inference
+
+```python
+#  Good - let mypy infer
+result = Maybe.some(42).map(lambda x: x * 2)
+
+#  Unnecessary - explicit annotation
+result: Maybe[int] = Maybe.some(42).map(lambda x: x * 2)
+```
+
+---
+
+## Strict Type Checking
+
+Enable strict mode for maximum safety:
+
+```bash
+mypy --strict your_project/
+```
+
+This catches:
+- Missing return statements
+- Unused variables
+- Implicit Any types
+- Incompatible return types
+
+---
+
+## Next Steps
+
+- **[Type Annotations Guide](/docs/best-practices/type-annotations)** - Best practices
+- **[Mypy Documentation](https://mypy.readthedocs.io/)** - Learn mypy
+- **[API Reference](/docs/api)** - Type-safe API

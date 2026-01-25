@@ -1,0 +1,135 @@
+---
+title: Try Monad
+description: Wrap exception-throwing code in a monad
+---
+
+# Try Monad
+
+The `Try` monad wraps computations that might raise exceptions, converting them into a value (`Success` or `Failure`).
+
+---
+
+## Overview
+
+```python
+from better_py import Try
+
+# Wrap exception-throwing code
+result = Try(lambda: int("42"))      # Success(42)
+result = Try(lambda: int("invalid")) # Failure(ValueError)
+```
+
+<Callout type="success" title="When to Use Try">
+
+-  Wrapping legacy code that uses exceptions
+-  Interfacing with libraries you don't control
+-  Converting exceptions to explicit error handling
+
+</Callout>
+
+---
+
+## Creating Try Values
+
+### Try() constructor
+
+Wrap a callable:
+
+```python
+from better_py import Try
+
+def divide(a: int, b: int) -> int:
+    return a // b
+
+result = Try(lambda: divide(10, 0))  # Failure(ZeroDivisionError)
+```
+
+---
+
+## Inspecting Try
+
+### is_success() / is_failure()
+
+```python
+Try(lambda: 1 + 1).is_success()    # True
+Try(lambda: 1 / 0).is_failure()    # True
+```
+
+### get_exception()
+
+Get the exception:
+
+```python
+failure = Try(lambda: int("invalid"))
+exc = failure.get_exception()  # ValueError instance
+```
+
+---
+
+## Transforming Try
+
+### map()
+
+Transform success value:
+
+```python
+Try(lambda: 10).map(lambda x: x * 2)  # Success(20)
+```
+
+### recover()
+
+Recover from failure:
+
+```python
+Try(lambda: 1 / 0).recover(lambda e: 0)  # Success(0)
+```
+
+### fold()
+
+Pattern matching:
+
+```python
+def handle_try(result: Try[int]) -> str:
+    return result.fold(
+        on_failure=lambda exc: f"Exception: {exc}",
+        on_success=lambda val: f"Value: {val}"
+    )
+```
+
+---
+
+## Real-World Examples
+
+### Example 1: File Operations
+
+```python
+from better_py import Try
+
+def read_config(path: str) -> Try[dict]:
+    return Try(lambda: json.loads(Path(path).read_text()))
+
+config = read_config("config.json")
+if config.is_success():
+    data = config.unwrap()
+    print(f"Config: {data}")
+else:
+    exc = config.get_exception()
+    print(f"Failed to read config: {exc}")
+```
+
+### Example 2: API Calls
+
+```python
+def fetch_user(id: int) -> Try[dict]:
+    return Try(lambda: requests.get(f"/api/users/{id}").json())
+
+user = fetch_user(123)
+profile = user.map(lambda u: u["profile"])
+```
+
+---
+
+## See Also
+
+- [Result Monad](/docs/monads/result) - For explicit error handling
+- [Error Handling Guide](/docs/guides/error-handling) - Error strategies

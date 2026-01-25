@@ -1,0 +1,25 @@
+{
+  "title": "Monads",
+  "description": "All 13 monads for error handling, state management, and more",
+  "icon": "BoxIcon",
+  "root": true,
+  "pages": [
+    "index",
+    "---Core Monads---",
+    "maybe",
+    "result",
+    "either",
+    "validation",
+    "try",
+    "---Effect Monads---",
+    "reader",
+    "writer",
+    "state",
+    "io",
+    "task",
+    "---Utility Monads---",
+    "unit",
+    "---Async---",
+    "...async"
+  ]
+}

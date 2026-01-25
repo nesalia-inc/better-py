@@ -1,0 +1,3 @@
+{
+  "pages": ["index", "cli-tool", "...web-api", "...database", "data-pipeline", "configuration", "microservices"]
+}

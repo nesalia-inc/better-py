@@ -1,0 +1,67 @@
+---
+title: compose & compose_left
+description: Function composition utilities
+---
+
+# compose & compose_left
+
+Compose functions together to create new functions.
+
+---
+
+## compose()
+
+Right-to-left composition (mathematical order):
+
+```python
+from better_py import compose
+
+def double(x): return x * 2
+def increment(x): return x + 1
+
+# Compose: increment first, then double
+pipeline = compose(double, increment)
+result = pipeline(5)  # 12 (increment(5) = 6, double(6) = 12)
+```
+
+## compose_left()
+
+Left-to-right composition (natural reading order):
+
+```python
+from better_py import compose_left
+
+pipeline = compose_left(double, increment)
+result = pipeline(5)  # 11 (double(5) = 10, increment(10) = 11)
+```
+
+---
+
+## Real-World Examples
+
+### Data Processing Pipeline
+
+```python
+from better_py import compose
+
+def fetch_data(source): ...
+def clean_data(data): ...
+def validate_data(data): ...
+def transform_data(data): ...
+
+pipeline = compose(
+    transform_data,
+    validate_data,
+    clean_data,
+    fetch_data
+)
+
+result = pipeline("api")
+```
+
+---
+
+## See Also
+
+- [pipe](/docs/utilities/pipe) - Data pipelines
+- [curry](/docs/utilities/curry) - Partial application

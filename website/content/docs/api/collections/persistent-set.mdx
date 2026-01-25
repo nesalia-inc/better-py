@@ -1,0 +1,38 @@
+---
+title: PersistentSet API
+description: PersistentSet API reference
+---
+
+# PersistentSet API
+
+## Static Methods
+
+### of(*items: T) -> PersistentSet
+Create set from items.
+
+### from_iterable(items: Iterable[T]) -> PersistentSet
+Create from iterable.
+
+## Instance Methods
+
+### add(item: T) -> PersistentSet
+Add element.
+
+### remove(item: T) -> PersistentSet
+Remove element.
+
+### contains(item: T) -> bool
+Check membership.
+
+### union(other: PersistentSet) -> PersistentSet
+Combine sets.
+
+### intersection(other: PersistentSet) -> PersistentSet
+Common elements.
+
+### difference(other: PersistentSet) -> PersistentSet
+Elements in this but not other.
+
+## See Also
+
+- [PersistentSet Guide](/docs/collections/persistent-set)

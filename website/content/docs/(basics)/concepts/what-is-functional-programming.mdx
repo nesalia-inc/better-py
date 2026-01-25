@@ -1,0 +1,296 @@
+---
+title: What is Functional Programming?
+description: An introduction to functional programming concepts
+---
+
+# What is Functional Programming?
+
+Functional programming (FP) is a programming paradigm where programs are constructed by applying and composing functions. It emphasizes writing code that is **declarative**, **immutable**, and **side-effect free**.
+
+---
+
+## Core Principles
+
+### 1. Pure Functions
+
+A pure function always produces the same output for the same input and has no side effects:
+
+```python
+#  Pure function
+def add(a: int, b: int) -> int:
+    return a + b
+
+#  Impure function - depends on external state
+count = 0
+def increment() -> int:
+    global count
+    count += 1
+    return count
+```
+
+**Benefits:**
+- Easy to test
+- Predictable behavior
+- Can be memoized
+- Thread-safe
+
+### 2. Immutability
+
+Data doesn't change after creation:
+
+```python
+#  Mutable - modifies original
+items = [1, 2, 3]
+items.append(4)  # items is now [1, 2, 3, 4]
+
+#  Immutable - returns new value
+items = PersistentList.of(1, 2, 3)
+new_items = items.append(4)  # items unchanged
+```
+
+**Benefits:**
+- No unexpected mutations
+- Easier to reason about
+- Safer concurrent code
+- Better debugging
+
+### 3. First-Class Functions
+
+Functions can be assigned to variables, passed as arguments, and returned from other functions:
+
+```python
+from better_py import compose
+
+# Assign function to variable
+add_one = lambda x: x + 1
+
+# Pass function as argument
+result = map(add_one, [1, 2, 3])
+
+# Compose functions
+pipeline = compose(str, add_one)
+result = pipeline(5)  # "6"
+```
+
+### 4. Higher-Order Functions
+
+Functions that operate on other functions:
+
+```python
+from better_py import PersistentList
+
+# filter takes a predicate function
+evens = PersistentList(1, 2, 3, 4).filter(lambda x: x % 2 == 0)
+
+# map takes a transformation function
+doubled = PersistentList(1, 2, 3).map(lambda x: x * 2)
+```
+
+---
+
+## Why Functional Programming?
+
+### 1. Easier to Reason About
+
+Pure functions + immutability = predictable code:
+
+```python
+# Imperative - hard to follow
+def process(items):
+    result = []
+    for item in items:
+        if item > 0:
+            result.append(item * 2)
+    return result
+
+# Functional - clear and declarative
+def process(items):
+    return (
+        PersistentList(items)
+        .filter(lambda x: x > 0)
+        .map(lambda x: x * 2)
+    )
+```
+
+### 2. Fewer Bugs
+
+No mutations = no surprise bugs:
+
+```python
+#  Mutation bugs
+def process_list(data):
+    data.clear()  # Oops! Clears original list
+    # ...
+
+#  Safe with immutability
+def process_list(data):
+    return data.map(transform)  # Returns new list
+```
+
+### 3. Better Testing
+
+Pure functions are easy to test:
+
+```python
+# Pure function - easy to test
+def calculate_discount(price: float, discount: float) -> float:
+    return price * (1 - discount)
+
+# Test is simple
+assert calculate_discount(100, 0.1) == 90
+```
+
+### 4. Concurrency
+
+Immutable data = no race conditions:
+
+```python
+# Safe concurrent processing
+results = (
+    PersistentList(items)
+    .map(expensive_operation)  # Can run in parallel
+)
+```
+
+---
+
+## Common FP Concepts
+
+### Map
+
+Transform each element:
+
+```python
+from better_py import PersistentList
+
+numbers = PersistentList(1, 2, 3, 4)
+doubled = numbers.map(lambda x: x * 2)
+# PersistentList(2, 4, 6, 8)
+```
+
+### Filter
+
+Keep elements that match a predicate:
+
+```python
+evens = numbers.filter(lambda x: x % 2 == 0)
+# PersistentList(2, 4)
+```
+
+### Reduce
+
+Combine elements into a single value:
+
+```python
+from better_py import Reducible
+
+total = numbers.reduce(lambda acc, x: acc + x, 0)
+# 10
+```
+
+### Composition
+
+Build complex functions from simple ones:
+
+```python
+from better_py import compose
+
+add = lambda x: x + 1
+multiply = lambda x: x * 2
+
+# Compose functions
+pipeline = compose(multiply, add)
+result = pipeline(5)  # (5 + 1) * 2 = 12
+```
+
+---
+
+## FP in Python with better-py
+
+Python is primarily an object-oriented language, but better-py brings FP patterns to Python:
+
+### Maybe Monad
+
+Handle optional values safely:
+
+```python
+from better_py import Maybe
+
+def get_user_name(user_id: int) -> Maybe[str]:
+    return (
+        Maybe.from_value(find_user(user_id))
+        .map(lambda user: user.name)
+    )
+
+# Safe chaining
+name = get_user_name(1).unwrap_or("Guest")
+```
+
+### Result Monad
+
+Explicit error handling:
+
+```python
+from better_py import Result
+
+def divide(a: int, b: int) -> Result[int, str]:
+    if b == 0:
+        return Result.error("Cannot divide by zero")
+    return Result.ok(a // b)
+
+# Explicit error handling
+result = divide(10, 2)
+if result.is_ok():
+    print(f"Result: {result.unwrap()}")
+else:
+    print(f"Error: {result.unwrap_error()}")
+```
+
+### Persistent Collections
+
+Immutable data structures:
+
+```python
+from better_py import PersistentList, PersistentMap
+
+# Lists
+lst = PersistentList.of(1, 2, 3)
+new_lst = lst.append(4)  # Original unchanged
+
+# Maps
+config = PersistentMap({"api_key": "secret"})
+new_config = config.set("timeout", 30)  # Original unchanged
+```
+
+---
+
+## When to Use FP
+
+<Callout type="success" title="Great For">
+
+-  Data processing pipelines
+-  Business logic with complex rules
+-  Error handling
+-  Concurrent/parallel processing
+-  State management
+
+</Callout>
+
+<Callout type="warning" title="Less Ideal For">
+
+-  Simple scripts
+-  Performance-critical inner loops
+-  Direct hardware interaction
+-  Quick prototypes
+
+</Callout>
+
+---
+
+## Next Steps
+
+Now that you understand the basics, explore:
+
+- **[Monads](/docs/concepts/monads)** - Learn about monads
+- **[Immutability](/docs/concepts/immutability)** - Deep dive into immutability
+- **[Type Safety](/docs/concepts/type-safety)** - Type-safe functional code

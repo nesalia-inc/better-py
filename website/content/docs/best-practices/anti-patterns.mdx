@@ -1,0 +1,52 @@
+---
+title: Anti-Patterns
+description: Common mistakes to avoid
+---
+
+# Anti-Patterns
+
+Common mistakes and how to avoid them.
+
+## Anti-Patterns
+
+### 1. Ignoring None
+
+```python
+# Bad
+value = Maybe.some(42)
+result = value.unwrap()  # Might crash!
+
+# Good
+value = Maybe.some(42)
+result = value.unwrap_or(0)
+```
+
+### 2. Nesting Monads
+
+```python
+# Bad
+maybe_maybe = Maybe.some(Maybe.some(42))
+
+# Good
+maybe = Maybe.some(42)
+```
+
+### 3. Mixing Errors and Exceptions
+
+```python
+# Bad: Inconsistent
+def sometimes_raises():
+    if condition:
+        raise ValueError("Bad")
+    return Result.error("Also bad")
+
+# Good: Consistent
+def always_result():
+    if condition:
+        return Result.error("Bad")
+    return Result.ok(value)
+```
+
+## See Also
+
+- [Best Practices Overview](/docs/best-practices)

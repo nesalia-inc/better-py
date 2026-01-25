@@ -1,0 +1,94 @@
+---
+title: PersistentSet
+description: Immutable set with algebraic operations
+---
+
+# PersistentSet
+
+An immutable set with algebraic operations and structural sharing.
+
+---
+
+## Overview
+
+```python
+from better_py import PersistentSet
+
+set1 = PersistentSet.of(1, 2, 3)
+set2 = set1.add(4)
+set3 = set2.union(set1)
+
+# All immutable
+```
+
+---
+
+## Creating PersistentSet
+
+### PersistentSet.of()
+
+```python
+st = PersistentSet.of(1, 2, 3)
+```
+
+### Empty
+
+```python
+empty = PersistentSet.empty()
+```
+
+---
+
+## Operations
+
+### add() / remove()
+
+```python
+st = PersistentSet.of(1, 2, 3)
+new_st = st.add(4)
+newer_st = new_st.remove(1)
+```
+
+### union()
+
+```python
+set1 = PersistentSet.of(1, 2, 3)
+set2 = PersistentSet.of(3, 4, 5)
+combined = set1.union(set2)  # {1, 2, 3, 4, 5}
+```
+
+### intersection()
+
+```python
+set1 = PersistentSet.of(1, 2, 3)
+set2 = PersistentSet.of(3, 4, 5)
+common = set1.intersection(set2)  # {3}
+```
+
+### difference()
+
+```python
+set1 = PersistentSet.of(1, 2, 3)
+set2 = PersistentSet.of(3, 4, 5)
+diff = set1.difference(set2)  # {1, 2}
+```
+
+---
+
+## Real-World Examples
+
+### Example 1: Tag Management
+
+```python
+from better_py import PersistentSet
+
+tags = PersistentSet.of("python", "functional")
+new_tags = tags.add("programming").remove("old")
+```
+
+---
+
+## See Also
+
+- [PersistentList](/docs/collections/persistent-list) - Immutable lists
+- [PersistentMap](/docs/collections/persistent-map) - Immutable maps

@@ -1,0 +1,31 @@
+{
+  "title": "Collections & Utilities",
+  "description": "Immutable collections, function utilities, and protocols",
+  "icon": "LibraryIcon",
+  "root": true,
+  "pages": [
+    "---Collections---",
+    "index",
+    "persistent-list",
+    "persistent-map",
+    "persistent-set",
+    "performance",
+    "---Utilities---",
+    "utilities/index",
+    "utilities/compose",
+    "utilities/curry",
+    "utilities/pipe",
+    "utilities/partial-right",
+    "utilities/flip",
+    "---Protocols---",
+    "protocols/index",
+    "protocols/mappable",
+    "protocols/reducible",
+    "protocols/combinable",
+    "protocols/monoid",
+    "protocols/updatable",
+    "protocols/traversable",
+    "protocols/parseable",
+    "protocols/validable"
+  ]
+}

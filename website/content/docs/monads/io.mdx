@@ -1,0 +1,102 @@
+---
+title: IO Monad
+description: Explicit side effect management
+---
+
+# IO Monad
+
+The `IO` monad represents computations with side effects, making them explicit and deferring their execution.
+
+---
+
+## Overview
+
+```python
+from better_py import IO
+
+# Defer side effect
+io = IO(lambda: print("Hello"))
+io.run()  # Executes the side effect
+```
+
+<Callout type="success" title="When to Use IO">
+
+-  Making side effects explicit
+-  Controlling when side effects run
+-  Testing code with side effects
+-  Sequencing side effects
+
+</Callout>
+
+---
+
+## Creating IO Values
+
+### IO()
+
+Wrap a side effect:
+
+```python
+from better_py import IO
+
+print_io = IO(lambda: print("Hello"))
+file_io = IO(lambda: open("file.txt").read())
+```
+
+---
+
+## Combining IO
+
+### map()
+
+Transform result:
+
+```python
+IO(lambda: input()).map(str.upper).run()
+```
+
+### bind()
+
+Chain side effects:
+
+```python
+def save_and_log(data: str) -> IO[None]:
+    return (
+        IO(lambda: save_to_db(data))
+        .bind(lambda _: IO(lambda: log(f"Saved {data}")))
+    )
+```
+
+---
+
+## Real-World Examples
+
+### Example 1: File Operations
+
+```python
+from better_py import IO
+
+def read_file(path: str) -> IO[str]:
+    return IO(lambda: Path(path).read_text())
+
+def write_file(path: str, content: str) -> IO[None]:
+    return IO(lambda: Path(path).write_text(content))
+
+# Chain operations
+def process_file(in_path: str, out_path: str) -> IO[None]:
+    return (
+        read_file(in_path)
+        .map(lambda content: content.upper())
+        .bind(lambda content: write_file(out_path, content))
+    )
+
+# Run later
+process_file("input.txt", "output.txt").run()
+```
+
+---
+
+## See Also
+
+- [Task Monad](/docs/monads/task) - For lazy async
+- [Try Monad](/docs/monads/try) - For exceptions

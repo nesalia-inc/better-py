@@ -1,0 +1,27 @@
+---
+title: Combinable Protocol
+description: Objects that can be combined
+---
+
+# Combinable Protocol
+
+The `Combinable` protocol represents objects that can be combined.
+
+---
+
+## Overview
+
+```python
+from better_py.protocols import Combinable
+
+class Money(Combinable):
+    def combine(self, other):
+        return Money(self.amount + other.amount)
+```
+
+---
+
+## See Also
+
+- [Monoid](/docs/protocols/monoid) - Combinable with identity
+- [Mappable](/docs/protocols/mappable) - Transform protocol

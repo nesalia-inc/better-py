@@ -1,0 +1,103 @@
+---
+title: PersistentMap
+description: Immutable dictionary with efficient updates
+---
+
+# PersistentMap
+
+An immutable dictionary with structural sharing for efficient updates.
+
+---
+
+## Overview
+
+```python
+from better_py import PersistentMap
+
+config = PersistentMap({"host": "localhost"})
+new_config = config.set("port", 5432)
+
+# Original unchanged
+assert config.get("port") == None
+assert new_config.get("port") == 5432
+```
+
+---
+
+## Creating PersistentMap
+
+### From dict
+
+```python
+mp = PersistentMap({"a": 1, "b": 2})
+```
+
+### Empty
+
+```python
+empty = PersistentMap.empty()
+```
+
+---
+
+## Operations
+
+### set()
+
+Set a key:
+
+```python
+mp = PersistentMap({"a": 1})
+new_mp = mp.set("b", 2)
+```
+
+### delete()
+
+Remove a key:
+
+```python
+mp = PersistentMap({"a": 1, "b": 2})
+new_mp = mp.delete("a")
+```
+
+### get()
+
+Get a value:
+
+```python
+mp = PersistentMap({"a": 1})
+value = mp.get("a")  # Maybe(1)
+```
+
+### set_in()
+
+Deep update:
+
+```python
+config = PersistentMap({"db": {"host": "localhost"}})
+updated = config.set_in("db.host", "remotehost")
+```
+
+---
+
+## Real-World Examples
+
+### Example 1: Immutable Configuration
+
+```python
+from better_py import PersistentMap
+
+def update_config(config: PersistentMap, key: str, value):
+    return config.set(key, value)
+
+config = PersistentMap({"debug": False})
+config = update_config(config, "debug", True)
+config = update_config(config, "port", 8080)
+```
+
+---
+
+## See Also
+
+- [PersistentList](/docs/collections/persistent-list) - Immutable lists
+- [PersistentSet](/docs/collections/persistent-set) - Immutable sets

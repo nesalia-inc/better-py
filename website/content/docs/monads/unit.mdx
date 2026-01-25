@@ -1,0 +1,49 @@
+---
+title: Unit Monad
+description: Void return type for functions
+---
+
+# Unit Monad
+
+The `Unit` monad represents functions with no meaningful return value (like `None` but explicit).
+
+---
+
+## Overview
+
+```python
+from better_py import Unit
+
+unit = Unit()
+```
+
+<Callout type="info" title="Unit vs None">
+
+**None**: Value might be missing
+**Unit**: Function intentionally returns nothing
+
+</Callout>
+
+---
+
+## Usage
+
+Use `Unit` for functions that perform side effects:
+
+```python
+from better_py import Unit, Result
+
+def log_message(message: str) -> Result[Unit, str]:
+    try:
+        logger.log(message)
+        return Result.ok(Unit())
+    except Exception as e:
+        return Result.error(str(e))
+```
+
+---
+
+## See Also
+
+- [Result Monad](/docs/monads/result) - For error handling
+- [IO Monad](/docs/monads/io) - For side effects

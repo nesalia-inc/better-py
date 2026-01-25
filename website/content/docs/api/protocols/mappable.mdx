@@ -1,0 +1,28 @@
+---
+title: Mappable Protocol API
+description: Mappable protocol reference
+---
+
+# Mappable Protocol
+
+## Protocol Definition
+
+```python
+@runtime_checkable
+class Mappable(Protocol[T]):
+    def map(self, func: Callable[[T], U]) -> Mappable[U]: ...
+```
+
+## Required Methods
+
+### map(func: Callable[[T], U]) -> Mappable[U]
+Transform each element.
+
+## Type Parameters
+
+- T: Input type
+- U: Output type
+
+## See Also
+
+- [Mappable Guide](/docs/protocols/mappable)

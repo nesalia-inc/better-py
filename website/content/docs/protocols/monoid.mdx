@@ -1,0 +1,31 @@
+---
+title: Monoid Protocol
+description: Combinable objects with identity
+---
+
+# Monoid Protocol
+
+The `Monoid` protocol extends `Combinable` with an identity element.
+
+---
+
+## Overview
+
+```python
+from better_py.protocols import Monoid
+
+class Sum(Monoid):
+    def combine(self, other):
+        return Sum(self.value + other.value)
+    
+    @staticmethod
+    def identity():
+        return Sum(0)
+```
+
+---
+
+## See Also
+
+- [Combinable](/docs/protocols/combinable) - Combine protocol
+- [Protocols Overview](/docs/protocols)

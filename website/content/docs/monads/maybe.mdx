@@ -1,0 +1,500 @@
+---
+title: Maybe Monad
+description: Handle optional values safely without None checks
+---
+
+import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+
+# Maybe Monad
+
+The `Maybe` monad represents optional values - a value that might exist (`Some`) or might not exist (`Nothing`). It's a type-safe alternative to using `None` in Python.
+
+---
+
+## Overview
+
+`Maybe` is used when a value might not exist:
+
+```python
+from better_py import Maybe
+
+# Creating Maybe values
+some_value = Maybe.some(42)
+no_value = Maybe.nothing()
+
+# From potentially None values
+maybe_value = Maybe.from_value(get_user())  # None → Nothing
+```
+
+<Callout type="success" title="When to Use Maybe">
+
+-  Database queries that might not find anything
+-  Safe dictionary access
+-  Optional configuration values
+-  Chaining operations that might not return values
+
+</Callout>
+
+---
+
+## Creating Maybe Values
+
+### Maybe.some()
+
+Wrap a value that exists:
+
+```python
+from better_py import Maybe
+
+user = Maybe.some({"id": 1, "name": "Alice"})
+```
+
+### Maybe.nothing()
+
+Represent absence of a value:
+
+```python
+empty = Maybe.nothing()
+```
+
+### Maybe.from_value()
+
+Convert optional values (handles `None`):
+
+```python
+# With actual value
+Maybe.from_value(42)         # Maybe(42)
+
+# With None
+Maybe.from_value(None)       # Nothing
+
+# With None value that should be wrapped
+Maybe.from_value(None)       # Nothing
+```
+
+### Maybe.some_none() (New!)
+
+Explicitly wrap `None` as a value:
+
+```python
+# Distinction between Some(None) and Nothing
+some_none = Maybe.some_none()     # Some(None)
+nothing = Maybe.nothing()         # Nothing
+
+some_none.is_some()               # True
+nothing.is_some()                 # False
+```
+
+<Callout type="warning" title="Breaking Change">
+
+`Maybe.some(None)` now returns `Some(None)`, not `Nothing`. Use `Maybe.from_value(None)` for `Nothing`.
+
+</Callout>
+
+---
+
+## Inspecting Maybe
+
+### is_some()
+
+Check if value exists:
+
+```python
+Maybe.some(42).is_some()    # True
+Maybe.nothing().is_some()   # False
+```
+
+### is_nothing()
+
+Check if value is absent:
+
+```python
+Maybe.some(42).is_nothing()    # False
+Maybe.nothing().is_nothing()   # True
+```
+
+---
+
+## Transforming Values
+
+### map()
+
+Transform the value if it exists:
+
+```python
+Maybe.some(5).map(lambda x: x * 2)     # Maybe(10)
+Maybe.nothing().map(lambda x: x * 2)   # Nothing
+```
+
+```python
+# Real-world example
+from better_py import Maybe
+
+def get_user_email(user_id: int) -> Maybe[str]:
+    return (
+        Maybe.from_value(fetch_user(user_id))
+        .map(lambda user: user.email)
+    )
+```
+
+### bind() / flat_map() / and_then()
+
+Chain operations that return Maybe:
+
+```python
+def get_user(id: int) -> Maybe[dict]:
+    ...
+
+def get_profile(user: dict) -> Maybe[dict]:
+    ...
+
+# Chain them
+profile = (
+    Maybe.from_value(user_id)
+    .bind(get_user)
+    .bind(get_profile)
+)
+```
+
+### ap()
+
+Applicative style (apply Maybe function to Maybe value):
+
+```python
+add = Maybe.some(lambda x: x + 1)
+value = Maybe.some(5)
+
+add.ap(value)  # Maybe(6)
+```
+
+---
+
+## Extracting Values
+
+### unwrap()
+
+Get the value (raises error if Nothing):
+
+```python
+Maybe.some(42).unwrap()      # 42
+Maybe.nothing().unwrap()     # Raises ValueError
+```
+
+### unwrap_or()
+
+Get value or default:
+
+```python
+Maybe.some(42).unwrap_or(0)      # 42
+Maybe.nothing().unwrap_or(0)     # 0
+```
+
+### unwrap_or_else()
+
+Get value or compute default:
+
+```python
+Maybe.some(42).unwrap_or_else(lambda: compute_default())    # 42
+Maybe.nothing().unwrap_or_else(lambda: compute_default())   # Result of compute_default()
+```
+
+### fold()
+
+Pattern matching on Maybe:
+
+```python
+def format_maybe(maybe: Maybe[int]) -> str:
+    return maybe.fold(
+        on_nothing=lambda: "No value",
+        on_some=lambda x: f"Value: {x}"
+    )
+
+format_maybe(Maybe.some(42))    # "Value: 42"
+format_maybe(Maybe.nothing())    # "No value"
+```
+
+---
+
+## Combining Maybe
+
+### or_else()
+
+Provide alternative Maybe:
+
+```python
+def get_config(key: str) -> Maybe[str]:
+    return (
+        Maybe.from_value(os.getenv(key))
+        .or_else(Maybe.from_value(DEFAULTS.get(key)))
+    )
+```
+
+### zip()
+
+Combine multiple Maybe values:
+
+```python
+name = Maybe.some("Alice")
+age = Maybe.some(30)
+email = Maybe.nothing()
+
+result = Maybe.zip(name, age, email)
+# Nothing (because email is Nothing)
+```
+
+---
+
+## Pattern Matching
+
+Use Python's `match` statement:
+
+```python
+from better_py import Maybe
+
+def process_maybe(maybe: Maybe[int]) -> str:
+    match maybe:
+        case Maybe(_is_defined=True, _value=value):
+            return f"Got value: {value}"
+        case Maybe(_is_defined=False):
+            return "No value"
+
+# Or using is_some()
+if maybe.is_some():
+    value = maybe.unwrap()
+    return f"Got value: {value}"
+else:
+    return "No value"
+```
+
+---
+
+## Real-World Examples
+
+### Example 1: Safe Dictionary Access
+
+```python
+from better_py import Maybe
+
+config = {
+    "database": {
+        "host": "localhost",
+        "port": 5432
+    }
+}
+
+def get_config(config: dict, *keys: str) -> Maybe:
+    result = Maybe.some(config)
+    for key in keys:
+        result = result.bind(lambda d:
+            Maybe.from_value(d.get(key) if isinstance(d, dict) else None)
+        )
+    return result
+
+host = get_config(config, "database", "host")
+port = get_config(config, "database", "port")
+missing = get_config(config, "database", "user")
+
+host.unwrap_or("localhost")    # "localhost"
+port.unwrap_or(5432)           # 5432
+missing.unwrap_or("default")   # "default"
+```
+
+### Example 2: Chaining Database Operations
+
+```python
+from better_py import Maybe
+
+def find_user(user_id: int) -> Maybe[User]:
+    return Maybe.from_value(db.query(user_id))
+
+def get_profile(user: User) -> Maybe[Profile]:
+    return Maybe.from_value(user.profile)
+
+def get_avatar(profile: Profile) -> Maybe[str]:
+    return Maybe.from_value(profile.avatar_url)
+
+# Chain them all
+avatar = (
+    find_user(user_id)
+    .bind(get_profile)
+    .bind(get_avatar)
+)
+
+# Use it
+url = avatar.unwrap_or("/default_avatar.png")
+```
+
+### Example 3: Configuration with Defaults
+
+```python
+from better_py import Maybe
+
+import os
+
+DEFAULT_CONFIG = {
+    "host": "localhost",
+    "port": 8080,
+    "debug": False
+}
+
+def get_config_value(key: str) -> Maybe:
+    env_value = Maybe.from_value(os.getenv(key.upper()))
+    default_value = Maybe.from_value(DEFAULT_CONFIG.get(key))
+    return env_value.or_else(default_value)
+
+# Usage
+host = get_config_value("host").unwrap_or("localhost")
+port = get_config_value("port").map(int).unwrap_or(8080)
+debug = get_config_value("debug").map(lambda v: v == "true").unwrap_or(False)
+```
+
+### Example 4: Optional Attributes
+
+```python
+from better_py import Maybe
+
+class User:
+    def __init__(self, email: str | None, phone: str | None):
+        self.email = email
+        self.phone = phone
+
+def get_contact_info(user: User) -> str:
+    email = Maybe.from_value(user.email).map(str.lower).unwrap_or("")
+    phone = Maybe.from_value(user.phone).unwrap_or("")
+
+    if email:
+        return f"Email: {email}"
+    elif phone:
+        return f"Phone: {phone}"
+    else:
+        return "No contact info"
+```
+
+---
+
+## Common Patterns
+
+### Pattern 1: Safe Navigation
+
+```python
+# Instead of:
+# if user and user.profile and user.profile.settings:
+#     theme = user.profile.settings.theme
+
+theme = (
+    Maybe.from_value(user)
+    .map(lambda u: u.profile)
+    .map(lambda p: p.settings)
+    .map(lambda s: s.theme)
+    .unwrap_or("light")
+)
+```
+
+### Pattern 2: Filtering
+
+```python
+def find_admin(users: list[User]) -> Maybe[User]:
+    return (
+        Maybe.from_value(next((u for u in users if u.is_admin), None))
+    )
+```
+
+### Pattern 3: Providing Defaults
+
+```python
+def get_api_key() -> str:
+    return (
+        Maybe.from_value(os.getenv("API_KEY"))
+        .or_else(Maybe.from_value(os.getenv("API_KEY_FILE")))
+        .or_else(Maybe.from_value(DEFAULT_API_KEY))
+        .unwrap_or("")
+    )
+```
+
+### Pattern 4: Chaining Fallbacks
+
+```python
+def fetch_data(id: int) -> Maybe[Data]:
+    return (
+        fetch_from_cache(id)
+        .or_else(lambda: fetch_from_db(id))
+        .or_else(lambda: fetch_from_api(id))
+    )
+```
+
+---
+
+## Best Practices
+
+<Callout type="success" title="Do">
+
+ Use Maybe for truly optional values
+ Chain operations for clean code
+ Provide sensible defaults with unwrap_or
+ Use pattern matching for complex logic
+
+</Callout>
+
+<Callout type="error" title="Don't">
+
+ Use Maybe when errors should be handled (use Result instead)
+ Call unwrap() without checking (use unwrap_or instead)
+ Nest Maybe values (use bind to flatten)
+ Use Maybe for validation errors (use Validation instead)
+
+</Callout>
+
+---
+
+## Type Safety
+
+Maybe is fully generic:
+
+```python
+from better_py import Maybe
+
+# Type checker knows the types
+maybe_int: Maybe[int] = Maybe.some(42)
+maybe_str: Maybe[str] = maybe_int.map(str)
+mapped: Maybe[int] = maybe_str.map(len)
+
+# Error would be caught:
+# wrong: Maybe[str] = Maybe.some(42)  # Type error!
+```
+
+---
+
+## Comparison: Maybe vs Result
+
+```python
+# Maybe: For optional values
+user = Maybe.from_value(find_user(1))
+name = user.map(lambda u: u.name).unwrap_or("Guest")
+
+# Result: For error handling
+user = fetch_user(1)
+if user.is_ok():
+    name = user.unwrap().name
+else:
+    print(f"Error: {user.unwrap_error()}")
+```
+
+**Use Maybe when**: Value might not exist
+**Use Result when**: Operation can fail with specific errors
+
+---
+
+## Performance Notes
+
+- Maybe is a simple `@dataclass` - very low overhead
+- No performance penalty compared to manual None checks
+- Structural sharing when chaining operations
+
+---
+
+## See Also
+
+- [Result Monad](/docs/monads/result) - For error handling
+- [Validation Monad](/docs/monads/validation) - For accumulating errors
+- [Error Handling Guide](/docs/guides/error-handling) - Practical patterns
+- [Maybe API Reference](/docs/api/monads/maybe) - Complete API documentation

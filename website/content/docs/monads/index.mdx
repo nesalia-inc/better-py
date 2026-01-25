@@ -1,0 +1,307 @@
+---
+title: Monads Overview
+description: Complete guide to all 13 monads in better-py
+---
+
+import { Box, AlertCircle, CheckCircle, Database, Zap } from 'lucide-react';
+
+# Monads in better-py
+
+Monads are design patterns that structure computations. In better-py, monads are **objects that represent computational contexts** - error handling, optional values, state management, and more.
+
+<Cards>
+  <Card
+    icon={<CheckCircle />}
+    title="Maybe"
+    href="/docs/monads/maybe"
+    description="Handle optional values without None checks"
+  />
+  <Card
+    icon={<AlertCircle />}
+    title="Result"
+    href="/docs/monads/result"
+    description="Explicit error handling without exceptions"
+  />
+  <Card
+    icon={<Zap />}
+    title="Validation"
+    href="/docs/monads/validation"
+    description="Accumulate multiple validation errors"
+  />
+  <Card
+    icon={<Database />}
+    title="All Monads"
+    href="/docs/monads"
+    description="Explore all 13 monads"
+  />
+</Cards>
+
+---
+
+## What is a Monad?
+
+A monad is a **design pattern** for structuring programs. Think of it as a container with special rules for:
+
+1. **Wrapping** values in a context
+2. **Transforming** values safely within that context
+3. **Chaining** operations that return wrapped values
+
+<Callout type="info" title="Don't Fear the Math">
+
+You don't need to understand category theory to use monads effectively. Think of them as **patterns for handling common scenarios**:
+- Maybe: Values that might not exist
+- Result: Operations that can fail
+- Validation: Accumulating errors
+- State: Managing state functionally
+
+</Callout>
+
+---
+
+## All Monads in better-py
+
+### Error Handling Monads
+
+| Monad | Use Case | When to Use |
+|-------|----------|-------------|
+| **[Maybe](/docs/monads/maybe)** | Optional values | A value might not exist |
+| **[Result](/docs/monads/result)** | Success/failure | Known error types |
+| **[Validation](/docs/monads/validation)** | Accumulating errors | Need ALL errors, not just first |
+| **[Try](/docs/monads/try)** | Exception handling | Working with exception-throwing code |
+| **[Either](/docs/monads/either)** | Two values | One of two possible values |
+
+### State & Computation Monads
+
+| Monad | Use Case | When to Use |
+|-------|----------|-------------|
+| **[Reader](/docs/monads/reader)** | Dependencies | Dependency injection, environment |
+| **[Writer](/docs/monads/writer)** | Logging | Computation with output/logging |
+| **[State](/docs/monads/state)** | State management | Pure stateful computations |
+| **[IO](/docs/monads/io)** | Side effects | Explicit side effect management |
+| **[Task](/docs/monads/task)** | Lazy computation | Deferred async operations |
+| **[Unit](/docs/monads/unit)** | Void return | Functions with no return value |
+
+### Async Monads
+
+| Monad | Use Case | When to Use |
+|-------|----------|-------------|
+| **[AsyncMaybe](/docs/monads/async/async-maybe)** | Async optional | Async operations that might not return |
+| **[AsyncResult](/docs/monads/async/async-result)** | Async errors | Async operations that can fail |
+
+---
+
+## Choosing the Right Monad
+
+Use this decision tree to choose the right monad:
+
+<Callout type="info" title="Decision Tree">
+
+**Do you have an optional value?**
+→ Use **[Maybe](/docs/monads/maybe)** - handles `None` values safely
+
+**Can the operation fail with specific errors?**
+→ Use **[Result](/docs/monads/result)** - explicit error handling
+
+**Do you need to accumulate ALL errors?**
+→ Use **[Validation](/docs/monads/validation)** - collects multiple errors
+
+**Are you working with exceptions?**
+→ Use **[Try](/docs/monads/try)** - wraps exception-throwing code
+
+**Do you need to manage dependencies?**
+→ Use **[Reader](/docs/monads/reader)** - dependency injection
+
+**Do you need to manage state?**
+→ Use **[State](/docs/monads/state)** - pure state management
+
+</Callout>
+
+---
+
+## Common Monad Operations
+
+All monads support these core operations:
+
+### Creating Monads
+
+```python
+from better_py import Maybe, Result
+
+# Maybe
+some = Maybe.some(42)
+nothing = Maybe.nothing()
+from_value = Maybe.from_value(get_value())
+
+# Result
+ok = Result.ok(42)
+error = Result.error("Something failed")
+```
+
+### Transforming Values
+
+```python
+# map - transform the value inside
+Maybe.some(5).map(lambda x: x * 2)  # Maybe(10)
+Result.ok(5).map(lambda x: x * 2)   # Result.ok(10)
+```
+
+### Chaining Operations
+
+```python
+# bind / and_then - chain monad-returning functions
+Maybe.some(5).bind(lambda x: Maybe.some(x * 2))  # Maybe(10)
+Result.ok(5).bind(lambda x: Result.ok(x * 2))   # Result.ok(10)
+```
+
+### Extracting Values
+
+```python
+# unwrap - extract value (unsafe)
+Maybe.some(5).unwrap()  # 5
+
+# unwrap_or - extract with default
+Maybe.nothing().unwrap_or(0)  # 0
+```
+
+---
+
+## Quick Comparison
+
+### Maybe vs Result
+
+```python
+from better_py import Maybe, Result
+
+# Maybe: For optional values
+user = Maybe.from_value(find_user(1))
+name = user.map(lambda u: u.name).unwrap_or("Guest")
+
+# Result: For error handling
+user = fetch_user(1)
+if user.is_ok():
+    name = user.unwrap().name
+else:
+    print(f"Error: {user.unwrap_error()}")
+```
+
+**Use Maybe when**: A value might not exist  
+**Use Result when**: An operation can fail with specific errors
+
+### Result vs Validation
+
+```python
+from better_py import Result, Validation
+
+# Result: Stops at first error
+result = (
+    validate_name(name)
+    .bind(lambda _: validate_age(age))
+    .bind(lambda _: validate_email(email))
+)
+# Returns first error only
+
+# Validation: Accumulates all errors
+name_result = validate_name(name)
+age_result = validate_age(age)
+email_result = validate_email(email)
+
+combined = name_result.ap(age_result).ap(email_result)
+# Returns ALL errors
+```
+
+**Use Result when**: You only need the first error  
+**Use Validation when**: You need ALL errors (e.g., form validation)
+
+---
+
+## Common Patterns
+
+### Pattern 1: Safe Chaining
+
+```python
+def process_user(user_id: int) -> Result[ProcessedUser, str]:
+    return (
+        fetch_user(user_id)
+        .bind(validate_user)
+        .map(enrich_user)
+        .map(format_user)
+    )
+```
+
+### Pattern 2: Providing Defaults
+
+```python
+config = (
+    Maybe.from_value(os.getenv("API_KEY"))
+    .or_else(Maybe.from_value(DEFAULT_API_KEY))
+    .unwrap_or("")  # Empty string if both missing
+)
+```
+
+### Pattern 3: Error Recovery
+
+```python
+result = fetch_user(user_id).or_else(
+    lambda error: create_guest_user()
+)
+```
+
+---
+
+## Type Safety
+
+All monads are fully generic:
+
+```python
+from better_py import Maybe, Result
+
+# Type checker tracks transformations
+maybe_int: Maybe[int] = Maybe.some(42)
+maybe_str: Maybe[str] = maybe_int.map(str)
+
+result_ok: Result[int, str] = Result.ok(42)
+result_error: Result[int, str] = Result.error("failed")
+```
+
+---
+
+## Learning Path
+
+We recommend learning monads in this order:
+
+1. **[Maybe](/docs/monads/maybe)** - Start with the simplest
+2. **[Result](/docs/monads/result)** - Learn explicit error handling
+3. **[Validation](/docs/monads/validation)** - Understand error accumulation
+4. **[Try](/docs/monads/try)** - Wrap exception-throwing code
+5. **[Reader](/docs/monads/reader)** - Dependency injection
+6. **[State](/docs/monads/state)** - State management
+7. **Others** - As needed for your use case
+
+---
+
+## Next Steps
+
+Choose your next topic:
+
+<Cards>
+  <Card
+    title="Maybe Monad"
+    href="/docs/monads/maybe"
+    description="Handle optional values safely"
+  />
+  <Card
+    title="Result Monad"
+    href="/docs/monads/result"
+    description="Explicit error handling"
+  />
+  <Card
+    title="Validation Monad"
+    href="/docs/monads/validation"
+    description="Accumulate errors"
+  />
+  <Card
+    title="Error Handling Guide"
+    href="/docs/guides/error-handling"
+    description="Practical error handling strategies"
+  />
+</Cards>

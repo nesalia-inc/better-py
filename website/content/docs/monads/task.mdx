@@ -1,0 +1,87 @@
+---
+title: Task Monad
+description: Lazy, memoized async computations
+---
+
+# Task Monad
+
+The `Task` monad represents lazy, memoized asynchronous computations.
+
+---
+
+## Overview
+
+```python
+from better_py import Task
+
+async def fetch_data():
+    return await api_call()
+
+task = Task(fetch_data)  # Not executed yet
+result = await task.run()  # Executes now
+```
+
+<Callout type="success" title="When to Use Task">
+
+-  Deferring async operations
+-  Memoizing async results
+-  Composing async operations
+
+</Callout>
+
+---
+
+## Creating Task Values
+
+### Task()
+
+Wrap an async function:
+
+```python
+from better_py import Task
+
+async def fetch_user(id: int):
+    return await db.fetch(id)
+
+task = Task(lambda: fetch_user(123))
+```
+
+---
+
+## Running Task
+
+### run()
+
+Execute the task:
+
+```python
+result = await task.run()
+```
+
+---
+
+## Real-World Examples
+
+### Example 1: Lazy API Calls
+
+```python
+from better_py import Task
+
+def get_user(id: int) -> Task[User]:
+    return Task(lambda: fetch_user_from_api(id))
+
+# Create tasks (not executed)
+user_task = get_user(1)
+profile_task = get_user(2)
+
+# Execute later
+user = await user_task.run()
+profile = await profile_task.run()
+```
+
+---
+
+## See Also
+
+- [IO Monad](/docs/monads/io) - For side effects
+- [AsyncResult](/docs/monads/async/async-result) - For async error handling

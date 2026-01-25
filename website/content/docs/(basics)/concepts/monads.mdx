@@ -1,0 +1,331 @@
+---
+title: Understanding Monads
+description: Learn what monads are and how they work
+---
+
+# Understanding Monads
+
+Monads are a design pattern for structuring programs. Despite their reputation for being complex, they're actually quite practical once you understand them.
+
+---
+
+## What is a Monad?
+
+A monad is a **design pattern** that defines how to:
+1. **Wrap** a value in a context
+2. **Transform** values within that context
+3. **Chain** operations that return wrapped values
+
+Think of a monad as a **box** that contains a value and follows specific rules for how you can interact with that value.
+
+```python
+from better_py import Maybe
+
+# Maybe is a monad - a box that might contain a value
+some_value = Maybe.some(42)      # Box contains 42
+no_value = Maybe.nothing()       # Empty box
+```
+
+---
+
+## The Three Monad Laws
+
+All monads follow three mathematical laws:
+
+### 1. Left Identity
+
+Wrapping a value then applying a function = applying the function:
+
+```python
+# These are equivalent:
+Maybe.some(5).map(lambda x: x * 2)
+lambda x: Maybe.some(x * 2)(5)
+```
+
+### 2. Right Identity
+
+Applying the wrap function = doing nothing:
+
+```python
+# These are equivalent:
+Maybe.some(5).map(lambda x: Maybe.some(x))
+Maybe.some(5)
+```
+
+### 3. Associativity
+
+Order of chaining doesn't matter:
+
+```python
+# These are equivalent:
+Maybe.some(5)
+    .map(lambda x: Maybe.some(x * 2))
+    .bind(lambda y: Maybe.some(y + 1))
+
+Maybe.some(5)
+    .map(lambda x: (x * 2))
+    .map(lambda y: Maybe.some(y + 1))
+```
+
+---
+
+## Why Use Monads?
+
+### Problem: Chaining Functions That Might Fail
+
+```python
+#  Imperative - nested error checks
+def process_user(id: int):
+    user = find_user(id)
+    if user is None:
+        return None
+    profile = get_profile(user)
+    if profile is None:
+        return None
+    return profile.name
+```
+
+### Solution: Maybe Monad
+
+```python
+#  Functional - clean chaining
+def process_user(id: int) -> Maybe[str]:
+    return (
+        Maybe.from_value(find_user(id))
+        .bind(lambda user: Maybe.from_value(get_profile(user)))
+        .map(lambda profile: profile.name)
+    )
+```
+
+---
+
+## Common Monads in better-py
+
+### Maybe Monad
+
+Handles optional values:
+
+```python
+from better_py import Maybe
+
+# Creating Maybe
+some = Maybe.some(42)
+nothing = Maybe.nothing()
+from_value = Maybe.from_value(get_value())
+
+# Transforming
+some.map(lambda x: x * 2)  # Maybe(84)
+
+# Chaining
+some.bind(lambda x: Maybe.some(x * 2))  # Maybe(84)
+
+# Extracting
+some.unwrap()  # 42
+nothing.unwrap_or(0)  # 0
+```
+
+### Result Monad
+
+Handles success/failure:
+
+```python
+from better_py import Result
+
+# Creating Result
+ok = Result.ok(42)
+error = Result.error("Something failed")
+
+# Transforming
+ok.map(lambda x: x * 2)  # Result.ok(84)
+
+# Chaining
+ok.bind(lambda x: Result.ok(x * 2))  # Result.ok(84)
+
+# Error handling
+result = divide(10, 0)
+if result.is_ok():
+    print(result.unwrap())
+else:
+    print(result.unwrap_error())
+```
+
+### Validation Monad
+
+Accumulates errors:
+
+```python
+from better_py import Validation
+
+# Create validations
+name_result = Validation.valid("John")
+email_result = Validation.invalid(["Invalid email"])
+
+# Combine - accumulates ALL errors
+combined = name_result.ap(email_result)
+# Invalid(["Invalid email"])
+```
+
+---
+
+## Monad Operations
+
+### map
+
+Transform the value inside:
+
+```python
+Maybe.some(5).map(lambda x: x * 2)
+# Maybe(10)
+```
+
+### bind / and_then
+
+Chain operations that return monads:
+
+```python
+Maybe.some(5).bind(lambda x: Maybe.some(x * 2))
+# Maybe(10)
+```
+
+### unwrap / unwrap_or
+
+Extract the value:
+
+```python
+Maybe.some(5).unwrap()  # 5
+Maybe.nothing().unwrap_or(0)  # 0
+```
+
+### filter
+
+Keep only values matching a predicate:
+
+```python
+Maybe.some(5).filter(lambda x: x > 3)
+# Maybe(5)
+
+Maybe.some(2).filter(lambda x: x > 3)
+# Nothing
+```
+
+---
+
+## Practical Examples
+
+### Example 1: Safe Dictionary Access
+
+```python
+from better_py import Maybe
+
+def get_config(config: dict, *keys: str) -> Maybe:
+    """Safely access nested dictionary"""
+    result = Maybe.some(config)
+    for key in keys:
+        result = result.bind(
+            lambda d: Maybe.from_value(
+                d.get(key) if isinstance(d, dict) else None
+            )
+        )
+    return result
+
+# Usage
+config = {
+    "database": {
+        "host": "localhost",
+        "port": 5432
+    }
+}
+
+host = get_config(config, "database", "host")
+# Maybe.some("localhost")
+
+missing = get_config(config, "database", "password")
+# Nothing
+```
+
+### Example 2: Pipeline Processing
+
+```python
+from better_py import Result
+
+def validate_input(data: dict) -> Result[dict, str]:
+    if not data.get("name"):
+        return Result.error("Name is required")
+    return Result.ok(data)
+
+def sanitize_input(data: dict) -> Result[dict, str]:
+    return Result.ok({
+        **data,
+        "name": data["name"].strip()
+    })
+
+def save_user(data: dict) -> Result[User, str]:
+    try:
+        user = db.create(data)
+        return Result.ok(user)
+    except Exception as e:
+        return Result.error(str(e))
+
+# Chain operations
+result = (
+    validate_input(input_data)
+    .bind(sanitize_input)
+    .bind(save_user)
+)
+```
+
+### Example 3: Configuration Loading
+
+```python
+from better_py import Maybe
+
+def load_config() -> Maybe[Config]:
+    return (
+        Maybe.from_value(os.getenv("CONFIG_PATH"))
+        .bind(lambda path: Maybe.from_value(read_file(path)))
+        .bind(lambda content: Maybe.from_value(parse_json(content)))
+        .map(lambda data: Config.from_dict(data))
+    )
+```
+
+---
+
+## Common Patterns
+
+### Pattern 1: Providing Defaults
+
+```python
+config = (
+    Maybe.from_value(os.getenv("API_KEY"))
+    .or_else(Maybe.from_value(DEFAULT_KEY))
+    .unwrap_or("")
+)
+```
+
+### Pattern 2: Error Recovery
+
+```python
+result = (
+    fetch_user(id)
+    .or_else(lambda _: create_guest_user())
+)
+```
+
+### Pattern 3: Sequential Validation
+
+```python
+def validate_user(data: dict) -> Result[ValidUser, list[str]]:
+    return (
+        validate_name(data.get("name"))
+        .bind(lambda _: validate_email(data.get("email")))
+        .bind(lambda _: validate_age(data.get("age")))
+    )
+```
+
+---
+
+## Next Steps
+
+- **[Maybe Monad](/docs/monads/maybe)** - Deep dive into Maybe
+- **[Result Monad](/docs/monads/result)** - Explicit error handling
+- **[Validation Monad](/docs/monads/validation)** - Accumulate errors

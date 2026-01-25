@@ -1,0 +1,64 @@
+---
+title: Result API Reference
+description: Complete Result API documentation
+---
+
+# Result API Reference
+
+## Static Methods
+
+### ok(value: T) -> Result[T, E]
+Create a successful Result.
+
+### error(error: E) -> Result[T, E]
+Create a failed Result.
+
+### from_value(value: T, error_value: E | None = None) -> Result[T, E]
+Create from value and optional error.
+
+## Instance Methods
+
+### is_ok() -> bool
+Check if successful.
+
+### is_error() -> bool
+Check if failed.
+
+### map(func: Callable[[T], U]) -> Result[U, E]
+Transform success value.
+
+### map_error(func: Callable[[E], E2]) -> Result[T, E2]
+Transform error value.
+
+### bind(func: Callable[[T], Result[U, E]]) -> Result[U, E]
+Chain Result-returning operations.
+
+### flat_map(func: Callable[[T], Result[U, E]]) -> Result[U, E]
+Alias for bind().
+
+### and_then(func: Callable[[T], Result[U, E]]) -> Result[U, E]
+Alias for bind().
+
+### unwrap() -> T
+Get success value (raises if error).
+
+### unwrap_or(default: T) -> T
+Get success value or default.
+
+### unwrap_or_else(supplier: Callable[[], T]) -> T
+Get success value or compute default.
+
+### unwrap_error() -> E
+Get error value (raises if success).
+
+### or_else(default: Result[T, E]) -> Result[T, E]
+Provide alternative Result.
+
+## Type Parameters
+
+- T: The success value type
+- E: The error type
+
+## See Also
+
+- [Result Monad](/docs/monads/result)

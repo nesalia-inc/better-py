@@ -1,0 +1,44 @@
+---
+title: Type Annotations Best Practices
+description: Write effective type hints
+---
+
+# Type Annotations
+
+Guidelines for effective type annotations with better-py.
+
+## Guidelines
+
+### 1. Always Annotate Functions
+
+```python
+# Good
+def process(value: int) -> Result[str, str]:
+    ...
+
+# Bad
+def process(value):
+    ...
+```
+
+### 2. Use Type Aliases
+
+```python
+# Good
+UserId = int
+UserData = dict[str, Any]
+
+def find_user(id: UserId) -> Result[UserData, str]:
+    ...
+```
+
+### 3. Leverage Type Inference
+
+```python
+# Type checker infers Maybe[int]
+result = Maybe.some(42).map(lambda x: x * 2)
+```
+
+## See Also
+
+- [Type Safety](/docs/concepts/type-safety)

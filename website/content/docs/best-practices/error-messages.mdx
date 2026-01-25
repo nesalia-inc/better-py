@@ -1,0 +1,44 @@
+---
+title: Error Messages Best Practices
+description: Write clear, actionable error messages
+---
+
+# Error Messages
+
+Guidelines for writing effective error messages.
+
+## Guidelines
+
+### 1. Be Specific
+
+```python
+# Good
+return Result.error("User ID 123 not found in database")
+
+# Bad
+return Result.error("User not found")
+```
+
+### 2. Provide Context
+
+```python
+# Good
+return Result.error(f"Failed to save user {user_id}: {db_error}")
+
+# Bad
+return Result.error("Save failed")
+```
+
+### 3. Suggest Solutions
+
+```python
+# Good
+return Result.error("API key not found. Set API_KEY environment variable.")
+
+# Bad
+return Result.error("Missing API key")
+```
+
+## See Also
+
+- [Error Handling Guide](/docs/guides/error-handling)

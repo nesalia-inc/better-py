@@ -1,0 +1,50 @@
+---
+title: curry
+description: Incremental argument application
+---
+
+# curry
+
+Transform a function into a sequence of functions each taking a single argument.
+
+---
+
+## Overview
+
+```python
+from better_py import curry
+
+@curry
+def add(a: int, b: int, c: int) -> int:
+    return a + b + c
+
+# Partial application
+add_5 = add(5)
+add_5_and_3 = add_5(3)
+result = add_5_and_3(2)  # 10
+```
+
+---
+
+## Real-World Examples
+
+### Configuration Builder
+
+```python
+from better_py import curry
+
+@curry
+def create_config(host: str, port: int, debug: bool) -> dict:
+    return {"host": host, "port": port, "debug": debug}
+
+local_config = create_config("localhost")
+local_prod = local_config(8080)
+final = local_prod(False)  # {"host": "localhost", "port": 8080, "debug": False}
+```
+
+---
+
+## See Also
+
+- [compose](/docs/utilities/compose) - Function composition
+- [partial_right](/docs/utilities/partial-right) - Right-side partial application

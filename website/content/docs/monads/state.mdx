@@ -1,0 +1,116 @@
+---
+title: State Monad
+description: Pure stateful computations
+---
+
+# State Monad
+
+The `State` monad manages state transitions in a purely functional way.
+
+---
+
+## Overview
+
+```python
+from better_py import State
+
+# Get current state
+current = State.get()
+
+# Modify state
+incremented = State.modify(lambda x: x + 1)
+
+# Run with initial state
+result = incremented.run(0)  # (1, 1) - (value, new_state)
+```
+
+<Callout type="success" title="When to Use State">
+
+-  State machines
+-  Counters
+-  Game state
+-  Any mutable state in functional code
+
+</Callout>
+
+---
+
+## Common Operations
+
+### State.get()
+
+Get current state:
+
+```python
+from better_py import State
+
+getter = State.get()
+result, state = getter.run(42)  # (42, 42)
+```
+
+### State.put()
+
+Set new state:
+
+```python
+setter = State.put(100)
+result, state = setter.run(0)  # (None, 100)
+```
+
+### State.modify()
+
+Modify state:
+
+```python
+increment = State.modify(lambda x: x + 1)
+result, state = increment.run(5)  # (None, 6)
+```
+
+---
+
+## Real-World Examples
+
+### Example 1: Counter
+
+```python
+from better_py import State
+
+def increment_and_double() -> State[int, int]:
+    return (
+        State.modify(lambda n: n + 1)
+        .bind(lambda _: State.get())
+        .map(lambda n: n * 2)
+    )
+
+result, state = increment_and_double().run(0)
+# result = 2, state = 1
+```
+
+### Example 2: Game State
+
+```python
+from better_py import State
+from dataclasses import dataclass
+
+@dataclass
+class GameState:
+    score: int
+    lives: int
+
+def add_points(points: int) -> State[GameState, None]:
+    return State.modify(
+        lambda state: GameState(state.score + points, state.lives)
+    )
+
+def lose_life() -> State[GameState, None]:
+    return State.modify(
+        lambda state: GameState(state.score, state.lives - 1)
+    )
+```
+
+---
+
+## See Also
+
+- [Reader Monad](/docs/monads/reader) - For dependencies
+- [State Management Guide](/docs/guides/state-management) - Patterns

@@ -1,0 +1,34 @@
+---
+title: Reader API Reference
+description: Complete Reader API documentation
+---
+
+# Reader API Reference
+
+## Static Methods
+
+### ask() -> Reader[E, E]
+Get the environment.
+
+### from_fn(func: Callable[[E], A]) -> Reader[E, A]
+Create from function.
+
+## Instance Methods
+
+### map(func: Callable[[A], B]) -> Reader[E, B]
+Transform output.
+
+### bind(func: Callable[[A], Reader[E, B]]) -> Reader[E, B]
+Chain Readers.
+
+### run(environment: E) -> A
+Run with environment.
+
+## Type Parameters
+
+- E: Environment type
+- A: Output type
+
+## See Also
+
+- [Reader Monad](/docs/monads/reader)

@@ -1,0 +1,45 @@
+---
+title: When Not to Use Functional Programming
+description: Situations where FP might not be the best choice
+---
+
+# When Not to Use FP
+
+Functional programming is great, but not always the best tool.
+
+## When to Avoid FP
+
+### 1. Simple Scripts
+
+```python
+# For simple one-off scripts, regular Python is fine
+def main():
+    data = load_data()
+    process(data)
+    save(data)
+```
+
+### 2. Performance-Critical Loops
+
+```python
+# For tight loops, regular Python might be faster
+for i in range(1000000):
+    process(i)
+```
+
+### 3. interfacing with Mutable APIs
+
+```python
+# When working with mutable libraries, just use them directly
+import pandas as pd
+df = pd.DataFrame(data)
+```
+
+## Guidelines
+
+- Use FP for business logic, data pipelines, error handling
+- Use regular Python for simple scripts, performance code, I/O heavy operations
+
+## See Also
+
+- [Best Practices Overview](/docs/best-practices)

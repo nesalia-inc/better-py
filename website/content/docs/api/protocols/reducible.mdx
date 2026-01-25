@@ -1,0 +1,27 @@
+---
+title: Reducible Protocol API
+description: Reducible protocol reference
+---
+
+# Reducible Protocol
+
+## Protocol Definition
+
+```python
+@runtime_checkable
+class Reducible(Protocol[T]):
+    def reduce(self, func: Callable, initial) -> T: ...
+```
+
+## Required Methods
+
+### reduce(func: Callable, initial) -> T
+Reduce to single value.
+
+## Type Parameters
+
+- T: Element type
+
+## See Also
+
+- [Reducible Guide](/docs/protocols/reducible)

@@ -1,0 +1,244 @@
+---
+title: Getting Started
+description: Get up and running with better-py in minutes
+icon: RocketIcon
+---
+
+# Getting Started with better-py
+
+Welcome! This guide will help you get started with better-py, from installation to your first functional program.
+
+<Callout type="info" title="Learning Path">
+
+**1. Install better-py** - Choose your preferred package manager and install better-py
+
+**2. Learn the basics** - Understand core functional programming concepts
+
+**3. Build something** - Follow our quick start guide to build your first project
+
+</Callout>
+
+---
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- **Python 3.11 or higher** - better-py uses modern Python features
+- **A code editor** - VS Code or PyCharm recommended
+- **Basic Python knowledge** - Familiarity with classes and types
+
+<Callout type="info" title="Why Python 3.11+?">
+
+better-py uses modern Python features like:
+- Generic type syntax (`list[T]` instead of `List[T]`)
+- Self types
+- Advanced typing features
+- Performance improvements
+
+</Callout>
+
+---
+
+## Quick Installation
+
+Choose your preferred package manager:
+
+### Using pip
+
+```bash
+pip install better-py-fp
+```
+
+### Using uv (recommended)
+
+```bash
+uv pip install better-py-fp
+```
+
+### Using poetry
+
+```bash
+poetry add better-py-fp
+```
+
+### Using pipenv
+
+```bash
+pipenv install better-py-fp
+```
+
+<Callout type="warning" title="Package Name">
+
+The PyPI package name is `better-py-fp`, but you import it as `better_py`:
+
+```python
+from better_py import Maybe, Result
+```
+
+This naming avoids conflicts with other packages.
+</Callout>
+
+---
+
+## Verify Installation
+
+Create a test script to verify your installation:
+
+```python
+# test_better_py.py
+from better_py import Maybe, Result
+
+# Test Maybe
+maybe = Maybe.some(42)
+print(f"Maybe: {maybe}")
+print(f"Is some: {maybe.is_some()}")
+print(f"Value: {maybe.unwrap()}")
+
+# Test Result
+result = Result.ok("Hello, better-py!")
+print(f"Result: {result}")
+print(f"Is ok: {result.is_ok()}")
+
+print("\n better-py is working!")
+```
+
+Run it:
+
+```bash
+python test_better_py.py
+```
+
+You should see:
+
+```
+Maybe: Some(42)
+Is some: True
+Value: 42
+Result: Ok('Hello, better-py!')
+Is ok: True
+
+ better-py is working!
+```
+
+---
+
+## Editor Setup
+
+### VS Code
+
+Install these extensions for the best experience:
+
+1. **Python** by Microsoft - Python language support
+2. **Pylance** - Type checking and autocomplete
+3. **Ruff** - Fast Python linter (optional)
+
+Configure your `.vscode/settings.json`:
+
+```json
+{
+  "python.defaultInterpreterPath": ".venv/bin/python",
+  "python.analysis.typeCheckingMode": "basic",
+  "python.formatting.provider": "black",
+  "[python]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit"
+    }
+  }
+}
+```
+
+### PyCharm
+
+1. Enable **Type Checking**:
+   - Settings → Tools → External Tools
+   - Add mypy as an external tool
+
+2. Enable **PEP 8 compliance**:
+   - Settings → Editor → Inspections → Python → PEP 8
+
+---
+
+## What's Next?
+
+Now that you have better-py installed, choose your path:
+
+<Cards>
+  <Card
+    title="Quick Start Guide"
+    href="/docs/getting-started/quick-start"
+    description="Build your first functional program in 5 minutes"
+  />
+  <Card
+    title="Core Concepts"
+    href="/docs/concepts"
+    description="Learn about monads, immutability, and type safety"
+  />
+  <Card
+    title="Maybe Monad"
+    href="/docs/monads/maybe"
+    description="Start with the most commonly used monad"
+  />
+  <Card
+    title="Examples"
+    href="/docs/examples"
+    description="See real-world examples and integrations"
+  />
+</Cards>
+
+---
+
+## Troubleshooting
+
+### Import Error
+
+If you get `ModuleNotFoundError: No module named 'better_py'`:
+
+1. **Check Python version**
+   ```bash
+   python --version  # Should be 3.11+
+   ```
+
+2. **Verify installation**
+   ```bash
+   pip list | grep better-py
+   ```
+
+3. **Reinstall if needed**
+   ```bash
+   pip uninstall better-py-fp
+   pip install better-py-fp
+   ```
+
+### Type Checking Issues
+
+If mypy shows errors:
+
+1. **Ensure you're using mypy 1.0+**
+   ```bash
+   pip install --upgrade mypy
+   ```
+
+2. **Use strict mode (optional)**
+   ```bash
+   mypy --strict your_file.py
+   ```
+
+---
+
+## Getting Help
+
+If you encounter issues:
+
+- **GitHub Issues** - [github.com/nesalia-inc/better-py/issues](https://github.com/nesalia-inc/better-py/issues)
+- **Documentation** - Check the [Guides](/docs/guides) for common patterns
+- **Examples** - See working code in the [Examples](/docs/examples) section
+
+---
+
+<Callout type="success" title="Ready to Code?">
+
+Head over to the [Quick Start Guide](/docs/getting-started/quick-start) to build your first functional program with better-py!
+
+</Callout>

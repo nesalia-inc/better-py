@@ -1,0 +1,201 @@
+---
+title: Either Monad
+description: Represent one of two possible values
+---
+
+# Either Monad
+
+The `Either` monad represents a value that can be one of two types: `Left` or `Right`. By convention, `Left` is used for errors and `Right` for success values.
+
+---
+
+## Overview
+
+`Either` is used when you need to represent one of two possibilities:
+
+```python
+from better_py import Either
+
+# Creating Either values
+right = Either.right(42)      # Success value
+left = Either.left("error")   # Error/alternative value
+```
+
+<Callout type="info" title="Either vs Result">
+
+**Result**: Optimized for success/error with extra helper methods
+**Either**: More general two-value container
+
+</Callout>
+
+---
+
+## Creating Either Values
+
+### Either.right()
+
+Wrap a right (success) value:
+
+```python
+from better_py import Either
+
+value = Either.right(42)
+```
+
+### Either.left()
+
+Wrap a left (error) value:
+
+```python
+error = Either.left("Something went wrong")
+```
+
+---
+
+## Inspecting Either
+
+### is_right() / is_left()
+
+Check which side the value is:
+
+```python
+Either.right(42).is_right()     # True
+Either.right(42).is_left()      # False
+
+Either.left("bad").is_left()    # True
+Either.left("bad").is_right()   # False
+```
+
+---
+
+## Transforming Values
+
+### map()
+
+Transform the right value:
+
+```python
+Either.right(5).map(lambda x: x * 2)       # Either.right(10)
+Either.left("bad").map(lambda x: x * 2)    # Either.left("bad")
+```
+
+### map_left()
+
+Transform the left value:
+
+```python
+Either.left("bad").map_left(str.upper)     # Either.left("BAD")
+Either.right(5).map_left(str.upper)        # Either.right(5)
+```
+
+### swap()
+
+Swap left and right:
+
+```python
+Either.right(5).swap()     # Either.left(5)
+Either.left("bad").swap()  # Either.right("bad")
+```
+
+---
+
+## Extracting Values
+
+### unwrap()
+
+Get the value (right or left):
+
+```python
+Either.right(42).unwrap()     # 42
+Either.left("bad").unwrap()   # "bad"
+```
+
+### unwrap_right() / unwrap_left()
+
+Get specific side:
+
+```python
+Either.right(42).unwrap_right()     # 42
+Either.left("bad").unwrap_left()    # "bad"
+```
+
+---
+
+## Real-World Examples
+
+### Example 1: Success/Error Paths
+
+```python
+from better_py import Either
+
+def process_payment(amount: float) -> Either[Receipt, str]:
+    if amount <= 0:
+        return Either.left("Invalid amount")
+    return Either.right(Receipt(amount))
+
+result = process_payment(100)
+if result.is_right():
+    receipt = result.unwrap_right()
+    print(f"Payment successful: {receipt}")
+else:
+    error = result.unwrap_left()
+    print(f"Payment failed: {error}")
+```
+
+### Example 2: Two Different Types
+
+```python
+from better_py import Either
+
+# Can represent User or Admin
+def get_user(id: int) -> Either[User, Admin]:
+    if id == 1:
+        return Either.right(User(id, "Alice"))
+    else:
+        return Either.left(Admin(id, "Bob"))
+
+# Handle both cases
+result = get_user(user_id)
+if result.is_right():
+    user = result.unwrap_right()
+    print(f"Regular user: {user.name}")
+else:
+    admin = result.unwrap_left()
+    print(f"Admin user: {admin.name}")
+```
+
+---
+
+## Common Patterns
+
+### Pattern 1: Error Recovery
+
+```python
+def fetch_data(source: str) -> Either[Data, str]:
+    ...
+
+def get_data() -> Either[Data, str]:
+    return (
+        fetch_data("primary")
+        .or_else(lambda: fetch_data("secondary"))
+        .or_else(lambda: fetch_data("backup"))
+    )
+```
+
+### Pattern 2: Type Discrimination
+
+```python
+def process(value: Either[int, str]) -> str:
+    match value:
+        case Either(_is_right=True, _value=v):
+            return f"Got int: {v}"
+        case Either(_is_left=True, _value=v):
+            return f"Got str: {v}"
+```
+
+---
+
+## See Also
+
+- [Result Monad](/docs/monads/result) - For error handling
+- [Maybe Monad](/docs/monads/maybe) - For optional values

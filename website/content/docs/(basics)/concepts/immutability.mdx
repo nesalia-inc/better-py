@@ -1,0 +1,382 @@
+---
+title: Immutability
+description: Why immutable data leads to safer, more predictable code
+---
+
+# Immutability
+
+Immutability means data cannot be changed after creation. Instead of modifying existing data, you create new data with the desired changes.
+
+---
+
+## What is Immutability?
+
+```python
+#  Mutable - data can be changed
+numbers = [1, 2, 3]
+numbers.append(4)  # numbers is now [1, 2, 3, 4]
+
+#  Immutable - operations return new data
+from better_py import PersistentList
+
+numbers = PersistentList.of(1, 2, 3)
+new_numbers = numbers.append(4)
+# numbers is still [1, 2, 3]
+# new_numbers is [1, 2, 3, 4]
+```
+
+---
+
+## Why Use Immutability?
+
+### 1. Predictable Code
+
+You never have to worry about data changing unexpectedly:
+
+```python
+#  Mutable - surprising behavior
+def process(items):
+    items.clear()  # Oops! Modifies original
+
+my_list = [1, 2, 3]
+process(my_list)
+print(my_list)  # [] - Empty! Unexpected
+
+#  Immutable - predictable
+def process(items):
+    return items.map(lambda x: x * 2)
+
+my_list = PersistentList.of(1, 2, 3)
+new_list = process(my_list)
+print(my_list)  # [1, 2, 3] - Unchanged
+```
+
+### 2. Easier Debugging
+
+With immutability, you can trace exactly how data changes:
+
+```python
+# Each step creates a new value
+data1 = PersistentList.of(1, 2, 3)
+data2 = data1.map(lambda x: x * 2)  # [2, 4, 6]
+data3 = data2.filter(lambda x: x > 3)  # [4, 6]
+
+# You can inspect any step
+print(data1)  # Original data
+print(data2)  # After map
+print(data3)  # After filter
+```
+
+### 3. Thread Safety
+
+No race conditions with immutable data:
+
+```python
+#  Safe - immutable data can be shared
+shared_data = PersistentList.of(1, 2, 3)
+
+# Multiple threads can read safely
+thread1 = Thread(lambda: process(shared_data))
+thread2 = Thread(lambda: process(shared_data))
+
+# No locks needed!
+```
+
+### 4. Simpler State Management
+
+State changes are explicit:
+
+```python
+#  Mutable - hidden state changes
+class Counter:
+    def __init__(self):
+        self.count = 0
+
+    def increment(self):
+        self.count += 1  # Hidden mutation
+
+#  Immutable - explicit changes
+@dataclass(frozen=True)
+class Counter:
+    count: int
+
+    def increment(self) -> "Counter":
+        return Counter(self.count + 1)  # Returns new instance
+```
+
+---
+
+## Persistent Data Structures
+
+better-py provides **persistent** data structures - immutable data structures that share memory for efficiency:
+
+```python
+from better_py import PersistentList
+
+# O(1) append with structural sharing
+lst1 = PersistentList.of(1, 2, 3)
+lst2 = lst1.append(4)
+
+# lst1 and lst2 share most of their structure
+# Only the new node is allocated
+```
+
+### Benefits of Persistent Data Structures
+
+1. **Immutable** - Data never changes
+2. **Efficient** - Structural sharing avoids copying
+3. **Performance** - Most operations are O(log n)
+4. **Memory** - Shared structure reduces usage
+
+---
+
+## PersistentList
+
+Immutable list with structural sharing:
+
+```python
+from better_py import PersistentList
+
+# Create
+lst = PersistentList.of(1, 2, 3)
+
+# Add - returns new list
+new_lst = lst.append(4)
+
+# Prepend - O(1)
+new_lst = lst.prepend(0)
+
+# Access by index
+value = lst.get(0)  # Maybe.some(1)
+value = lst.get(10)  # Nothing
+
+# Slice
+sub = lst.slice(1, 3)  # PersistentList(2, 3)
+
+# Transform
+mapped = lst.map(lambda x: x * 2)  # [2, 4, 6]
+filtered = lst.filter(lambda x: x > 1)  # [2, 3]
+
+# Convert
+python_list = lst.to_list()  # [1, 2, 3]
+```
+
+### Common Operations
+
+```python
+from better_py import PersistentList
+
+lst = PersistentList.of(1, 2, 3, 4, 5)
+
+# Reduce
+total = lst.reduce(lambda acc, x: acc + x, 0)  # 15
+
+# Fold (left or right)
+sum_all = lst.fold_left(lambda acc, x: acc + x, 0)  # 15
+
+# Find
+found = lst.find(lambda x: x > 3)  # Maybe.some(4)
+
+# Contains
+has_3 = lst.contains(3)  # True
+
+# Length
+length = lst.length()  # 5
+
+# Reverse
+reversed = lst.reverse()  # [5, 4, 3, 2, 1]
+
+# Sort
+sorted_lst = lst.sort(lambda a, b: a - b)  # [1, 2, 3, 4, 5]
+```
+
+---
+
+## PersistentMap
+
+Immutable hash map with structural sharing:
+
+```python
+from better_py import PersistentMap
+
+# Create
+m = PersistentMap({"a": 1, "b": 2})
+
+# Get values
+value = m.get("a")  # Maybe.some(1)
+missing = m.get("z")  # Nothing
+
+# Set - returns new map
+new_m = m.set("c", 3)  # Original unchanged
+
+# Delete
+new_m = m.delete("b")  # Returns new map without "b"
+
+# Check keys
+has_key = m.contains_key("a")  # True
+
+# Get all keys/values
+keys = m.keys()  # PersistentList("a", "b")
+values = m.values()  # PersistentList(1, 2)
+```
+
+### Common Operations
+
+```python
+from better_py import PersistentMap
+
+m = PersistentMap({"a": 1, "b": 2})
+
+# Update multiple
+updated = m.update({"c": 3, "d": 4})
+
+# Transform values
+mapped = m.map_values(lambda v: v * 2)  # {"a": 2, "b": 4}
+
+# Merge
+other = PersistentMap({"b": 20, "c": 3})
+merged = m.merge(other)  # {"a": 1, "b": 20, "c": 3}
+
+# Filter
+filtered = m.filter(lambda k, v: v > 1)  # {"b": 2}
+
+# Convert to Python dict
+d = m.to_dict()  # {"a": 1, "b": 2}
+```
+
+---
+
+## PersistentSet
+
+Immutable set with structural sharing:
+
+```python
+from better_py import PersistentSet
+
+# Create
+s = PersistentSet.of(1, 2, 3)
+
+# Add - returns new set
+new_s = s.add(4)
+
+# Remove
+new_s = s.remove(2)
+
+# Check membership
+has_2 = s.contains(2)  # True
+
+# Set operations
+other = PersistentSet.of(3, 4, 5)
+
+union = s.union(other)  # {1, 2, 3, 4, 5}
+intersection = s.intersection(other)  # {3}
+difference = s.difference(other)  # {1, 2}
+
+# Convert
+python_set = s.to_set()  # {1, 2, 3}
+```
+
+---
+
+## Performance Characteristics
+
+### Time Complexity
+
+| Operation | PersistentList | PersistentMap | PersistentSet |
+|-----------|---------------|---------------|---------------|
+| Access/Get | O(log n) | O(log n) | O(log n) |
+| Add/Set | O(1) prepend | O(log n) | O(log n) |
+| Delete | O(log n) | O(log n) | O(log n) |
+| Length | O(1) | O(1) | O(1) |
+
+### Memory Usage
+
+Structural sharing means most operations use minimal memory:
+
+```python
+# Only new nodes are allocated
+lst1 = PersistentList.of(1, 2, 3, 4, 5)
+lst2 = lst1.append(6)
+
+# lst2 shares [1, 2, 3, 4, 5] with lst1
+# Only adds node for 6
+```
+
+---
+
+## Common Patterns
+
+### Pattern 1: Building State
+
+```python
+from better_py import PersistentMap
+
+# Start with empty
+state = PersistentMap.empty()
+
+# Build up state
+state = state.set("user", user_data)
+state = state.set("config", config_data)
+state = state.set("session", session_data)
+
+# Original empty state still available
+```
+
+### Pattern 2: History/Undo
+
+```python
+# Keep history of changes
+history = []
+current = PersistentMap.empty()
+
+history.append(current)
+current = current.set("x", 1)
+
+history.append(current)
+current = current.set("y", 2)
+
+# Undo
+current = history.pop()  # Go back to previous state
+```
+
+### Pattern 3: Safe Updates
+
+```python
+def update_user(config: PersistentMap, key: str, value: any) -> PersistentMap:
+    """Always returns new config, never mutates"""
+    return config.set(key, value)
+
+# Safe - original unchanged
+old_config = load_config()
+new_config = update_user(old_config, "theme", "dark")
+```
+
+---
+
+## When to Use Persistent Collections
+
+<Callout type="success" title="Great For">
+
+-  Application state
+-  Configuration data
+-  Immutable pipelines
+-  Concurrent access
+-  History tracking
+
+</Callout>
+
+<Callout type="warning" title="Less Ideal For">
+
+-  Simple temporary lists
+-  Performance-critical inner loops
+-  Interfacing with mutable APIs
+
+</Callout>
+
+---
+
+## Next Steps
+
+- **[PersistentList API](/docs/collections/persistent-list)** - Complete API
+- **[PersistentMap API](/docs/collections/persistent-map)** - Complete API
+- **[Performance Guide](/docs/collections/performance)** - Performance tips

@@ -1,0 +1,154 @@
+---
+title: Collections Overview
+description: Immutable persistent collections with structural sharing
+---
+
+import { Library, Shield, Zap } from 'lucide-react';
+
+# Persistent Collections
+
+better-py provides **immutable persistent collections** with structural sharing for efficient updates.
+
+<Cards>
+  <Card
+    icon={<Library />}
+    title="PersistentList"
+    href="/docs/collections/persistent-list"
+    description="Immutable linked list with O(1) prepend"
+  />
+  <Card
+    icon={<Shield />}
+    title="PersistentMap"
+    href="/docs/collections/persistent-map"
+    description="Immutable dictionary with efficient updates"
+  />
+  <Card
+    icon={<Zap />}
+    title="PersistentSet"
+    href="/docs/collections/persistent-set"
+    description="Immutable set with algebraic operations"
+  />
+  <Card
+    title="Performance"
+    href="/docs/collections/performance"
+    description="Learn about structural sharing performance"
+  />
+</Cards>
+
+---
+
+## What are Persistent Collections?
+
+Persistent collections are **immutable** - operations that would "modify" them return new instances. But they use **structural sharing** so only the changed parts are copied.
+
+<Callout type="info" title="Why Persistent?">
+
+-  **Immutable data** - No surprise mutations
+-  **Efficient** - O(1) or O(log n) operations via structural sharing
+-  **Thread-safe** - No locks needed
+-  **Time travel** - Keep history of changes
+
+</Callout>
+
+---
+
+## Structural Sharing
+
+```python
+from better_py import PersistentList
+
+# Original: [1] -> [2] -> [3]
+list1 = PersistentList.of(1, 2, 3)
+
+# Prepend: [0] -> [1] -> [2] -> [3]
+#            ^------- SHARED --------^
+list2 = list1.prepend(0)
+
+# Only new node created!
+# list1 and list2 share [1, 2, 3]
+```
+
+---
+
+## Collections Comparison
+
+| Collection | Use Case | Performance |
+|------------|----------|-------------|
+| **PersistentList** | Sequences, stacks | O(1) prepend, O(n) index |
+| **PersistentMap** | Key-value storage | O(log n) get/set |
+| **PersistentSet** | Unique values | O(log n) add/remove |
+
+---
+
+## When to Use Persistent Collections
+
+<Callout type="success" title="Great For">
+
+-  Application state
+-  Configuration data
+-  Undo/redo functionality
+-  Concurrent access
+-  Functional data pipelines
+
+</Callout>
+
+<Callout type="warning" title="Less Ideal For">
+
+-  Large buffers (images, video)
+-  Random access patterns
+-  Performance-critical inner loops
+
+</Callout>
+
+---
+
+## Quick Examples
+
+### PersistentList
+
+```python
+from better_py import PersistentList
+
+lst = PersistentList.of(1, 2, 3)
+new_lst = lst.append(4)
+
+# Original unchanged
+assert lst.to_list() == [1, 2, 3]
+assert new_lst.to_list() == [1, 2, 3, 4]
+```
+
+### PersistentMap
+
+```python
+from better_py import PersistentMap
+
+config = PersistentMap({"host": "localhost"})
+new_config = config.set("port", 5432)
+
+# Original unchanged
+assert config.get("port") == None
+assert new_config.get("port") == 5432
+```
+
+### PersistentSet
+
+```python
+from better_py import PersistentSet
+
+set1 = PersistentSet.of(1, 2, 3)
+set2 = set1.add(4)
+set3 = set2.union(set1)
+
+# All immutable
+```
+
+---
+
+## Next Steps
+
+Choose a collection to learn more:
+
+- [PersistentList](/docs/collections/persistent-list) - Immutable lists
+- [PersistentMap](/docs/collections/persistent-map) - Immutable maps
+- [PersistentSet](/docs/collections/persistent-set) - Immutable sets
+- [Performance](/docs/collections/performance) - Performance characteristics

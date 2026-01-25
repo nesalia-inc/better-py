@@ -1,0 +1,357 @@
+---
+title: Installation
+description: Detailed installation guide for better-py
+---
+
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+
+# Installation Guide
+
+This guide covers detailed installation options for better-py, including different package managers and development setups.
+
+---
+
+## System Requirements
+
+- **Python**: 3.11 or higher
+- **Operating System**: Windows, macOS, or Linux
+- **Memory**: No specific requirements
+- **Disk Space**: < 5 MB
+
+<Callout type="warning" title="Python Version Check">
+
+Check your Python version before installing:
+
+```bash
+python --version
+# Python 3.11.0 or higher required
+```
+
+If you have an older version, install Python 3.11+ from [python.org](https://www.python.org/downloads/).
+</Callout>
+
+---
+
+## Installation Methods
+
+### Standard Installation with pip
+
+The simplest way to install better-py:
+
+```bash
+pip install better-py-fp
+```
+
+**With a virtual environment** (recommended):
+
+```bash
+# Create virtual environment
+python -m venv .venv
+
+# Activate (Windows)
+.venv\Scripts\activate
+
+# Activate (macOS/Linux)
+source .venv/bin/activate
+
+# Install better-py
+pip install better-py-fp
+```
+
+### Installation with uv
+
+[uv](https://github.com/astral-sh/uv) is a fast Python package installer:
+
+```bash
+# Install uv if needed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create project and install
+uv init my-project
+cd my-project
+uv pip install better-py-fp
+```
+
+### Installation with Poetry
+
+[Poetry](https://python-poetry.org/) manages dependencies and virtual environments:
+
+```bash
+# Install Poetry if needed
+curl -sSL https://install.python-poetry.org | python3 -
+
+# Create new project
+poetry new my-project
+cd my-project
+
+# Add better-py
+poetry add better-py-fp
+```
+
+### Installation with pipenv
+
+[pipenv](https://pipenv.pypa.io/) combines pip and virtualenv:
+
+```bash
+# Install pipenv if needed
+pip install pipenv
+
+# Create project and install
+pipenv --python 3.11
+pipenv install better-py-fp
+```
+
+---
+
+## Development Installation
+
+If you want to contribute to better-py or modify it:
+
+<Steps>
+  <Step>
+    ### Clone the repository
+
+    ```bash
+    git clone https://github.com/nesalia-inc/better-py.git
+    cd better-py
+    ```
+  </Step>
+  <Step>
+    ### Install uv (recommended)
+
+    ```bash
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    ```
+  </Step>
+  <Step>
+    ### Install in editable mode
+
+    ```bash
+    uv sync --all-extras
+    ```
+  </Step>
+  <Step>
+    ### Verify installation
+
+    ```bash
+    uv run python -c "from better_py import Maybe; print(Maybe.some(42))"
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Optional Dependencies
+
+better-py has no required runtime dependencies, but you may want these for development:
+
+```bash
+# For type checking
+pip install mypy
+
+# For testing
+pip install pytest pytest-cov
+
+# For code quality
+pip install ruff
+```
+
+Or install all dev dependencies at once:
+
+```bash
+# With pip
+pip install better-py-fp[dev]
+
+# With uv
+uv pip install better-py-fp --all-extras
+```
+
+---
+
+## Verifying Installation
+
+Create a simple test script:
+
+```python
+# verify_installation.py
+from better_py import Maybe, Result, PersistentList
+
+# Test Maybe
+maybe_value = Maybe.some(42)
+assert maybe_value.is_some() == True
+assert maybe_value.unwrap() == 42
+
+# Test Result
+result = Result.ok("success")
+assert result.is_ok() == True
+assert result.unwrap() == "success"
+
+# Test PersistentList
+lst = PersistentList.of(1, 2, 3)
+assert lst.to_list() == [1, 2, 3]
+
+print(" All tests passed! better-py is installed correctly.")
+```
+
+Run it:
+
+```bash
+python verify_installation.py
+```
+
+---
+
+## Upgrading
+
+To upgrade to the latest version:
+
+```bash
+# pip
+pip install --upgrade better-py-fp
+
+# uv
+uv pip install better-py-fp --upgrade
+
+# Poetry
+poetry update better-py-fp
+
+# pipenv
+pipenv update better-py-fp
+```
+
+---
+
+## Uninstallation
+
+If you need to remove better-py:
+
+```bash
+# pip
+pip uninstall better-py-fp
+
+# uv
+uv pip uninstall better-py-fp
+
+# Poetry
+poetry remove better-py-fp
+
+# pipenv
+pipenv uninstall better-py-fp
+```
+
+---
+
+## Docker Installation
+
+For Docker environments, add to your `Dockerfile`:
+
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install better-py
+RUN pip install better-py-fp --no-cache-dir
+
+COPY . .
+
+CMD ["python", "main.py"]
+```
+
+Or use a multi-stage build:
+
+```dockerfile
+FROM python:3.11-slim as builder
+
+WORKDIR /app
+RUN pip install better-py-fp --user
+
+FROM python:3.11-slim
+
+COPY --from=builder /root/.local /root/.local
+ENV PATH=/root/.local/bin:$PATH
+
+WORKDIR /app
+COPY . .
+
+CMD ["python", "main.py"]
+```
+
+---
+
+## CI/CD Installation
+
+### GitHub Actions
+
+```yaml
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install better-py-fp
+      - run: pytest
+```
+
+### GitLab CI
+
+```yaml
+test:
+  image: python:3.11
+  script:
+    - pip install better-py-fp
+    - pytest
+```
+
+---
+
+## Troubleshooting
+
+### Permission Errors
+
+If you get permission errors on Linux/macOS:
+
+```bash
+# Install to user directory
+pip install --user better-py-fp
+
+# Or use a virtual environment
+python -m venv .venv
+source .venv/bin/activate
+pip install better-py-fp
+```
+
+### SSL Certificate Errors
+
+If you encounter SSL errors:
+
+```bash
+# Windows
+pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org better-py-fp
+
+# Or upgrade pip
+pip install --upgrade pip
+```
+
+### Proxy Issues
+
+If you're behind a proxy:
+
+```bash
+pip install --proxy http://user:pass@proxyserver:port better-py-fp
+```
+
+---
+
+<Callout type="success" title="Installation Complete!">
+
+Now that better-py is installed, head over to the [Quick Start Guide](/docs/getting-started/quick-start) to write your first functional program!
+
+</Callout>

@@ -1,0 +1,358 @@
+---
+title: Quick Start
+description: Build your first functional program in 5 minutes
+---
+
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+import { CheckCircle, AlertCircle } from 'lucide-react';
+
+# Quick Start Guide
+
+Let's build your first functional program with better-py! In this guide, we'll create a simple user lookup service that demonstrates the core concepts.
+
+---
+
+## What We'll Build
+
+We'll build a **user service** that:
+
+1.  Looks up users safely (with `Maybe`)
+2.  Handles errors explicitly (with `Result`)
+3.  Validates input data (with `Validation`)
+4.  Chains operations cleanly
+
+---
+
+## Step 1: Set Up Your Project
+
+Create a new project:
+
+```bash
+mkdir user-service
+cd user-service
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install better-py-fp
+```
+
+---
+
+## Step 2: Basic Maybe Usage
+
+Let's start with the simplest monad - `Maybe`. Create `main.py`:
+
+```python
+from better_py import Maybe
+
+# Simulated database
+users_db = {
+    1: {"id": 1, "name": "Alice", "email": "alice@example.com"},
+    2: {"id": 2, "name": "Bob", "email": "bob@example.com"},
+}
+
+def find_user(user_id: int) -> Maybe[dict]:
+    """Find a user by ID - returns Maybe[dict]"""
+    if user_id in users_db:
+        return Maybe.some(users_db[user_id])
+    return Maybe.nothing()
+
+# Test it
+result = find_user(1)
+if result.is_some():
+    user = result.unwrap()
+    print(f"Found user: {user['name']}")
+else:
+    print("User not found")
+
+# Output: Found user: Alice
+```
+
+<Callout type="info" title="Why Maybe?">
+
+`Maybe` makes it explicit that a value might not exist. No more `None` checks or `TypeError: 'NoneType' object is not subscriptable`!
+</Callout>
+
+---
+
+## Step 3: Chaining Maybe Operations
+
+Now let's chain operations safely:
+
+```python
+from better_py import Maybe
+
+def get_user_email(user_id: int) -> Maybe[str]:
+    """Get user email or Nothing if not found"""
+    return (
+        find_user(user_id)           # Maybe[dict]
+        .map(lambda user: user.get("email"))  # Maybe[str | None]
+        .bind(lambda email:          # Maybe[str]
+            Maybe.some(email) if email
+            else Maybe.nothing()
+        )
+    )
+
+# Test with existing user
+email = get_user_email(1)
+print(email.unwrap_or_else(lambda: "No email"))
+# Output: alice@example.com
+
+# Test with non-existent user
+email = get_user_email(999)
+print(email.unwrap_or_else(lambda: "No email"))
+# Output: No email
+```
+
+---
+
+## Step 4: Adding Error Handling with Result
+
+Let's add error handling for invalid input:
+
+```python
+from better_py import Result
+
+def validate_user_id(user_id: int) -> Result[int, str]:
+    """Validate user ID - returns Result[int, str]"""
+    if user_id <= 0:
+        return Result.error("User ID must be positive")
+    if user_id > 1000:
+        return Result.error("User ID too large")
+    return Result.ok(user_id)
+
+# Test validation
+result = validate_user_id(-1)
+if result.is_ok():
+    user_id = result.unwrap()
+    print(f"Valid ID: {user_id}")
+else:
+    print(f"Error: {result.unwrap_error()}")
+# Output: Error: User ID must be positive
+```
+
+---
+
+## Step 5: Combining Maybe and Result
+
+Now let's combine everything:
+
+```python
+from better_py import Maybe, Result
+
+def get_user_safe(user_id: int) -> Result[dict, str]:
+    """Get user with validation and safe lookup"""
+    # First validate the ID
+    validated = validate_user_id(user_id)
+    if validated.is_error():
+        return validated
+
+    # Then find the user
+    user = find_user(validated.unwrap())
+    if user.is_nothing():
+        return Result.error(f"User {user_id} not found")
+
+    return Result.ok(user.unwrap())
+
+# Test the complete flow
+result = get_user_safe(1)
+if result.is_ok():
+    print(f" Success: {result.unwrap()}")
+else:
+    print(f" Error: {result.unwrap_error()}")
+# Output:  Success: {'id': 1, 'name': 'Alice', 'email': 'alice@example.com'}
+
+result = get_user_safe(-1)
+if result.is_ok():
+    print(f" Success: {result.unwrap()}")
+else:
+    print(f" Error: {result.unwrap_error()}")
+# Output:  Error: User ID must be positive
+```
+
+---
+
+## Step 6: Data Validation with Validation
+
+Let's add form validation that accumulates errors:
+
+```python
+from better_py import Validation
+
+def validate_email(email: str) -> Validation[str, str]:
+    """Validate email format"""
+    if "@" in email and "." in email:
+        return Validation.valid(email)
+    return Validation.invalid(["Invalid email format"])
+
+def validate_name(name: str) -> Validation[str, str]:
+    """Validate name length"""
+    if len(name) >= 2:
+        return Validation.valid(name)
+    return Validation.invalid(["Name must be at least 2 characters"])
+
+def validate_user_data(name: str, email: str) -> Validation[dict, str]:
+    """Validate all user data and accumulate errors"""
+    name_result = validate_name(name)
+    email_result = validate_email(email)
+
+    # Combine validations - accumulates all errors
+    return name_result.ap(email_result).map(
+        lambda data: {"name": data[0], "email": data[1]}
+    )
+
+# Test validation
+result = validate_user_data("A", "bademail")
+if result.is_valid():
+    print(f" Valid: {result.unwrap()}")
+else:
+    print(f" Errors: {result.get_errors()}")
+# Output:  Errors: ['Name must be at least 2 characters', 'Invalid email format']
+
+result = validate_user_data("Alice", "alice@example.com")
+if result.is_valid():
+    print(f" Valid: {result.unwrap()}")
+else:
+    print(f" Errors: {result.get_errors()}")
+# Output:  Valid: {'name': 'Alice', 'email': 'alice@example.com'}
+```
+
+---
+
+## Step 7: Complete Example
+
+Here's our complete user service:
+
+```python
+from better_py import Maybe, Result, Validation
+
+# Database
+users_db = {
+    1: {"id": 1, "name": "Alice", "email": "alice@example.com"},
+    2: {"id": 2, "name": "Bob", "email": "bob@example.com"},
+}
+
+# Core functions
+def find_user(user_id: int) -> Maybe[dict]:
+    """Find user by ID"""
+    return Maybe.some(users_db[user_id]) if user_id in users_db else Maybe.nothing()
+
+def validate_user_id(user_id: int) -> Result[int, str]:
+    """Validate user ID"""
+    if user_id <= 0:
+        return Result.error("User ID must be positive")
+    if user_id > 1000:
+        return Result.error("User ID too large")
+    return Result.ok(user_id)
+
+def validate_email(email: str) -> Validation[str, str]:
+    """Validate email format"""
+    if "@" in email and "." in email:
+        return Validation.valid(email)
+    return Validation.invalid(["Invalid email format"])
+
+# Main function
+def get_user_info(user_id: int) -> Result[dict, str]:
+    """Get user info with full validation"""
+    # Validate ID
+    validated_id = validate_user_id(user_id)
+    if validated_id.is_error():
+        return validated_id.map_error(lambda e: f"Validation error: {e}")
+
+    # Find user
+    user = find_user(validated_id.unwrap())
+    if user.is_nothing():
+        return Result.error(f"User {user_id} not found")
+
+    return Result.ok(user.unwrap())
+
+# CLI interface
+def main():
+    import sys
+
+    if len(sys.argv) < 2:
+        print("Usage: python main.py <user_id>")
+        return
+
+    try:
+        user_id = int(sys.argv[1])
+    except ValueError:
+        print(" Error: User ID must be a number")
+        return
+
+    result = get_user_info(user_id)
+
+    if result.is_ok():
+        user = result.unwrap()
+        print(f" Found user:")
+        print(f"   Name: {user['name']}")
+        print(f"   Email: {user['email']}")
+    else:
+        print(f" {result.unwrap_error()}")
+
+if __name__ == "__main__":
+    main()
+```
+
+Test it:
+
+```bash
+python main.py 1
+#  Found user:
+#    Name: Alice
+#    Email: alice@example.com
+
+python main.py 999
+#  User 999 not found
+
+python main.py -1
+#  Validation error: User ID must be positive
+```
+
+---
+
+## Key Takeaways
+
+Congratulations! You've learned:
+
+1.  **Maybe** - Handle optional values safely
+2.  **Result** - Explicit error handling
+3.  **Validation** - Accumulate multiple errors
+4.  **Chaining** - Compose operations cleanly
+
+<Callout type="success" title="You're Ready!">
+
+You now understand the core concepts of better-py. Continue learning:
+
+- [Maybe Monad](/docs/monads/maybe) - Deep dive into Maybe
+- [Result Monad](/docs/monads/result) - Master error handling
+- [Validation Monad](/docs/monads/validation) - Form validation patterns
+- [Real-world Examples](/docs/examples) - See better-py in action
+
+</Callout>
+
+---
+
+## Next Steps
+
+<Cards>
+  <Card
+    title="Core Concepts"
+    href="/docs/concepts"
+    description="Learn about monads, immutability, and type safety"
+  />
+  <Card
+    title="Error Handling Guide"
+    href="/docs/guides/error-handling"
+    description="Master error handling strategies"
+  />
+  <Card
+    title="FastAPI Example"
+    href="/docs/examples/web-api/fastapi"
+    description="Build a REST API with better-py"
+  />
+  <Card
+    title="Best Practices"
+    href="/docs/best-practices"
+    description="Write better functional code"
+  />
+</Cards>

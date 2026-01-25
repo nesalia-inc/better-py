@@ -1,0 +1,53 @@
+---
+title: Async Patterns
+description: Asynchronous programming patterns with better-py
+---
+
+# Async Patterns
+
+Asynchronous programming patterns with better-py.
+
+## Overview
+
+Use async monads for operations that can fail or return no values.
+
+## Patterns
+
+### 1. Async Error Handling
+
+```python
+from better_py import AsyncResult
+
+async def fetch_user(id: int) -> AsyncResult[User, str]:
+    try:
+        user = await api.get(f"/users/{id}")
+        return AsyncResult.ok(user)
+    except Exception as e:
+        return AsyncResult.error(str(e))
+```
+
+### 2. Async Optionals
+
+```python
+from better_py import AsyncMaybe
+
+async def get_cache(key: str) -> AsyncMaybe[str]:
+    value = await redis.get(key)
+    return AsyncMaybe.from_value(value)
+```
+
+### 3. Chaining Async Operations
+
+```python
+async def process_user(id: int):
+    return (
+        await fetch_user(id)
+        .bind(lambda u: fetch_profile(u.id))
+        .map(lambda p: serialize(p))
+    )
+```
+
+## See Also
+
+- [AsyncMaybe](/docs/monads/async/async-maybe)
+- [AsyncResult](/docs/monads/async/async-result)

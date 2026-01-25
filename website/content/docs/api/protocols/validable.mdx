@@ -1,0 +1,27 @@
+---
+title: Validable Protocol API
+description: Validable protocol reference
+---
+
+# Validable Protocol
+
+## Protocol Definition
+
+```python
+@runtime_checkable
+class Validable(Protocol[T]):
+    def validate(self) -> Result[T, str]: ...
+```
+
+## Required Methods
+
+### validate() -> Result[T, str]
+Validate the data.
+
+## Type Parameters
+
+- T: The validated type
+
+## See Also
+
+- [Validable Guide](/docs/protocols/validable)

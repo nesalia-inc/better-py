@@ -1,0 +1,334 @@
+---
+title: Core Concepts
+description: Understand the fundamental concepts of functional programming with better-py
+---
+
+import { BookOpen, Layers, Shield, Zap } from 'lucide-react';
+
+# Core Concepts
+
+This section covers the fundamental concepts you need to understand to use better-py effectively. Whether you're new to functional programming or coming from other languages, these concepts will help you write better code.
+
+<Cards>
+  <Card
+    icon={<BookOpen />}
+    title="Functional Programming"
+    href="/docs/concepts/what-is-functional-programming"
+    description="Learn what functional programming is and why it matters"
+  />
+  <Card
+    icon={<Layers />}
+    title="Monads"
+    href="/docs/concepts/monads"
+    description="Understand monads - the building blocks of functional programming"
+  />
+  <Card
+    icon={<Shield />}
+    title="Immutability"
+    href="/docs/concepts/immutability"
+    description="Why immutable data leads to safer, more predictable code"
+  />
+  <Card
+    icon={<Zap />}
+    title="Type Safety"
+    href="/docs/concepts/type-safety"
+    description="Leverage Python's type system for correctness"
+  />
+</Cards>
+
+---
+
+## What You'll Learn
+
+Functional programming can seem intimidating at first, but better-py makes it accessible and practical. By understanding these core concepts, you'll be able to:
+
+- **Write safer code** that's easier to reason about
+- **Handle errors explicitly** without exceptions
+- **Compose operations** cleanly and predictably
+- **Leverage types** to catch bugs before runtime
+
+---
+
+## Concept Overview
+
+### 1. What is Functional Programming?
+
+<Callout type="info" title="Pure Functions + Immutable Data">
+
+At its core, functional programming is about:
+
+- **Pure functions** - Same input always gives same output, no side effects
+- **Immutable data** - Data never changes after creation
+- **Composition** - Building complex behavior from simple functions
+
+</Callout>
+
+### 2. Monads
+
+Monads are design patterns that structure computations. Think of them as **containers** with special rules for transformation:
+
+```python
+from better_py import Maybe
+
+# Maybe is a container that might have a value
+value = Maybe.some(42)
+
+# Transform the value safely
+doubled = value.map(lambda x: x * 2)  # Maybe(84)
+
+# Chain operations
+result = (
+    Maybe.some(10)
+    .map(lambda x: x * 2)
+    .bind(lambda x: Maybe.some(x) if x > 15 else Maybe.nothing())
+)
+```
+
+### 3. Immutability
+
+Immutable data prevents entire classes of bugs:
+
+```python
+from better_py import PersistentList
+
+# Create immutable list
+lst1 = PersistentList.of(1, 2, 3)
+
+# "Modify" returns new list
+lst2 = lst1.append(4)
+
+# Original unchanged!
+assert lst1.to_list() == [1, 2, 3]
+assert lst2.to_list() == [1, 2, 3, 4]
+```
+
+### 4. Type Safety
+
+Generic types track transformations through your code:
+
+```python
+from better_py import Result
+
+def divide(a: int, b: int) -> Result[int, str]:
+    if b == 0:
+        return Result.error("Division by zero")
+    return Result.ok(a // b)
+
+# Type checker knows the result type
+result: Result[int, str] = divide(10, 2)
+```
+
+---
+
+## Learning Path
+
+We recommend learning concepts in this order:
+
+1. **[Start Here](/docs/concepts/what-is-functional-programming)**
+   Read What is Functional Programming? for an introduction
+
+2. **[Understand Monads](/docs/concepts/monads)**
+   Learn about Monads - the core abstraction
+
+3. **[Embrace Immutability](/docs/concepts/immutability)**
+   Read about Immutability and its benefits
+
+4. **[Master Types](/docs/concepts/type-safety)**
+   Explore Type Safety with mypy
+
+5. **[Learn Protocols](/docs/concepts/protocols)**
+   Understand Protocols for extensible design
+
+6. **[The Philosophy](/docs/concepts/functional-entities)**
+   Read Functional Entities to understand better-py's approach
+
+---
+
+## Key Principles
+
+### 1. Explicit > Implicit
+
+Make errors and optional values **explicit** in types:
+
+```python
+#  Implicit - None can be anything
+def get_user(id: int) -> dict | None:
+    ...
+
+#  Explicit - Maybe makes optionality clear
+def get_user(id: int) -> Maybe[dict]:
+    ...
+```
+
+### 2. Immutable > Mutable
+
+Prefer immutable data structures:
+
+```python
+#  Mutable - surprising behavior
+def process(items: list) -> None:
+    items.clear()  # Oops! Modifies original
+
+#  Immutable - predictable behavior
+def process(items: PersistentList) -> PersistentList:
+    return items.map(transform)  # Returns new list
+```
+
+### 3. Compose > Nest
+
+Compose operations instead of nesting:
+
+```python
+#  Nested - hard to read
+result = map(lambda x: x * 2, filter(lambda y: y > 0, items))
+
+#  Composed - clear flow
+result = (
+    PersistentList(items)
+    .filter(lambda y: y > 0)
+    .map(lambda x: x * 2)
+)
+```
+
+---
+
+## Common Patterns
+
+### Pattern 1: Safe Operations
+
+Use `Maybe` for operations that might not return a value:
+
+```python
+from better_py import Maybe
+
+def get_first(items: list) -> Maybe:
+    return Maybe.from_value(items[0] if items else None)
+
+name = get_first(users)\
+    .map(lambda u: u.name)\
+    .unwrap_or_else(lambda: "Guest")
+```
+
+### Pattern 2: Error Handling
+
+Use `Result` for operations that can fail:
+
+```python
+from better_py import Result
+
+def fetch_user(id: int) -> Result[User, str]:
+    if not valid_id(id):
+        return Result.error("Invalid ID")
+    user = db.find(id)
+    if not user:
+        return Result.error("User not found")
+    return Result.ok(user)
+```
+
+### Pattern 3: Validation
+
+Use `Validation` to accumulate errors:
+
+```python
+from better_py import Validation
+
+email_result = validate_email(email)
+name_result = validate_name(name)
+
+# Combine to get all errors at once
+user_data = email_result.ap(name_result)
+```
+
+---
+
+## Comparison: Imperative vs Functional
+
+Here's the same operation written both ways:
+
+### Imperative Approach
+
+```python
+def process_users(ids: list[int]) -> list[str]:
+    names = []
+    for id in ids:
+        try:
+            user = fetch_user(id)
+            if user and user.is_active:
+                names.append(user.name.upper())
+        except Exception as e:
+            log_error(e)
+    return names
+```
+
+### Functional Approach with better-py
+
+```python
+def process_users(ids: list[int]) -> list[str]:
+    return (
+        PersistentList(ids)
+        .map(fetch_user)  # Maybe[User]
+        .filter(lambda m: m.is_some())
+        .map(lambda m: m.unwrap())
+        .filter(lambda u: u.is_active)
+        .map(lambda u: u.name.upper())
+        .to_list()
+    )
+```
+
+**Benefits**:
+-  No explicit error handling
+-  Each step is clear and testable
+-  No mutations or side effects
+-  Type-safe throughout
+
+---
+
+## When to Use Functional Programming
+
+<Callout type="success" title="Great For">
+
+-  Data processing pipelines
+-  Error handling
+-  Async operations
+-  State management
+-  Business logic with complex rules
+
+</Callout>
+
+<Callout type="warning" title="Less Ideal For">
+
+-  Simple scripts
+-  Performance-critical inner loops
+-  Wrapping impure libraries
+-  Quick prototypes
+
+</Callout>
+
+---
+
+## Next Steps
+
+Ready to dive deeper? Choose your next topic:
+
+<Cards>
+  <Card
+    title="Monads Guide"
+    href="/docs/concepts/monads"
+    description="Deep dive into monads and how they work"
+  />
+  <Card
+    title="Immutability"
+    href="/docs/concepts/immutability"
+    description="Learn why immutability matters"
+  />
+  <Card
+    title="Type Safety"
+    href="/docs/concepts/type-safety"
+    description="Master Python's type system"
+  />
+  <Card
+    title="Try It Out"
+    href="/docs/getting-started/quick-start"
+    description="Build your first functional program"
+  />
+</Cards>

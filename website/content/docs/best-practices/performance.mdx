@@ -1,0 +1,48 @@
+---
+title: Performance Best Practices
+description: Optimize your functional code
+---
+
+# Performance
+
+Tips for writing performant functional code.
+
+## Guidelines
+
+### 1. Use O(1) Operations
+
+```python
+# Good: O(1) prepend
+lst = PersistentList.empty()
+for item in items:
+    lst = lst.prepend(item)
+
+# Avoid: O(n) append in loop
+lst = PersistentList.empty()
+for item in items:
+    lst = lst.append(item)  # Slow!
+```
+
+### 2. Build in Bulk
+
+```python
+# Good: Build once
+lst = PersistentList.from_iterable(large_list)
+
+# Avoid: Building incrementally
+lst = PersistentList.empty()
+for item in large_list:
+    lst = lst.append(item)
+```
+
+### 3. Consider Regular Lists for Bulk Operations
+
+```python
+# Use regular list for heavy computation, then convert
+result = list(map(transform, large_data))
+persistent = PersistentList.from_iterable(result)
+```
+
+## See Also
+
+- [Collections Performance](/docs/collections/performance)

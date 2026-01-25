@@ -1,0 +1,3 @@
+{
+  "pages": ["index", "mappable", "reducible", "combinable", "monoid", "updatable", "traversable", "parseable", "validable"]
+}

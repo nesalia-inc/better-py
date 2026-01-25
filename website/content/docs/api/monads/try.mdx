@@ -1,0 +1,32 @@
+---
+title: Try API Reference
+description: Complete Try API documentation
+---
+
+# Try API Reference
+
+## Constructor
+
+### Try(callable: Callable[[], T])
+Wrap a callable that might raise exception.
+
+## Instance Methods
+
+### is_success() -> bool
+Check if succeeded.
+
+### is_failure() -> bool
+Check if failed.
+
+### get_exception() -> Exception
+Get the exception.
+
+### map(func: Callable[[T], U]) -> Try[U]
+Transform success value.
+
+### recover(func: Callable[[Exception], T]) -> Try[T]
+Recover from failure.
+
+## See Also
+
+- [Try Monad](/docs/monads/try)

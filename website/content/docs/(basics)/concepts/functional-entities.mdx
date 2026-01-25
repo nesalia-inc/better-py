@@ -1,0 +1,428 @@
+---
+title: Functional Entities
+description: OOP-first approach to functional programming
+---
+
+# Functional Entities
+
+better-py takes an **OOP-first approach** to functional programming. Instead of standalone functions, we use objects (entities) that encapsulate functional patterns.
+
+---
+
+## Philosophy: Objects > Functions
+
+### Traditional FP (Function-First)
+
+```python
+# Traditional functional style
+map(lambda x: x * 2, items)
+filter(lambda x: x > 0, items)
+reduce(lambda acc, x: acc + x, items, 0)
+```
+
+### better-py (Object-First)
+
+```python
+# Object-oriented functional style
+PersistentList(items).map(lambda x: x * 2)
+PersistentList(items).filter(lambda x: x > 0)
+PersistentList(items).reduce(lambda acc, x: acc + x, 0)
+```
+
+---
+
+## Why OOP-First?
+
+### 1. Discoverability
+
+Methods appear in IDE autocomplete:
+
+```python
+maybe = Maybe.some(42)
+maybe.  # IDE shows: map, bind, filter, unwrap, etc.
+```
+
+### 2. Encapsulation
+
+Related operations stay together:
+
+```python
+class Maybe:
+    def map(self, fn):
+        # Transform logic
+        ...
+
+    def bind(self, fn):
+        # Chain logic
+        ...
+
+    def filter(self, predicate):
+        # Filter logic
+        ...
+```
+
+### 3. Type Safety
+
+Objects track types through methods:
+
+```python
+# Type: Maybe[int]
+maybe_int = Maybe.some(42)
+
+# Type: Maybe[str] - tracked!
+maybe_str = maybe_int.map(str)
+```
+
+### 4. Pythonic
+
+Fits Python's object-oriented nature:
+
+```python
+# Natural Python style
+result = (
+    PersistentList(items)
+    .map(transform)
+    .filter(predicate)
+    .reduce(combine, 0)
+)
+```
+
+---
+
+## Core Design Principles
+
+### Principle 1: Immutable Entities
+
+All functional entities are immutable:
+
+```python
+@dataclass(frozen=True)
+class Maybe[T]:
+    # Cannot be modified after creation
+    ...
+```
+
+### Principle 2: Fluent Interface
+
+Methods return new instances for chaining:
+
+```python
+result = (
+    Maybe.some(5)
+    .map(lambda x: x * 2)  # Returns new Maybe
+    .filter(lambda x: x > 5)  # Returns new Maybe
+    .bind(lambda x: Maybe.some(x + 1))  # Returns new Maybe
+)
+```
+
+### Principle 3: Generic Types
+
+Full generic type support:
+
+```python
+class Maybe[T]:
+    def map[U](self, fn: Callable[[T], U]) -> Maybe[U]:
+        ...
+
+# Type checker tracks: int -> str -> bool
+Maybe.some(42).map(str).map(bool)
+```
+
+### Principle 4: Protocol-Based
+
+Use protocols for flexibility:
+
+```python
+def process[T: Mappable](data: T) -> T:
+    return data.map(lambda x: x * 2)
+
+# Works with any Mappable type
+process(Maybe.some(5))
+process(PersistentList.of(1, 2, 3))
+```
+
+---
+
+## Entity Examples
+
+### Maybe Entity
+
+Encapsulates optional values:
+
+```python
+from better_py import Maybe
+
+# Create
+maybe = Maybe.some(42)
+empty = Maybe.nothing()
+
+# Transform (returns new Maybe)
+doubled = maybe.map(lambda x: x * 2)
+
+# Chain (returns new Maybe)
+chained = maybe.bind(lambda x: Maybe.some(x * 2))
+
+# Extract
+value = maybe.unwrap()  # 42
+default = empty.unwrap_or(0)  # 0
+```
+
+### Result Entity
+
+Encapsulates success/failure:
+
+```python
+from better_py import Result
+
+# Create
+success = Result.ok(42)
+failure = Result.error("Failed")
+
+# Transform (preserves error)
+mapped = success.map(lambda x: x * 2)  # Result.ok(84)
+
+# Chain (short-circuits on error)
+chained = success.bind(lambda x: Result.ok(x * 2))
+
+# Handle
+if result.is_ok():
+    value = result.unwrap()
+else:
+    error = result.unwrap_error()
+```
+
+### PersistentList Entity
+
+Immutable list with structural sharing:
+
+```python
+from better_py import PersistentList
+
+# Create
+lst = PersistentList.of(1, 2, 3)
+
+# Transform (returns new list)
+mapped = lst.map(lambda x: x * 2)  # [2, 4, 6]
+
+# Modify (returns new list)
+appended = lst.append(4)  # [1, 2, 3, 4]
+
+# Reduce
+total = lst.reduce(lambda acc, x: acc + x, 0)  # 6
+```
+
+---
+
+## Method Chaining
+
+Better-py encourages method chaining:
+
+```python
+#  Nested - hard to read
+result = map(
+    lambda x: x * 2,
+    filter(
+        lambda y: y > 0,
+        items
+    )
+)
+
+#  Chained - clear flow
+result = (
+    PersistentList(items)
+    .filter(lambda y: y > 0)
+    .map(lambda x: x * 2)
+)
+```
+
+### Real-World Example
+
+```python
+from better_py import Maybe, Result
+
+def process_user(id: int) -> Result[ValidatedUser, str]:
+    return (
+        fetch_user(id)  # Result[User, str]
+        .map(lambda u: enrich_user(u))  # Result[EnrichedUser, str]
+        .bind(lambda eu: validate_user(eu))  # Result[ValidatedUser, str]
+    )
+
+def get_user_email(id: int) -> Maybe[str]:
+    return (
+        Maybe.from_value(find_user(id))
+        .map(lambda u: u.profile)
+        .bind(lambda p: Maybe.from_value(p.email))
+        .filter(lambda e: is_valid_email(e))
+    )
+```
+
+---
+
+## Comparison: Functions vs Entities
+
+### Function-First FP
+
+```python
+# Standalone functions
+def map_maybe(maybe, fn):
+    if maybe.is_nothing():
+        return Maybe.nothing()
+    return Maybe.some(fn(maybe.value))
+
+def bind_maybe(maybe, fn):
+    if maybe.is_nothing():
+        return Maybe.nothing()
+    return fn(maybe.value)
+
+# Usage
+result = bind_maybe(
+    map_maybe(Maybe.some(5), lambda x: x * 2),
+    lambda x: Maybe.some(x + 1)
+)
+```
+
+### Entity-First FP (better-py)
+
+```python
+# Methods on entity
+class Maybe:
+    def map(self, fn):
+        if self.is_nothing():
+            return Maybe.nothing()
+        return Maybe.some(fn(self.value))
+
+    def bind(self, fn):
+        if self.is_nothing():
+            return Maybe.nothing()
+        return fn(self.value)
+
+# Usage - much cleaner!
+result = (
+    Maybe.some(5)
+    .map(lambda x: x * 2)
+    .bind(lambda x: Maybe.some(x + 1))
+)
+```
+
+---
+
+## Benefits of Entity-First
+
+### 1. Self-Documenting
+
+Methods make intent clear:
+
+```python
+# Clear intent
+maybe.map(lambda x: x * 2)
+maybe.bind(lambda x: Maybe.some(x + 1))
+maybe.filter(lambda x: x > 0)
+
+# vs unclear intent
+map_maybe(maybe, lambda x: x * 2)
+bind_maybe(maybe, lambda x: Maybe.some(x + 1))
+```
+
+### 2. IDE Support
+
+Full autocomplete and type hints:
+
+```python
+maybe.  # IDE shows all available methods
+```
+
+### 3. Encapsulation
+
+Logic stays with data:
+
+```python
+class Maybe:
+    # All Maybe logic in one place
+    def map(self, fn): ...
+    def bind(self, fn): ...
+    def filter(self, pred): ...
+    # ...
+```
+
+### 4. Testability
+
+Easy to test and mock:
+
+```python
+def test_maybe_map():
+    maybe = Maybe.some(42)
+    result = maybe.map(lambda x: x * 2)
+    assert result.unwrap() == 84
+```
+
+---
+
+## When to Use Each Approach
+
+<Callout type="success" title="Use Entity-First (better-py)">
+
+-  Application code
+-  Business logic
+-  Data pipelines
+-  Team projects
+-  Large codebases
+
+</Callout>
+
+<Callout type="info" title="Use Function-First">
+
+-  Simple scripts
+-  Library code
+-  Performance-critical code
+-  Interfacing with functional APIs
+
+</Callout>
+
+---
+
+## Migration Guide
+
+### From Functions to Entities
+
+```python
+# Before: Function style
+def process(items):
+    return map(
+        lambda x: x * 2,
+        filter(lambda y: y > 0, items)
+    )
+
+# After: Entity style
+def process(items):
+    return (
+        PersistentList(items)
+        .filter(lambda y: y > 0)
+        .map(lambda x: x * 2)
+    )
+```
+
+### Mixing Approaches
+
+You can mix both styles:
+
+```python
+# Use entities for complex logic
+def main():
+    return (
+        PersistentList(items)
+        .map(transform)
+        .filter(predicate)
+    )
+
+# Use functions for simple operations
+def transform(x):
+    return x * 2
+```
+
+---
+
+## Next Steps
+
+- **[Monads](/docs/concepts/monads)** - Monad entities
+- **[Collections](/docs/collections)** - Collection entities
+- **[API Reference](/docs/api)** - Complete entity API

@@ -1,0 +1,11 @@
+{
+  "title": "Getting Started",
+  "description": "Get up and running with better-py in minutes",
+  "icon": "RocketIcon",
+  "pages": [
+    "index",
+    "installation",
+    "quick-start",
+    "editor-setup"
+  ]
+}
