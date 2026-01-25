@@ -3,46 +3,188 @@ title: Validation Monad
 description: Accumulate multiple validation errors
 ---
 
-The `Validation` monad is similar to `Result` but **accumulates errors** instead of stopping at the first one. This is perfect for form validation where you want to show all errors at once.
+# Validation Monad
+
+The `Validation` monad is similar to `Result`, but with a crucial difference: instead of stopping at the first error, it accumulates ALL errors. This makes it perfect for form validation, configuration checking, and any scenario where you want to show users everything they need to fix at once.
 
 ---
 
-## Overview
+## Understanding Validation: Error Accumulation
 
-```python
-from better_py import Validation
+Think of Validation like a quality control inspector at a factory. When checking a product, the inspector doesn't stop at the first defect they find. They check everything and give you a complete list of all the problems. This way, you can fix all issues at once instead of fixing one, resubmitting, fixing another, resubmitting again, and so on.
 
-# Creating Validation values
-valid = Validation.valid(42)
-invalid = Validation.invalid(["Error 1", "Error 2"])
-```
+This is different from Result, which is like a series of checkpoints where you stop at the first failure. With Result, if you have three validation steps and the first one fails, you never know if the second or third would have also failed. The user fixes the first error, tries again, and only then discovers the second error.
+
+Validation solves this frustration by running all validations and collecting all the errors. The user sees "Name too short, Email invalid, and Age required" all at once, fixes everything, and submits again successfully.
 
 <Callout type="success" title="When to Use Validation">
 
--  Form validation with multiple fields
--  Batch processing where all errors matter
--  Configuration validation
--  Any scenario where you need ALL errors
+Use Validation when you need to collect ALL errors, not just the first:
+
+- **Form validation** where users should see all validation errors at once
+- **Configuration validation** where you want to report all invalid settings
+- **Batch processing** where you're validating multiple items and want all failures
+- **API request validation** where returning all errors improves user experience
+
+Use Result when you want to fail fast - like in a processing pipeline where continuing after an error doesn't make sense.
 
 </Callout>
 
 ---
 
+## Validation vs Result: The Key Difference
+
+The distinction is all about error handling strategy: fail fast vs fail complete.
+
+### Result: Fail Fast
+
+Result stops at the first error:
+
+```python
+from better_py import Result
+
+def validate_name(name: str) -> Result[str, str]:
+    if len(name) < 2:
+        return Result.error("Name too short")
+    return Result.ok(name)
+
+def validate_email(email: str) -> Result[str, str]:
+    if "@" not in email:
+        return Result.error("Email must contain @")
+    return Result.ok(email)
+
+def validate_age(age: int) -> Result[int, str]:
+    if age < 0:
+        return Result.error("Age cannot be negative")
+    return Result.ok(age)
+
+def validate_form(name: str, email: str, age: int) -> Result[dict, str]:
+    return (
+        validate_name(name)
+        .bind(lambda _: validate_email(email))  # Only runs if name is valid
+        .bind(lambda _: validate_age(age))      # Only runs if email is valid
+    )
+
+# Usage
+result = validate_form("A", "bademail", -5)
+print(result.unwrap_error())  # "Name too short"
+# User never sees that email and age are also invalid!
+# User has to submit 3 times to see all errors
+```
+
+This is frustrating for users. They fix the name, submit again, and only then see the email error. They fix the email, submit again, and only then see the age error.
+
+### Validation: Fail Complete
+
+Validation runs all checks and collects all errors:
+
+```python
+from better_py import Validation
+
+def validate_name(name: str) -> Validation[str, str]:
+    if len(name) < 2:
+        return Validation.invalid(["Name too short"])
+    return Validation.valid(name)
+
+def validate_email(email: str) -> Validation[str, str]:
+    errors = []
+    if "@" not in email:
+        errors.append("Email must contain @")
+    if "." not in email:
+        errors.append("Email must contain .")
+
+    return Validation.valid(email) if not errors else Validation.invalid(errors)
+
+def validate_age(age: int) -> Validation[int, str]:
+    if age < 0:
+        return Validation.invalid(["Age cannot be negative"])
+    return Validation.valid(age)
+
+def validate_form(name: str, email: str, age: int) -> Validation[dict, str]:
+    name_result = validate_name(name)
+    email_result = validate_email(email)
+    age_result = validate_age(age)
+
+    # Combine all validations
+    return (
+        name_result
+        .ap(email_result)
+        .ap(age_result)
+        .map(lambda parts: {
+            "name": parts[0],
+            "email": parts[1],
+            "age": parts[2]
+        })
+    )
+
+# Usage
+result = validate_form("A", "bademail", -5)
+print(result.get_errors())
+# ["Name too short", "Email must contain @", "Email must contain .", "Age cannot be negative"]
+# User sees ALL errors at once!
+```
+
+Now the user sees every problem immediately. They fix everything in one go and submit successfully.
+
+<Callout type="warning" title="Key Decision Point">
+
+Ask yourself: Does continuing after an error make sense?
+
+- **No** - Use Result. If step 1 fails, steps 2 and 3 don't make sense.
+- **Yes** - Use Validation. All validations are independent and can run in parallel.
+
+</Callout>
+
+---
+
+## Why Validation Matters
+
+User experience is the main reason to use Validation. Think about filling out a registration form:
+
+### With Result (Poor UX)
+
+1. User fills out form with invalid name, email, and age
+2. Submits form
+3. Server returns "Name too short"
+4. User fixes name, resubmits
+5. Server returns "Email invalid"
+6. User fixes email, resubmits
+7. Server returns "Age invalid"
+8. User fixes age, resubmits
+9. Form finally accepted
+
+This is three round-trips for what should be one. Frustrating, slow, and unnecessary.
+
+### With Validation (Good UX)
+
+1. User fills out form with invalid name, email, and age
+2. Submits form
+3. Server returns "Name too short, Email invalid, Age invalid"
+4. User fixes everything, resubmits
+5. Form accepted
+
+One round-trip. The user fixes everything at once and moves on. This is the experience users expect from modern web applications.
+
+---
+
 ## Creating Validation Values
 
-### Validation.valid()
+Validation provides two ways to create values, one for success and one for failure.
 
-Wrap a valid value:
+### Creating a Valid Value
+
+When validation passes, use `Validation.valid()` to wrap the value:
 
 ```python
 from better_py import Validation
 
 email = Validation.valid("user@example.com")
+age = Validation.valid(30)
 ```
 
-### Validation.invalid()
+### Creating an Invalid Value
 
-Wrap errors:
+When validation fails, use `Validation.invalid()` to wrap the list of errors:
 
 ```python
 errors = Validation.invalid([
@@ -51,33 +193,52 @@ errors = Validation.invalid([
 ])
 ```
 
+Notice that `invalid()` takes a **list** of errors, not a single error. This is how Validation accumulates multiple problems.
+
 ---
 
-## Inspecting Validation
+## Inspecting Validation Values
 
-### is_valid() / is_invalid()
+Before you can use a Validation value, you need to check whether it represents success or failure.
+
+### Checking for Valid
+
+The `is_valid()` method returns `True` if the Validation contains a valid value:
 
 ```python
-Validation.valid(42).is_valid()           # True
-Validation.invalid(["bad"]).is_valid()    # False
+Validation.valid(42).is_valid()           # Returns: True
+Validation.invalid(["bad"]).is_valid()    # Returns: False
 ```
 
-### get_errors()
+### Checking for Invalid
 
-Get error list:
+The `is_invalid()` method returns `True` if the Validation contains errors:
+
+```python
+Validation.valid(42).is_invalid()          # Returns: False
+Validation.invalid(["bad"]).is_invalid()   # Returns: True
+```
+
+### Getting the Errors
+
+The `get_errors()` method returns the list of errors:
 
 ```python
 invalid = Validation.invalid(["Error 1", "Error 2"])
-errors = invalid.get_errors()  # ["Error 1", "Error 2"]
+errors = invalid.get_errors()  # Returns: ["Error 1", "Error 2"]
 ```
+
+This is how you retrieve all the accumulated errors to display to the user.
 
 ---
 
 ## Combining Validations
 
-### ap()
+The key power of Validation is combining multiple validations. The `ap()` method (short for "apply") combines Validation values, accumulating errors.
 
-Apply function combining multiple validations:
+### Combining with ap()
+
+The `ap()` method applies a function wrapped in Validation to a value wrapped in Validation:
 
 ```python
 def validate_name(name: str) -> Validation[str, str]:
@@ -90,57 +251,101 @@ def validate_email(email: str) -> Validation[str, str]:
         return Validation.valid(email)
     return Validation.invalid(["Invalid email"])
 
-# Combine - accumulates ALL errors
+# Combine them
 name_result = validate_name("A")
 email_result = validate_email("bademail")
 
+# This accumulates ALL errors
 combined = name_result.ap(email_result)
-# Validation.invalid(["Name too short", "Invalid email"])
+# Returns: Validation.invalid(["Name too short", "Invalid email"])
 ```
+
+If both validations pass, you get a Validation containing both values. If either fails, you get a Validation containing all errors.
+
+### Building Complex Validations
+
+You can chain `ap()` calls to combine multiple validations:
+
+```python
+def validate_form(name: str, email: str, age: int) -> Validation[dict, str]:
+    # Run all validations independently
+    name_result = validate_name(name)
+    email_result = validate_email(email)
+    age_result = validate_age(age)
+
+    # Combine them - accumulates ALL errors
+    return (
+        name_result
+        .ap(email_result)
+        .ap(age_result)
+        .map(lambda parts: {
+            "name": parts[0],
+            "email": parts[1],
+            "age": parts[2]
+        })
+    )
+```
+
+The `map()` at the end transforms the combined values into a structured result.
 
 ---
 
 ## Real-World Examples
 
-### Example 1: Form Validation
+### User Registration Form
+
+Form validation is the most common use case for Validation:
 
 ```python
 from better_py import Validation
 
 def validate_email(email: str) -> Validation[str, str]:
+    """Validate email with multiple checks"""
     errors = []
+
     if not email:
         errors.append("Email is required")
     elif "@" not in email:
         errors.append("Email must contain @")
     elif "." not in email:
         errors.append("Email must contain .")
-    
+    elif len(email) < 5:
+        errors.append("Email is too short")
+
     return Validation.valid(email) if not errors else Validation.invalid(errors)
 
 def validate_password(password: str) -> Validation[str, str]:
+    """Validate password with multiple checks"""
     errors = []
+
     if len(password) < 8:
         errors.append("Password must be at least 8 characters")
     if not any(c.isdigit() for c in password):
         errors.append("Password must contain a digit")
     if not any(c.isupper() for c in password):
-        errors.append("Password must contain uppercase letter")
-    
+        errors.append("Password must contain an uppercase letter")
+    if not any(c.islower() for c in password):
+        errors.append("Password must contain a lowercase letter")
+
     return Validation.valid(password) if not errors else Validation.invalid(errors)
 
 def validate_age(age: int) -> Validation[int, str]:
+    """Validate age"""
     if age < 0:
         return Validation.invalid(["Age cannot be negative"])
     if age > 120:
         return Validation.invalid(["Age is unrealistic"])
+    if age < 13:
+        return Validation.invalid(["Must be 13 or older"])
     return Validation.valid(age)
 
-def validate_form(email: str, password: str, age: int) -> Validation[dict, str]:
-    email_result = validate_email(email)
-    password_result = validate_password(password)
-    age_result = validate_age(age)
-    
+def validate_registration(data: dict) -> Validation[dict, str]:
+    """Validate entire registration form"""
+    email_result = validate_email(data.get("email", ""))
+    password_result = validate_password(data.get("password", ""))
+    age_result = validate_age(data.get("age", 0))
+
+    # All validations run, collecting ALL errors
     return (
         email_result
         .ap(password_result)
@@ -153,57 +358,299 @@ def validate_form(email: str, password: str, age: int) -> Validation[dict, str]:
     )
 
 # Usage
-result = validate_form("bad", "weak", 150)
+result = validate_registration({
+    "email": "bad",
+    "password": "weak",
+    "age": 10
+})
+
 if result.is_valid():
-    form_data = result.unwrap()
-    print(f"Valid: {form_data}")
+    create_account(result.unwrap())
 else:
-    print(f"Errors: {result.get_errors()}")
-    # Errors: [
+    errors = result.get_errors()
+    # [
     #   "Email must contain @",
     #   "Email must contain .",
+    #   "Email is too short",
     #   "Password must be at least 8 characters",
     #   "Password must contain a digit",
-    #   "Password must contain uppercase letter",
-    #   "Age is unrealistic"
+    #   "Password must contain an uppercase letter",
+    #   "Password must contain a lowercase letter",
+    #   "Must be 13 or older"
     # ]
+    return json_response({"errors": errors}, status=400)
 ```
 
-### Example 2: Configuration Validation
+The user sees every problem immediately, fixes them all at once, and successfully registers.
+
+### Configuration Validation
+
+When validating application configuration, you want to report all problems:
 
 ```python
-def validate_config(config: dict) -> Validation[dict, str]:
-    host_result = validate_host(config.get("host"))
-    port_result = validate_port(config.get("port"))
-    
-    return host_result.ap(port_result).map(
-        lambda parts: {"host": parts[0], "port": parts[1]}
+from better_py import Validation
+
+def validate_database_config(config: dict) -> Validation[dict, str]:
+    """Validate database configuration"""
+    errors = []
+
+    if "host" not in config:
+        errors.append("Database host is required")
+    elif not isinstance(config["host"], str):
+        errors.append("Database host must be a string")
+
+    if "port" not in config:
+        errors.append("Database port is required")
+    elif not isinstance(config["port"], int):
+        errors.append("Database port must be an integer")
+    elif config["port"] < 1 or config["port"] > 65535:
+        errors.append("Database port must be between 1 and 65535")
+
+    if "database" not in config:
+        errors.append("Database name is required")
+
+    if "user" not in config:
+        errors.append("Database user is required")
+
+    return Validation.valid(config) if not errors else Validation.invalid(errors)
+
+def validate_redis_config(config: dict) -> Validation[dict, str]:
+    """Validate Redis configuration"""
+    errors = []
+
+    if "host" not in config:
+        errors.append("Redis host is required")
+
+    if "port" not in config:
+        errors.append("Redis port is required")
+    elif not isinstance(config["port"], int):
+        errors.append("Redis port must be an integer")
+
+    return Validation.valid(config) if not errors else Validation.invalid(errors)
+
+def validate_app_config(config: dict) -> Validation[dict, str]:
+    """Validate entire application configuration"""
+    db_result = validate_database_config(config.get("database", {}))
+    redis_result = validate_redis_config(config.get("redis", {}))
+    api_result = validate_api_config(config.get("api", {}))
+
+    # Combine all validations
+    return (
+        db_result
+        .ap(redis_result)
+        .ap(api_result)
+        .map(lambda parts: {
+            "database": parts[0],
+            "redis": parts[1],
+            "api": parts[2]
+        })
     )
+
+# Usage on startup
+config = load_config("config.yaml")
+result = validate_app_config(config)
+
+if result.is_invalid():
+    errors = result.get_errors()
+    logger.error(f"Configuration errors: {errors}")
+    sys.exit(1)
+```
+
+The application won't start with partial configuration. You see all problems and fix them before running.
+
+### Batch Processing
+
+When processing a batch of items, you want to see all failures:
+
+```python
+from better_py import Validation
+
+def validate_user_row(row: dict) -> Validation[dict, str]:
+    """Validate a single CSV row"""
+    errors = []
+
+    if "email" not in row:
+        errors.append("Missing email column")
+    elif "@" not in row["email"]:
+        errors.append("Invalid email format")
+
+    if "name" not in row:
+        errors.append("Missing name column")
+
+    if "age" not in row:
+        errors.append("Missing age column")
+    elif not isinstance(row["age"], int):
+        errors.append("Age must be an integer")
+
+    return Validation.valid(row) if not errors else Validation.invalid(errors)
+
+def import_users(csv_path: str) -> Validation[list, list[str]]:
+    """Import users from CSV, validating all rows"""
+    rows = read_csv(csv_path)
+    results = [validate_user_row(row) for row in rows]
+
+    # Separate valid and invalid
+    valid_rows = [r.unwrap() for r in results if r.is_valid()]
+    all_errors = []
+    for i, result in enumerate(results):
+        if result.is_invalid():
+            for error in result.get_errors():
+                all_errors.append(f"Row {i + 1}: {error}")
+
+    return (
+        Validation.valid(valid_rows) if not all_errors
+        else Validation.invalid(all_errors)
+    )
+
+# Usage
+result = import_users("users.csv")
+if result.is_invalid():
+    print("Import errors:")
+    for error in result.get_errors():
+        print(f"  - {error}")
+    # Row 1: Invalid email format
+    # Row 3: Missing name column
+    # Row 7: Age must be an integer
+    # Row 15: Invalid email format
+else:
+    users = result.unwrap()
+    print(f"Imported {len(users)} users successfully")
 ```
 
 ---
 
-## Best Practices
+## Common Mistakes
 
-<Callout type="success" title="Do">
+### Mistake 1: Using Validation for Sequential Operations
 
- Use Validation for form validation
- Return ALL relevant errors
- Make error messages specific and actionable
+Validation is for independent checks, not sequential operations:
 
-</Callout>
+```python
+# DON'T - Validation doesn't make sense here
+def process_user(user_id: int) -> Validation[User, str]:
+    return (
+        fetch_user(user_id)  # Doesn't make sense to validate if user doesn't exist yet
+        .ap(validate_user)   # Can't validate a user that hasn't been fetched
+        .ap(save_user)       # Can't save a user that hasn't been validated
+    )
 
-<Callout type="error" title="Don't">
+# DO - Use Result for sequential operations
+def process_user(user_id: int) -> Result[User, str]:
+    return (
+        fetch_user(user_id)
+        .bind(validate_user)
+        .bind(save_user)
+    )
+```
 
- Use Validation for sequential operations (use Result)
- Return empty error lists (use Result.ok instead)
- Mix Validation and Result inconsistently
+If step 1 fails, steps 2 and 3 can't run. Use Result for sequential operations, Validation for parallel validations.
 
-</Callout>
+### Mistake 2: Single Error in Validation
+
+Validation is for accumulating MULTIPLE errors:
+
+```python
+# DON'T - Result is simpler for single errors
+def validate_email(email: str) -> Validation[str, str]:
+    if "@" not in email:
+        return Validation.invalid(["Email must contain @"])  # Only one error
+    return Validation.valid(email)
+
+# DO - Use Result when you only have one error
+def validate_email(email: str) -> Result[str, str]:
+    if "@" not in email:
+        return Result.error("Email must contain @")
+    return Result.ok(email)
+```
+
+If you only ever have one error, use Result. Validation shines when you have multiple checks.
+
+### Mistake 3: Not Combining Validations
+
+The power of Validation is combining multiple validations:
+
+```python
+# DON'T - Doesn't accumulate errors
+def validate_form(data: dict) -> Validation[dict, str]:
+    name_result = validate_name(data["name"])
+    if name_result.is_invalid():
+        return name_result  # Stops here, never checks email or age!
+
+    email_result = validate_email(data["email"])
+    if email_result.is_invalid():
+        return email_result  # Stops here, never checks age!
+
+    age_result = validate_age(data["age"])
+    return age_result
+
+# DO - Combine all validations
+def validate_form(data: dict) -> Validation[dict, str]:
+    name_result = validate_name(data["name"])
+    email_result = validate_email(data["email"])
+    age_result = validate_age(data["age"])
+
+    # ALL validations run, collecting ALL errors
+    return name_result.ap(email_result).ap(age_result)
+```
+
+The first version is just Result with extra steps. The second version is actually using Validation's power.
+
+---
+
+## When NOT to Use Validation
+
+Validation isn't always the right choice.
+
+### For Sequential Operations, Use Result
+
+When operations depend on each other, use Result:
+
+```python
+# DON'T - Validation doesn't make sense
+def process_order(order_id: int) -> Validation[ProcessedOrder, str]:
+    return (
+        fetch_order(order_id)  # Step 1
+        .ap(validate_order)    # Step 2 - depends on step 1!
+        .ap(charge_payment)    # Step 3 - depends on step 2!
+        .ap(ship_order)        # Step 4 - depends on step 3!
+    )
+
+# DO - Use Result for sequential operations
+def process_order(order_id: int) -> Result[ProcessedOrder, str]:
+    return (
+        fetch_order(order_id)
+        .bind(validate_order)
+        .bind(charge_payment)
+        .bind(ship_order)
+    )
+```
+
+You can't validate an order that doesn't exist, charge payment for an invalid order, or ship an order that hasn't been paid for. These are sequential - use Result.
+
+### For Single Validation, Use Result
+
+When you only have one validation step, Result is simpler:
+
+```python
+# DON'T - Validation is overkill
+def validate_age(age: int) -> Validation[int, str]:
+    if age < 0:
+        return Validation.invalid(["Age cannot be negative"])
+    return Validation.valid(age)
+
+# DO - Result is simpler
+def validate_age(age: int) -> Result[int, str]:
+    if age < 0:
+        return Result.error("Age cannot be negative")
+    return Result.ok(age)
+```
 
 ---
 
 ## See Also
 
-- [Result Monad](/docs/monads/result) - For error handling
-- [Form Validation Guide](/docs/guides/form-validation) - Practical patterns
+- **[Result Monad](/docs/monads/result)** - For sequential operations where you want to fail fast
+- **[Maybe Monad](/docs/monads/maybe)** - For optional values
+- **[Error Handling Guide](/docs/guides/error-handling)** - Practical patterns for real-world applications
+
+Remember: Validation is about improving user experience by showing all errors at once. Use it for forms, configuration, and any scenario where users benefit from seeing everything they need to fix in one shot.

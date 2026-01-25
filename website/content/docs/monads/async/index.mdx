@@ -1,27 +1,88 @@
 ---
 title: Async Monads
-description: Asynchronous versions of Maybe and Result
+description: Asynchronous versions of Maybe and Result for async operations
 ---
 
 # Async Monads
 
-Async versions of the Maybe and Result monads for working with asynchronous code.
+When you're writing asynchronous Python code, you face the same challenges as synchronous code: operations might fail, values might be missing, and errors need to be handled gracefully. The async monads in better-py provide the same safety and composability as their synchronous counterparts, but designed specifically for async/await workflows.
 
----
+## Why Async Monads Matter
 
-## Overview
+Python's async/await syntax makes asynchronous code easier to read, but it doesn't solve the fundamental problems of error handling and missing values. You still need to decide how to handle exceptions, what to do when a database query returns no results, and how to chain multiple async operations together without nested callbacks or try/except blocks.
 
-<Callout type="success" title="When to Use Async Monads">
+Async monads give you a structured way to handle these problems. They wrap the results of async operations in containers that force you to handle both success and failure cases explicitly. This means fewer runtime errors, more predictable code, and clearer intent.
 
--  Async database queries
--  Async API calls
--  Any async operation that can fail or return no value
+## The Async Monad Family
+
+Better-py provides two async monads that mirror their synchronous counterparts:
+
+**AsyncMaybe** represents an asynchronous operation that might not return a value. Use this when you're querying a database, fetching from a cache, or calling an API where "no result" is a valid outcome rather than an error.
+
+**AsyncResult** represents an asynchronous operation that can fail. Use this when an operation might raise an exception - network timeouts, invalid input, or external service failures.
+
+Both monads work seamlessly with async/await syntax and provide the same composability benefits as regular Maybe and Result types.
+
+<Callout type="success" title="When to use async monads">
+
+You should use async monads whenever you're working with asynchronous operations that can fail or return no value. Common scenarios include:
+
+- Database queries that might not find a record (AsyncMaybe)
+- API calls to external services that might fail (AsyncResult)
+- File operations that might encounter errors (AsyncResult)
+- Cache lookups where misses are expected (AsyncMaybe)
+- Chaining multiple async operations together (both)
 
 </Callout>
 
+## Choosing Between AsyncMaybe and AsyncResult
+
+The distinction between AsyncMaybe and AsyncResult follows the same logic as their synchronous versions, but it's particularly important in async contexts where errors are common.
+
+Use AsyncMaybe when the absence of a value is an expected outcome. For example, looking up a user by their email address - the user might not exist, but that's not an error condition, it's just a valid "not found" result.
+
+Use AsyncResult when an operation can fail due to errors. For example, making an HTTP request to an external API - the request might time out, the server might return an error, or the network might be unreachable. These are exceptional conditions that you need to handle explicitly.
+
+## How Async Monads Work
+
+Async monads wrap the result of an asynchronous computation in a container that you can transform, chain, and combine without ever unwrapping the value prematurely. This is particularly powerful in async code because it lets you compose complex workflows without deeply nested callbacks or try/except blocks.
+
+When you call an async function that returns an async monad, you get back a container that holds either a successful result or an error/empty state. You can then use methods like `map()`, `bind()`, and `filter()` to transform the value inside the container. These methods automatically handle the async nature of the operation, so you don't need to manually await at each step.
+
+The real power comes when you need to chain multiple async operations together. Instead of writing nested async functions or complex try/except blocks, you can chain operations using `bind()` (also called `and_then`). Each operation in the chain only runs if the previous one succeeded, and errors automatically short-circuit the chain.
+
+## A Quick Example
+
+Here's a simple example that shows how async monads can clean up your code. Imagine you need to fetch a user from a database, then fetch their profile from a separate service:
+
+```python
+from better_py import AsyncResult
+
+async def get_user_profile(user_id: int) -> AsyncResult[dict, str]:
+    return (
+        await fetch_user_from_db(user_id)
+        .bind(lambda user: fetch_profile_from_api(user.profile_id))
+        .map(lambda profile: {
+            "name": user.name,
+            "bio": profile.bio,
+            "avatar": profile.avatar_url
+        })
+    )
+```
+
+This code reads like a story: fetch the user, then fetch their profile, then combine the data. If either operation fails, the error propagates automatically and the rest of the chain doesn't run. No try/except blocks, no manual error checking, just clean declarative code.
+
+## What's Next
+
+The async monads share the same API as their synchronous counterparts, so if you're already familiar with Maybe or Result, you'll feel right at home. The main difference is that operations are designed to work seamlessly with async/await syntax.
+
+Start by exploring AsyncMaybe for operations that might not return a value, or AsyncResult for error handling in async contexts. Both documentation pages include real-world examples and common patterns for async workflows.
+
 ---
 
-## Available Async Monads
+## See Also
 
-- **[AsyncMaybe](/docs/monads/async/async-maybe)** - Async optional values
-- **[AsyncResult](/docs/monads/async/async-result)** - Async error handling
+- [AsyncMaybe](/docs/monads/async/async-maybe) - Async operations that might not return a value
+- [AsyncResult](/docs/monads/async/async-result) - Async error handling
+- [Maybe Monad](/docs/monads/maybe) - Synchronous optional values
+- [Result Monad](/docs/monads/result) - Synchronous error handling

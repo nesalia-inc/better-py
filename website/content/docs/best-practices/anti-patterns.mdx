@@ -1,50 +1,414 @@
 ---
 title: Anti-Patterns
-description: Common mistakes to avoid
+description: Common mistakes to avoid when using better-py
 ---
 
-Common mistakes and how to avoid them.
+# Anti-Patterns
 
-## Anti-Patterns
+Better-py provides powerful tools for writing safe, functional code in Python. However, like any tool, it can be misused. Understanding common anti-patterns helps you avoid pitfalls and write code that's both safe and maintainable.
 
-### 1. Ignoring None
+Anti-patterns aren't just "wrong ways" to do things. They're approaches that seem reasonable at first but lead to problems down the road. You might get away with them in small scripts, but they become sources of bugs and maintenance headaches as your codebase grows.
 
-```python
-# Bad
-value = Maybe.some(42)
-result = value.unwrap()  # Might crash!
+The goal isn't to memorize a list of rules, but to develop intuition for what constitutes good functional code. Each anti-pattern below includes the reasoning behind why it's problematic and how to fix it properly.
 
-# Good
-value = Maybe.some(42)
-result = value.unwrap_or(0)
-```
+## Unwrapping Too Early
 
-### 2. Nesting Monads
+The most common mistake with better-py is unwrapping monadic values as soon as you get them. This defeats the entire purpose of using Maybe, Result, and other types. When you unwrap early, you lose all the safety and composability benefits.
 
-```python
-# Bad
-maybe_maybe = Maybe.some(Maybe.some(42))
+### Why This Is Tempting
 
-# Good
-maybe = Maybe.some(42)
-```
+Unwrapping early feels natural because you've spent years working with regular Python values. You're used to getting a value and doing something with it immediately. When you see `Maybe[User]`, your instinct is to get the User out and work with it.
 
-### 3. Mixing Errors and Exceptions
+### The Problem
+
+Unwrapping destroys the type safety that better-py provides. Once you unwrap, the type system no longer tracks whether a value exists or whether an operation might fail. You're back to regular Python, with all its runtime errors and null checks.
 
 ```python
-# Bad: Inconsistent
-def sometimes_raises():
-    if condition:
-        raise ValueError("Bad")
-    return Result.error("Also bad")
+# DON'T - Loses all safety benefits
+def get_user_name(user_id: int) -> str:
+    maybe_user = find_user(user_id).unwrap()  # Crashes if user not found!
+    return maybe_user["name"]
 
-# Good: Consistent
-def always_result():
-    if condition:
-        return Result.error("Bad")
-    return Result.ok(value)
+# DO - Keep the value wrapped
+def get_user_name(user_id: int) -> Maybe[str]:
+    return find_user(user_id).map(lambda user: user["name"])
 ```
 
-## See Also
+The first version crashes if the user doesn't exist. The second version returns `Nothing`, which callers can handle appropriately. The type signature `Maybe[str]` makes the possibility of absence explicit.
 
-- [Best Practices Overview](/docs/best-practices)
+### Real-World Impact
+
+In production code, early unwrapping causes crashes that are hard to debug. The crash happens at the unwrap site, but the root cause might be far upstream. When you keep values wrapped, errors propagate naturally and can be handled at the appropriate layer.
+
+```python
+# DON'T - Crashes in production
+def process_payment(user_id: int, amount: float) -> PaymentResult:
+    user = find_user(user_id).unwrap()  # Crashes!
+    payment = charge_user(user, amount).unwrap()  # Might crash!
+    return payment
+
+# DO - Errors propagate cleanly
+def process_payment(user_id: int, amount: float) -> Result[PaymentResult, str]:
+    return (
+        find_user(user_id)
+        .bind(lambda user: charge_user(user, amount))
+    )
+```
+
+The second version returns a Result that explains what went wrong. Callers decide how to handle the error - retry, show a message, log it, or take another action.
+
+<Callout type="error" title="Never Unwrap in Library Code">
+
+Library code should never unwrap Maybe or Result values. Return the monadic value and let the application layer decide how to handle it. Unwrapping forces your users to catch exceptions, which defeats the purpose of explicit error handling.
+
+</Callout>
+
+---
+
+## Ignoring the Nothing/Error Case
+
+Another common mistake is extracting values without properly handling the case where the value doesn't exist or the operation failed. This leads to processing default values as if they were real data.
+
+### Why This Is Tempting
+
+`unwrap_or()` is convenient because it gives you a regular value. You can pass that value to any function without thinking about Maybe. It feels simpler than checking `is_some()` or `is_ok()`.
+
+### The Problem
+
+Default values aren't always semantically meaningful. Processing a default value as if it were real data can lead to subtle bugs. A default timeout of 30 seconds might be fine for one operation but catastrophic for another.
+
+```python
+# DON'T - Always processes, even when value is the default
+maybe_config = get_config("timeout")
+timeout = maybe_config.unwrap_or(30)
+process_with_timeout(timeout)  # Uses 30 even when config was missing!
+
+# DO - Only process when value exists
+maybe_config = get_config("timeout")
+if maybe_config.is_some():
+    process_with_timeout(maybe_config.unwrap())
+else:
+    log_warning("Using default timeout")
+```
+
+The distinction is subtle but important. In the first version, you can't tell whether the user explicitly set a timeout of 30 or whether the config is missing. In the second version, you handle the missing case explicitly.
+
+### A Better Pattern
+
+Often, the right approach is to keep using Maybe throughout your code, only unwrapping at the boundaries:
+
+```python
+# Keep everything wrapped
+maybe_timeout = get_config("timeout").map(int)
+maybe_result = maybe_timeout.map(lambda t: process_with_timeout(t))
+
+# Handle at the boundary
+if maybe_result.is_some():
+    notify_success(maybe_result.unwrap())
+```
+
+This pattern keeps type safety all the way through your logic, with a single handling point at the end.
+
+---
+
+## Mixing Errors and Exceptions
+
+Consistency is crucial for predictable code. One of the worst anti-patterns is mixing Result-based error handling with exceptions in the same codebase. This forces developers to check documentation to know how to handle errors from each function.
+
+### Why This Is Tempting
+
+Exceptions are familiar. When you're refactoring existing code to use better-py, it's tempting to keep exceptions in some places and use Result in others. You might also reach for exceptions when you need to exit early from a chain of operations.
+
+### The Problem
+
+Mixed error handling makes code unpredictable. Callers don't know whether they need to check `is_ok()` or wrap calls in try/except. This leads to both unhandled exceptions and ignored Results.
+
+```python
+# DON'T - Unpredictable: might raise or return error
+def fetch_user(id: int) -> Result[User, str]:
+    if id < 0:
+        raise ValueError("Invalid ID")  # Exception!
+    if id > 1000:
+        return Result.error("ID too large")  # Result!
+    return Result.ok(database.lookup(id))  # Might raise!
+
+# DO - Consistent: always returns Result
+def fetch_user(id: int) -> Result[User, str]:
+    if id < 0:
+        return Result.error("Invalid ID")
+    if id > 1000:
+        return Result.error("ID too large")
+    try:
+        user = database.lookup(id)
+        return Result.ok(user)
+    except DatabaseError as e:
+        return Result.error(f"Database error: {e}")
+```
+
+The second version is consistent. Callers always get a Result and can handle errors uniformly. No surprises, no need to read the source code to know what to expect.
+
+### Converting Exceptions to Results
+
+When working with libraries that use exceptions, convert them to Results at the boundary:
+
+```python
+from requests import get
+from better_py import Result
+
+def fetch_url(url: str) -> Result[str, str]:
+    """Fetch URL, converting network exceptions to Result"""
+    try:
+        response = get(url, timeout=5)
+        response.raise_for_status()
+        return Result.ok(response.text)
+    except requests.Timeout:
+        return Result.error(f"Timeout fetching {url}")
+    except requests.ConnectionError:
+        return Result.error(f"Connection error for {url}")
+    except requests.HTTPError as e:
+        return Result.error(f"HTTP {e.response.status_code}: {url}")
+    except Exception as e:
+        return Result.error(f"Unexpected error: {e}")
+```
+
+Now all your application code can handle errors consistently with Result, regardless of what external libraries do.
+
+---
+
+## Using Maybe for Error Handling
+
+Maybe and Result both represent failure scenarios, but they serve different purposes. Confusing them leads to losing important error information.
+
+### Why This Is Tempting
+
+Maybe feels simpler than Result. You don't have to specify an error type, and `Nothing` is easier to create than `Result.error("some message")`. When you're starting out, it's natural to reach for Maybe for everything.
+
+### The Problem
+
+Maybe doesn't tell you WHY something failed. Was the user not found? Was the database down? Was the input invalid? All these scenarios produce `Nothing`, leaving you with no way to distinguish between them or communicate the problem to users.
+
+```python
+# DON'T - Can't distinguish error types
+def fetch_user(id: int) -> Maybe[User]:
+    try:
+        return Maybe.some(api.get_user(id))
+    except NetworkError:
+        return Maybe.nothing()  # Why did it fail?
+    except AuthError:
+        return Maybe.nothing()  # Same result, different error
+    except NotFoundError:
+        return Maybe.nothing()  # Same result, different error
+
+# DO - Preserves error information
+def fetch_user(id: int) -> Result[User, FetchError]:
+    try:
+        return Result.ok(api.get_user(id))
+    except NetworkError as e:
+        return Result.error(FetchError.Network(str(e)))
+    except AuthError as e:
+        return Result.error(FetchError.Auth(str(e)))
+    except NotFoundError:
+        return Result.error(FetchError.NotFound(f"User {id} not found"))
+```
+
+With Result, you can handle each error case appropriately. Network errors might trigger retries with exponential backoff. Auth errors might redirect to a login page. Not found errors might show a friendly 404 page. None of this is possible with Maybe.
+
+### When to Use Each
+
+Use Maybe when absence is a normal, expected outcome with no meaningful distinction between different causes:
+
+- Dictionary lookups where the key might not exist
+- Cache hits and misses
+- Optional fields on data structures
+- Search operations that return zero results
+
+Use Result when you need to communicate what went wrong:
+
+- Network operations (timeout, connection refused, etc.)
+- File I/O (not found, permission denied, corrupted data)
+- User input validation (specific validation errors)
+- API calls with meaningful error responses
+
+<Callout type="success" title="Quick Test">
+
+Ask yourself: "Do I need to know WHY it failed?" If yes, use Result. If no, Maybe is fine.
+
+</Callout>
+
+---
+
+## Nesting Monads
+
+Nesting monads happens when you use `map()` with a function that returns a monad, creating awkward nested structures like `Maybe[Maybe[int]]` or `Result[Result[User, str], str]`.
+
+### Why This Is Tempting
+
+It's an easy mistake to make. You have a Maybe, you call `map()` with a function that returns a Maybe, and suddenly you have a Maybe inside a Maybe. The code still runs, so you might not notice the problem immediately.
+
+### The Problem
+
+Nested monads are awkward to work with. When you have `Maybe[Maybe[int]]`, you need to unwrap twice to get to the integer. Chaining operations becomes cumbersome. Code becomes hard to read.
+
+```python
+# DON'T - Creates nested Maybe
+def find_user(id: int) -> Maybe[User]:
+    return Maybe.some(users_db.get(id))
+
+def get_profile(user: User) -> Maybe[Profile]:
+    return Maybe.some(profiles_db.get(user.id))
+
+# Nested!
+nested = find_user(1).map(get_profile)
+# Type: Maybe[Maybe[Profile]]
+# To get the profile: nested.unwrap().unwrap()
+
+# DO - Uses bind to flatten
+chained = find_user(1).bind(get_profile)
+# Type: Maybe[Profile]
+# To get the profile: chained.unwrap()
+```
+
+The rule is simple: use `map()` when your function returns a regular value, use `bind()` (also called `and_then()`) when your function returns a monad.
+
+### Spotting the Problem
+
+Your type checker will often catch this mistake. If you see types like `Maybe[Maybe[T]]` or `Result[Result[T, E], E]`, you have nested monads. Use `bind()` instead of `map()` to flatten them.
+
+---
+
+## Using Monads for Simple Control Flow
+
+Not every conditional or loop needs to be expressed with monads. Sometimes traditional Python control flow is clearer and more idiomatic.
+
+### Why This Is Tempting
+
+When you're learning functional programming, it's exciting to apply new patterns everywhere. You might replace every `if` statement with Maybe, every try/except with Result. This feels "pure," but it can make code harder to read.
+
+### The Problem
+
+Overusing monads for simple logic makes code verbose and hard to follow. Readers have to mentally unwrap the monadic structure to understand what the code is actually doing.
+
+```python
+# DON'T - Maybe is overkill here
+def set_config(key: str, value: str):
+    maybe_key = Maybe.from_value(key)
+    maybe_value = Maybe.from_value(value)
+
+    if maybe_key.is_some() and maybe_value.is_some():
+        config[maybe_key.unwrap()] = maybe_value.unwrap()
+
+# DO - Simple if/else is clearer
+def set_config(key: str, value: str):
+    if key and value:
+        config[key] = value
+```
+
+The second version is immediately clear. The first version requires readers to understand Maybe, track wrapped values through multiple steps, and mentally unwrap to see the simple assignment underneath.
+
+### When Monads Are Worth It
+
+Monads shine when you're chaining multiple operations, each of which might fail:
+
+```python
+# Monads are valuable here
+def get_user_email(user_id: int) -> Maybe[str]:
+    return (
+        find_user(user_id)
+        .map(lambda u: u.get("profile"))
+        .bind(lambda p: Maybe.from_value(p.get("email") if p else None))
+        .filter(lambda e: "@" in e)
+    )
+```
+
+This chains four operations, any of which might fail. The monadic structure handles all the failure cases cleanly. Traditional Python would need nested conditionals or early returns.
+
+<Callout type="warning" title="Use Good Judgment">
+
+Functional programming is a tool, not a religion. Use monads where they provide clarity and safety. Use simple control flow where that's clearer. Your goal is readable, maintainable code, not purity for its own sake.
+
+</Callout>
+
+---
+
+## Forgetting to Preserve Immutability
+
+When working with persistent collections, it's easy to accidentally modify them, especially when interacting with libraries that expect mutable collections.
+
+### Why This Is Tempting
+
+Many Python libraries expect mutable lists and dicts. When you pass a PersistentList to a function that modifies it, you might accidentally mutate what's supposed to be immutable data.
+
+### The Problem
+
+Mutating a persistent collection breaks the guarantees that make them useful. Other code holding references to the collection will see unexpected changes. Bugs become hard to track down because data changed somewhere unexpected.
+
+```python
+# DON'T - Accidentally mutates persistent collection
+from better_py import PersistentList
+
+def add_logging(items: list):
+    """This function mutates its argument"""
+    items.append("[LOG]")
+    return items
+
+my_list = PersistentList.of(1, 2, 3)
+logged = add_logging(my_list.to_list())  # Oops! Converts to mutable list
+
+# DO - Preserve immutability
+from better_py import PersistentList
+
+def add_logging(items: PersistentList) -> PersistentList:
+    """Returns new collection, never mutates"""
+    return items.append("[LOG]")
+
+my_list = PersistentList.of(1, 2, 3)
+logged = add_logging(my_list)
+# my_list is still PersistentList(1, 2, 3)
+# logged is PersistentList(1, 2, 3, "[LOG]")
+```
+
+The golden rule: never convert to mutable types unless absolutely necessary. When you must, do it at the boundaries and immediately convert back to persistent types.
+
+### Conversion Pattern
+
+When working with mutable libraries, convert right before calling them and convert back right after:
+
+```python
+# Convert at the boundary
+def process_with_external_lib(persistent_list: PersistentList) -> PersistentList:
+    # Convert right before the call
+    mutable = persistent_list.to_list()
+
+    # Call the mutable library
+    result = external_library.process(mutable)
+
+    # Convert back immediately
+    return PersistentList.from_iter(result)
+```
+
+This confines the mutation to a small, well-defined scope. The rest of your code remains fully immutable.
+
+---
+
+## Putting It All Together
+
+Understanding these anti-patterns helps you write better functional code. The themes are consistent:
+
+- **Preserve type safety** by keeping values wrapped
+- **Be consistent** in how you handle errors
+- **Use the right tool** for each job (Maybe vs Result)
+- **Avoid nesting** by using bind() instead of map()
+- **Keep it simple** - don't use monads where Python's built-in control flow is clearer
+- **Respect immutability** - never mutate what's supposed to be immutable
+
+Functional programming in Python isn't about dogmatically applying patterns everywhere. It's about using the right tool for each situation, understanding the trade-offs, and writing code that's both safe and clear.
+
+When you encounter these anti-patterns in code reviews or your own work, treat them as learning opportunities. Each one is a sign that there's a better way to express the intent, one that leverages better-py's strengths while keeping code readable.
+
+<Callout type="info" title="See More Examples">
+
+- [Best Practices Overview](/docs/best-practices) - Learn recommended patterns
+- [Common Mistakes](/docs/monads/maybe#common-mistakes) - Specific mistakes for Maybe
+- [Error Handling Guide](/docs/guides/error-handling) - Practical error handling strategies
+
+</Callout>

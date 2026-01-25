@@ -1,47 +1,467 @@
 ---
 title: Unit Monad
-description: Void return type for functions
+description: Explicit void return type for functions
 ---
 
-The `Unit` monad represents functions with no meaningful return value (like `None` but explicit).
+# Unit Monad
 
----
+The Unit monad represents functions that don't return a meaningful value. In Python, we typically use `None` for this purpose, but `None` is ambiguous: it can mean either "the function succeeded but has no return value" or "the function failed and has nothing to return." Unit makes this distinction explicit by providing a type that specifically means "this function intentionally returns nothing."
 
-## Overview
+Think of Unit as a typed version of `None` for cases where you want to be explicit about a function's return type. Instead of returning `None` and leaving it unclear whether the absence of a value is intentional or exceptional, you return `Unit()` to say "this function completed successfully and intentionally has no return value."
+
+The Unit type is particularly valuable when combined with Result, Either, or Maybe. Instead of having `Result[None, Error]` where the `None` is ambiguous, you have `Result[Unit, Error]` which clearly indicates that success produces no meaningful value.
+
+## When to Use Unit
+
+Unit is designed for situations where you want to explicitly indicate that a function intentionally returns nothing. Here are the most common use cases:
+
+<Callout type="success" title="Use Unit when:">
+
+- **Functions with side effects**: Functions that perform actions (logging, writing to a database) and don't need to return data
+- **Command methods**: Operations that mutate state or send commands without returning a value
+- **Void operations in Result types**: When using Result, Either, or Maybe for operations that succeed without producing a value
+- **API consistency**: When you want all functions to have explicit return types rather than implicitly returning None
+
+</Callout>
+
+The key benefit of Unit is that it makes your intent explicit in the type system. When someone sees `Result[Unit, Error]`, they know immediately that success produces no value. When they see `Result[None, Error]`, it's less clear whether `None` is intentional or represents an error case.
+
+## How Unit Works
+
+Unit is a simple type with only one possible value: `Unit()`. Unlike `None`, which is a singleton built into Python, Unit is a proper type that you can use in type annotations to distinguish "no return value" from "optional value."
+
+The distinction between `None` and Unit might seem subtle, but it's meaningful. `None` typically means "a value is optional" or "a value might be absent." Unit means "this function intentionally doesn't return a value." This is the difference between `Maybe[int]` (might have an int, might not) and `Result[Unit, Error]` (succeeded with no return value, or failed with an error).
+
+Imagine you're writing a logging function. With `None`, you might write:
+
+```python
+def log_message(message: str) -> None:
+    logger.log(message)
+    # Implicitly returns None
+```
+
+This works, but the `None` return is implicit. With Unit, you write:
+
+```python
+def log_message(message: str) -> Unit:
+    logger.log(message)
+    return Unit()
+```
+
+Now the return type is explicit. You're clearly indicating that this function performs a side effect and intentionally returns no meaningful data.
+
+## Creating Unit Values
+
+Unit has only one possible value, so creating it is straightforward.
+
+### Creating Unit directly
+
+When a function completes successfully and you want to indicate it has no return value:
 
 ```python
 from better_py import Unit
 
-unit = Unit()
+def send_notification(user: User, message: str) -> Unit:
+    notification_service.send(user.email, message)
+    return Unit()
 ```
 
-<Callout type="info" title="Unit vs None">
+The `Unit()` constructor creates the single Unit value. This is the only value of type Unit, so all Unit-returning functions return the same thing.
 
-**None**: Value might be missing
-**Unit**: Function intentionally returns nothing
+### Using Unit in type annotations
 
-</Callout>
-
----
-
-## Usage
-
-Use `Unit` for functions that perform side effects:
+Unit is most useful when used as a type parameter for other monads:
 
 ```python
 from better_py import Unit, Result
 
-def log_message(message: str) -> Result[Unit, str]:
+def save_user(user: User) -> Result[Unit, str]:
+    """Save a user, returning Unit on success"""
     try:
-        logger.log(message)
+        database.save(user)
         return Result.ok(Unit())
     except Exception as e:
         return Result.error(str(e))
+
+def log_access(user_id: int) -> Maybe[Unit]:
+    """Log access, returning Unit on success or Nothing if user not found"""
+    user = database.find_user(user_id)
+    if user is None:
+        return Maybe.nothing()
+    logger.log(f"User {user_id} accessed")
+    return Maybe.some(Unit())
 ```
 
----
+In these examples, Unit makes it clear that success produces no meaningful value. The type system distinguishes between "succeeded with no value" and "failed."
+
+## Working with Unit
+
+Unit values are simple to work with because there's only one possible value. The operations are straightforward.
+
+### Checking Unit values
+
+When you receive a Unit value, you typically don't need to inspect it. You just check that the operation succeeded:
+
+```python
+from better_py import Unit, Result
+
+result = save_user(user)
+
+if result.is_ok():
+    # The operation succeeded, even though there's no return value
+    print("User saved successfully")
+else:
+    print(f"Failed to save user: {result.error}")
+```
+
+The Unit value itself isn't interesting. The fact that it exists indicates success, which is all you need to know.
+
+### Transforming Unit
+
+You can map over Unit values, though there's not much reason to transform Unit itself:
+
+```python
+from better_py import Unit, Result
+
+def save_and_log(user: User) -> Result[Unit, str]:
+    return (
+        save_user(user)
+        .map(lambda _:  # The _ indicates we're ignoring the Unit value
+            log_message(f"User {user.id} saved")
+        )
+    )
+```
+
+When mapping over Unit, it's common to use `_` as the parameter name to indicate you're intentionally ignoring the value.
+
+### Chaining Unit operations
+
+When you have multiple operations that all return Unit, you chain them together:
+
+```python
+from better_py import Unit, Result
+
+def create_user_workflow(data: dict) -> Result[Unit, str]:
+    return (
+        validate_user_data(data)
+        .bind(lambda _ =>
+            save_user(User(**data))
+        )
+        .bind(lambda _ =>
+            send_welcome_email(data["email"])
+        )
+        .map(lambda _ =>
+            log_audit_trail("user_created", data)
+        )
+    )
+```
+
+Each operation returns Unit, and they're chained together with `bind`. The final result is `Result[Unit, str]`, indicating that the entire workflow either succeeds (with no return value) or fails with an error message.
+
+## Real-World Patterns
+
+### Side-effecting operations with Result
+
+Unit is particularly useful when you need to represent operations that perform side effects and may fail:
+
+```python
+from better_py import Unit, Result
+
+class FileOperations:
+    @staticmethod
+    def write_file(path: str, content: str) -> Result[Unit, str]:
+        """Write content to a file, returning Unit on success"""
+        try:
+            Path(path).write_text(content)
+            return Result.ok(Unit())
+        except IOError as e:
+            return Result.error(f"Failed to write file: {e}")
+
+    @staticmethod
+    def delete_file(path: str) -> Result[Unit, str]:
+        """Delete a file, returning Unit on success"""
+        try:
+            Path(path).unlink()
+            return Result.ok(Unit())
+        except FileNotFoundError:
+            return Result.error(f"File not found: {path}")
+        except IOError as e:
+            return Result.error(f"Failed to delete file: {e}")
+
+    @staticmethod
+    def copy_file(source: str, dest: str) -> Result[Unit, str]:
+        """Copy a file, returning Unit on success"""
+        return (
+            FileOperations.write_file(dest, Path(source).read_text())
+        )
+```
+
+Each operation clearly indicates success (with Unit) or failure (with an error message). The type signature makes it obvious that these operations don't return data on success.
+
+### Command methods
+
+Unit is natural for command-style methods that perform actions without returning data:
+
+```python
+from better_py import Unit, Result
+
+class UserService:
+    def __init__(self, db: Database, email_service: EmailService):
+        self.db = db
+        self.email_service = email_service
+
+    def create_user(self, email: str, password: str) -> Result[Unit, str]:
+        """Create a new user and send welcome email"""
+        return (
+            self._validate_email(email)
+            .bind(lambda _ =>
+                self._hash_password(password)
+            )
+            .bind(lambda hashed_password =>
+                self._save_to_db(email, hashed_password)
+            )
+            .bind(lambda user_id =>
+                self._send_welcome_email(email)
+            )
+            .map(lambda _ =>
+                log_audit(f"User created: {email}")
+            )
+        )
+
+    def _validate_email(self, email: str) -> Result[Unit, str]:
+        if not self._is_valid_email(email):
+            return Result.error("Invalid email format")
+        return Result.ok(Unit())
+
+    def _hash_password(self, password: str) -> Result[str, str]:
+        try:
+            hashed = hash_password(password)
+            return Result.ok(hashed)
+        except Exception as e:
+            return Result.error(f"Failed to hash password: {e}")
+
+    def _save_to_db(self, email: str, password: str) -> Result[int, str]:
+        try:
+            user_id = self.db.insert_user(email, password)
+            return Result.ok(user_id)
+        except Exception as e:
+            return Result.error(f"Database error: {e}")
+
+    def _send_welcome_email(self, email: str) -> Result[Unit, str]:
+        try:
+            self.email_service.send_welcome(email)
+            return Result.ok(Unit())
+        except Exception as e:
+            # Log the error but don't fail the operation
+            log_warning(f"Failed to send welcome email: {e}")
+            return Result.ok(Unit())
+```
+
+The Unit type makes it clear which operations return data and which only perform side effects. This improves code readability and makes the data flow explicit.
+
+### Mutation operations
+
+Unit works well for operations that mutate state:
+
+```python
+from better_py import Unit, Result
+
+class ShoppingCart:
+    def __init__(self):
+        self._items: dict[str, int] = {}
+
+    def add_item(self, product_id: str, quantity: int) -> Result[Unit, str]:
+        """Add items to the cart"""
+        if quantity <= 0:
+            return Result.error("Quantity must be positive")
+
+        self._items[product_id] = self._items.get(product_id, 0) + quantity
+        return Result.ok(Unit())
+
+    def remove_item(self, product_id: str) -> Result[Unit, str]:
+        """Remove an item from the cart"""
+        if product_id not in self._items:
+            return Result.error("Item not in cart")
+
+        del self._items[product_id]
+        return Result.ok(Unit())
+
+    def clear(self) -> Result[Unit, str]:
+        """Clear all items from the cart"""
+        self._items.clear()
+        return Result.ok(Unit())
+
+    def get_items(self) -> dict[str, int]:
+        """Get current cart contents"""
+        return dict(self._items)  # Return a copy
+```
+
+The mutation operations return Unit to indicate they completed successfully, while the query operation returns actual data. This pattern cleanly separates commands (which return Unit) from queries (which return data).
+
+### Logging and monitoring
+
+Unit is natural for logging and monitoring operations:
+
+```python
+from better_py import Unit, Result
+
+class AuditLogger:
+    def __init__(self, db: Database):
+        self.db = db
+
+    def log_user_action(
+        self,
+        user_id: int,
+        action: str,
+        details: dict
+    ) -> Result[Unit, str]:
+        """Log a user action to the audit trail"""
+        try:
+            self.db.insert_audit_log({
+                "user_id": user_id,
+                "action": action,
+                "details": details,
+                "timestamp": datetime.now()
+            })
+            return Result.ok(Unit())
+        except Exception as e:
+            return Result.error(f"Failed to log action: {e}")
+
+    def log_security_event(
+        self,
+        event_type: str,
+        severity: str,
+        details: dict
+    ) -> Result[Unit, str]:
+        """Log a security event"""
+        try:
+            self.db.insert_security_event({
+                "event_type": event_type,
+                "severity": severity,
+                "details": details,
+                "timestamp": datetime.now()
+            })
+            return Result.ok(Unit())
+        except Exception as e:
+            return Result.error(f"Failed to log security event: {e}")
+```
+
+Each logging operation returns Unit on success, making it clear that these are side-effecting operations that don't produce meaningful return values.
+
+## Common Mistakes
+
+### Using Unit when you should return a value
+
+Don't use Unit when your function actually produces meaningful data:
+
+```python
+# DON'T: Ignore meaningful return values
+def get_user(user_id: int) -> Result[Unit, str]:
+    user = database.find(user_id)
+    if user:
+        return Result.ok(Unit())  # Lost the user data!
+    return Result.error("User not found")
+
+# DO: Return the actual data
+def get_user(user_id: int) -> Result[User, str]:
+    user = database.find(user_id)
+    if user:
+        return Result.ok(user)
+    return Result.error("User not found")
+```
+
+Unit is for functions that intentionally don't return data. If you have data, return it.
+
+### Using Unit for optional values
+
+Don't confuse Unit with Maybe/Option:
+
+```python
+# DON'T: Use Unit to represent optional data
+def find_user(user_id: int) -> Unit | None:
+    user = database.find(user_id)
+    return Unit() if user else None
+
+# DO: Use Maybe for optional values
+def find_user(user_id: int) -> Maybe[User]:
+    user = database.find(user_id)
+    return Maybe.some(user) if user else Maybe.nothing()
+```
+
+Unit means "no return value." Maybe/Option means "might have a value." They serve different purposes.
+
+### Returning Unit unnecessarily
+
+If you're already using a type like Result that indicates success/failure, you don't always need Unit:
+
+```python
+# DON'T: Unnecessary Unit
+def save_user(user: User) -> Result[Unit, Error]:
+    try:
+        db.save(user)
+        return Result.ok(Unit())
+    except Exception as e:
+        return Result.error(Error(str(e)))
+
+# MAYBE: Just use exception handling
+def save_user(user: User) -> None:
+    db.save(user)  # Let exceptions propagate
+
+# OR: Use Result without Unit if failure is exceptional
+def save_user(user: User) -> Result[User, Error]:
+    try:
+        db.save(user)
+        return Result.ok(user)  # Return the saved user
+    except Exception as e:
+        return Result.error(Error(str(e)))
+```
+
+Unit adds clarity, but also adds verbosity. Use it when the distinction matters, not everywhere.
+
+## When NOT to Use Unit
+
+Unit is a useful tool for explicit typing, but it's not always necessary. Here are situations where you should consider alternatives:
+
+### For simple functions
+
+If you have a simple function where the lack of return value is obvious, Unit might be overkill:
+
+```python
+# Simple case: None is fine
+def print_message(message: str) -> None:
+    print(message)
+```
+
+Unit is most valuable when combined with Result, Either, or Maybe. For standalone functions, `None` is often sufficient.
+
+### When performance matters
+
+Creating Unit objects does have a tiny cost (object allocation). In performance-critical code, this might matter:
+
+```python
+# Performance-critical: None is faster
+def fast_counter() -> None:
+    for i in range(1000000):
+        process(i)
+```
+
+In most applications, this overhead is negligible. But in tight loops or hot paths, it's worth considering.
+
+### When working with non-functional code
+
+If you're integrating with libraries that expect `None` return values, using Unit can create friction. Sometimes it's better to work with the library's conventions:
+
+```python
+# Working with frameworks that expect None
+def on_request(request: Request) -> None:
+    handle_request(request)
+    # Framework expects None, not Unit
+```
+
+Use Unit when it adds clarity without creating integration problems.
 
 ## See Also
 
-- [Result Monad](/docs/monads/result) - For error handling
-- [IO Monad](/docs/monads/io) - For side effects
+- [Result Monad](/docs/monads/result) - For error handling with explicit success/failure types
+- [IO Monad](/docs/monads/io) - For managing side effects
+- [Maybe Monad](/docs/monads/maybe) - For optional values that might or might not exist

@@ -5,220 +5,394 @@ description: Explicit error handling without exceptions
 
 import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 
-The `Result` monad represents operations that can succeed (`Ok`) or fail (`Error`). It's a type-safe alternative to using exceptions for error handling.
+# Result Monad
+
+The `Result` monad represents operations that can succeed or fail. Unlike exceptions, which can be raised anywhere and crash your program if unhandled, Result makes success and failure explicit in the type system. You know immediately when a function might fail, and you can't accidentally ignore the error case.
 
 ---
 
-## Overview
+## Understanding Result
 
-`Result` is used when an operation can fail with specific errors:
+Think of Result as a box that contains either a success value or an error, but never both. When you call a function that returns `Result[User, Error]`, you're forced to handle both possibilities. The type signature tells you that this operation can fail, and it tells you what kind of error you'll get if it does.
+
+This is different from Maybe, which only tells you that a value might be missing. Result tells you WHY something went wrong. When you fetch a user from a database and get `Nothing` (from Maybe), you know the user wasn't found but you don't know why. When you get `Error("database connection failed")` (from Result), you know exactly what happened and can handle it appropriately.
+
+<Callout type="success" title="When to Use Result">
+
+Use Result for operations where failure is expected and you need to handle different errors differently:
+
+- **API calls** that can fail with network errors, timeouts, or server errors
+- **Database operations** with specific error conditions (connection failed, permission denied, not found)
+- **File operations** where you need to distinguish between "file not found" and "permission denied"
+- **Parsing** where you want to provide specific error messages about what went wrong
+- **Validation** where different validation failures should be handled differently
+
+Use Maybe when you only care IF a value exists, not WHY it might be missing.
+
+</Callout>
+
+---
+
+## Result vs Maybe: When to Use Which
+
+The distinction between Result and Maybe is one of the most important concepts in better-py. Here's how to choose:
+
+### Use Maybe for Optional Values
+
+Maybe represents the absence of a value, where absence is a normal and expected outcome. You don't care why the value is missing - you just need to handle its absence.
+
+```python
+from better_py import Maybe
+
+def find_user_by_id(id: int) -> Maybe[User]:
+    """Returns Nothing if user doesn't exist"""
+    return Maybe.from_value(database.query(User).filter_by(id=id).first())
+
+# Usage: We just use a default if the user doesn't exist
+user_name = find_user_by_id(123).map(lambda u: u.name).unwrap_or("Guest")
+```
+
+In this case, a user not existing is normal. We don't need an error message - we just use a default value and continue.
+
+### Use Result for Error Handling
+
+Result represents operations that can fail, where different failures need to be handled differently. You care WHY the operation failed.
 
 ```python
 from better_py import Result
 
-# Creating Results
-success = Result.ok(42)
-failure = Result.error("Something went wrong")
+class UserError(Enum):
+    NOT_FOUND = "User not found"
+    DATABASE_ERROR = "Database connection failed"
+    PERMISSION_DENIED = "Not authorized to access this user"
 
-# Checking result
+def fetch_user(id: int) -> Result[User, UserError]:
+    """Returns specific error based on what went wrong"""
+    try:
+        user = database.query(User).filter_by(id=id).first()
+        if user is None:
+            return Result.error(UserError.NOT_FOUND)
+        return Result.ok(user)
+    except DatabaseConnectionError:
+        return Result.error(UserError.DATABASE_ERROR)
+    except PermissionError:
+        return Result.error(UserError.PERMISSION_DENIED)
+
+# Usage: We handle each error case differently
+result = fetch_user(123)
 if result.is_ok():
-    value = result.unwrap()
+    user = result.unwrap()
+    print(f"User: {user.name}")
+elif result.unwrap_error() == UserError.NOT_FOUND:
+    print("User not found - showing signup form")
+elif result.unwrap_error() == UserError.DATABASE_ERROR:
+    print("Database error - showing cached data")
 else:
-    error = result.unwrap_error()
+    print("Permission denied - showing access denied page")
 ```
 
-<Callout type="success" title="When to Use Result">
+In this case, we need different behavior for each error type. Maybe wouldn't work here because it can't distinguish between "not found" and "database error."
 
--  API calls that can fail
--  Database operations
--  File parsing
--  Validation with specific error types
--  Any operation with known error cases
+<Callout type="warning" title="Key Decision Point">
 
-</Callout>
+Ask yourself: Do I need to know WHY something failed?
 
-<Callout type="warning" title="Result vs Maybe">
-
-Use **Result** when you need to know **why** something failed.
-Use **Maybe** when you only care **if** something exists.
+- **No** - Use Maybe. Absence is normal, and I'll use a default.
+- **Yes** - Use Result. Different errors need different handling.
 
 </Callout>
+
+---
+
+## Why Result Matters
+
+Python's standard approach to error handling is exceptions. While exceptions work, they have some problems that Result solves.
+
+### Exceptions Are Hidden
+
+With exceptions, you can't tell from the function signature if it might raise an exception:
+
+```python
+# What errors can this function raise?
+def fetch_user(id: int) -> User:
+    return database.query(User).filter_by(id=id).first()
+```
+
+You have to read the implementation or documentation to know that this might raise `DatabaseConnectionError`, `PermissionError`, or return `None`. With Result, it's explicit:
+
+```python
+# The type tells you everything
+def fetch_user(id: int) -> Result[User, Error]:
+    ...
+```
+
+### Exceptions Can Be Ignored
+
+Python doesn't force you to handle exceptions:
+
+```python
+# This compiles fine, but crashes at runtime
+user = fetch_user(123)
+print(user.name)  # What if fetch_user raises an exception?
+```
+
+With Result, you MUST handle the error case:
+
+```python
+# This forces you to handle both cases
+result = fetch_user(123)
+if result.is_ok():
+    print(result.unwrap().name)
+else:
+    print(f"Error: {result.unwrap_error()}")
+```
+
+The type system won't let you ignore the error case.
+
+### Exceptions Make Control Flow Unclear
+
+When you use exceptions, error handling is separated from the code that produces it:
+
+```python
+# Error handling is far from the error source
+def process_user(id: int):
+    user = fetch_user(id)  # Might raise exception
+    profile = get_profile(user)  # Might raise exception
+    return format_profile(profile)  # Might raise exception
+
+# Somewhere far away
+try:
+    process_user(123)
+except DatabaseError:
+    # Handle error
+except ValidationError:
+    # Handle error
+```
+
+With Result, error handling is right where it happens:
+
+```python
+def process_user(id: int) -> Result[str, Error]:
+    return (
+        fetch_user(id)
+        .bind(lambda user: get_profile(user))
+        .map(lambda profile: format_profile(profile))
+    )
+```
 
 ---
 
 ## Creating Result Values
 
-### Result.ok()
+Result provides several ways to create success and error values.
 
-Wrap a successful value:
+### Creating a Success
+
+When an operation succeeds, use `Result.ok()` to wrap the success value:
 
 ```python
 from better_py import Result
 
 user = Result.ok({"id": 1, "name": "Alice"})
+age = Result.ok(30)
 ```
 
-### Result.error()
+This creates an `Ok` variant containing your value. You're explicitly saying "this operation succeeded."
 
-Wrap an error:
+### Creating a Failure
+
+When an operation fails, use `Result.error()` to wrap the error:
 
 ```python
-failure = Result.error("User not found")
+connection_failed = Result.error("Database connection failed")
+not_found = Result.error("User not found")
 ```
 
-### Result.from_value()
+This creates an `Error` variant containing the error information. The error can be any type - a string, an enum, or a structured error object.
 
-Create from value and optional error:
+### Creating from Values and Conditions
+
+The `Result.from_value()` method creates a Result based on whether an error is provided:
 
 ```python
 # Success (no error)
-Result.from_value(42)              # Result.ok(42)
+Result.from_value(42)              # Returns: Result.ok(42)
 
 # Failure (error provided)
-Result.from_value(42, "failed")    # Result.error("failed")
+Result.from_value(42, "failed")    # Returns: Result.error("failed")
+```
+
+This is useful when you already have a value and want to conditionally return an error:
+
+```python
+def divide(a: int, b: int) -> Result[int, str]:
+    if b == 0:
+        return Result.from_value(a, "Division by zero")
+    return Result.from_value(a // b)
 ```
 
 ---
 
-## Inspecting Result
+## Inspecting Result Values
 
-### is_ok()
+Before you can use a Result value, you need to check whether it represents success or failure.
 
-Check if result is successful:
+### Checking for Success
 
-```python
-Result.ok(42).is_ok()              # True
-Result.error("bad").is_ok()        # False
-```
-
-### is_error()
-
-Check if result is an error:
+The `is_ok()` method returns `True` if the Result contains a success value:
 
 ```python
-Result.ok(42).is_error()           # False
-Result.error("bad").is_error()     # True
+Result.ok(42).is_ok()              # Returns: True
+Result.error("bad").is_ok()        # Returns: False
 ```
+
+### Checking for Failure
+
+The `is_error()` method returns `True` if the Result contains an error:
+
+```python
+Result.ok(42).is_error()           # Returns: False
+Result.error("bad").is_error()     # Returns: True
+```
+
+These two methods are opposites - exactly one will return `True` for any Result value.
 
 ---
 
-## Transforming Values
+## Transforming Result Values
 
-### map()
+Like Maybe, Result allows you to transform values while keeping them safely wrapped.
 
-Transform the success value:
+### Transforming Success Values
+
+The `map()` method applies a function to the success value, leaving errors untouched:
 
 ```python
-Result.ok(5).map(lambda x: x * 2)           # Result.ok(10)
-Result.error("bad").map(lambda x: x * 2)    # Still error("bad")
+Result.ok(5).map(lambda x: x * 2)           # Returns: Result.ok(10)
+Result.error("bad").map(lambda x: x * 2)    # Returns: Result.error("bad")
 ```
 
-```python
-# Real-world example
-def fetch_user(id: int) -> Result[User, str]:
-    ...
+If the Result is an error, the transformation is skipped and the error is passed through unchanged.
 
-def get_username(id: int) -> Result[str, str]:
+In a real application, you might transform a fetched user:
+
+```python
+def get_user_name(id: int) -> Result[str, str]:
     return (
         fetch_user(id)
         .map(lambda user: user.name)
     )
+# If fetch_user succeeds, returns Result.ok(name)
+# If fetch_user fails, passes the error through
 ```
 
-### map_error()
+### Transforming Errors
 
-Transform the error:
+The `map_error()` method transforms the error value, leaving success values untouched:
 
 ```python
-Result.ok(42).map_error(str.upper)              # Still ok(42)
-Result.error("bad").map_error(str.upper)        # Result.error("BAD")
+Result.ok(42).map_error(str.upper)              # Returns: Result.ok(42)
+Result.error("bad").map_error(str.upper)        # Returns: Result.error("BAD")
 ```
 
+This is useful for adding context to errors:
+
 ```python
-def add_context(result: Result[int, str]) -> Result[int, str]:
-    return result.map_error(lambda e: f"Context: {e}")
+def fetch_user_from_api(id: int) -> Result[User, str]:
+    return (
+        api_client.get_user(id)
+        .map_error(lambda e: f"API error while fetching user {id}: {e}")
+    )
 ```
 
-### bind() / flat_map() / and_then()
+Now the error includes context about which user we were trying to fetch and what operation failed.
 
-Chain operations that return Result:
+---
+
+## Chaining Operations
+
+Like Maybe, Result provides `bind()` for chaining operations that return Results.
+
+### Chaining with bind()
+
+The `bind()` method chains operations that return Result, flattening nested results:
 
 ```python
-def validate(id: int) -> Result[int, str]:
-    ...
+def validate_id(id: int) -> Result[int, str]:
+    if id <= 0:
+        return Result.error("Invalid ID")
+    return Result.ok(id)
 
-def fetch(id: int) -> Result[User, str]:
+def fetch_user(id: int) -> Result[User, str]:
     ...
 
 def check_permission(user: User) -> Result[User, str]:
     ...
 
-# Chain them
+# Chain them together
 user = (
-    validate(user_id)
-    .bind(fetch)
+    validate_id(123)
+    .bind(fetch_user)
     .bind(check_permission)
 )
+# Returns: Result[User, str] - not Result[Result[Result[User, str], str], str]
 ```
 
-### ap()
+If any step returns an error, the chain stops and the error is passed through. This is called "short-circuiting" and it's exactly what you want for error handling - you don't try to fetch a user with an invalid ID, and you don't check permissions for a user that doesn't exist.
 
-Applicative style:
-
-```python
-add = Result.ok(lambda x: x + 1)
-value = Result.ok(5)
-
-add.ap(value)  # Result.ok(6)
-
-# If either is error, error propagates
-error_add = Result.error(lambda: "Bad")
-error_add.ap(Result.ok(5))  # Result.error("Bad")
-```
+This pattern is the bread and butter of Result usage. Most of your Result code will be chains of operations using `bind()` and `map()`.
 
 ---
 
-## Extracting Values
+## Extracting Values from Result
 
-### unwrap()
+Eventually, you need to get the value out of the Result wrapper. Result provides several extraction methods.
 
-Get the success value (raises if Error):
+### Unsafe Extraction
 
-```python
-Result.ok(42).unwrap()            # 42
-Result.error("bad").unwrap()      # Raises ValueError
-```
-
-### unwrap_or()
-
-Get success value or default:
+The `unwrap()` method returns the success value, but raises an exception if called on an error:
 
 ```python
-Result.ok(42).unwrap_or(0)            # 42
-Result.error("bad").unwrap_or(0)     # 0
+Result.ok(42).unwrap()            # Returns: 42
+Result.error("bad").unwrap()      # Raises: ValueError
 ```
 
-### unwrap_or_else()
+Only use `unwrap()` when you've already verified that the Result is ok, or in tests where you want failures to be explicit.
 
-Get success value or compute default:
+### Safe Extraction with a Default
+
+The `unwrap_or()` method returns the success value if it exists, or a default value if it doesn't:
 
 ```python
-Result.ok(42).unwrap_or_else(lambda: compute_default())    # 42
-Result.error("bad").unwrap_or_else(lambda: compute_default())   # computed
+Result.ok(42).unwrap_or(0)            # Returns: 42
+Result.error("bad").unwrap_or(0)     # Returns: 0
 ```
 
-### unwrap_error()
+This is less commonly used with Result than with Maybe, because you usually care about the error and want to handle it explicitly. But it's useful for providing fallback values when the error isn't critical.
 
-Get the error value (raises if Ok):
+### Lazy Default Computation
+
+The `unwrap_or_else()` method computes a default value only if needed:
 
 ```python
-Result.error("bad").unwrap_error()    # "bad"
-Result.ok(42).unwrap_error()          # Raises ValueError
+Result.ok(42).unwrap_or_else(lambda: expensive_computation())    # Returns: 42 (doesn't compute)
+Result.error("bad").unwrap_or_else(lambda: expensive_computation())   # Returns: computed value
 ```
 
-### fold()
+### Extracting the Error
 
-Pattern matching on Result:
+The `unwrap_error()` method returns the error value, but raises an exception if called on a success:
+
+```python
+Result.error("bad").unwrap_error()    # Returns: "bad"
+Result.ok(42).unwrap_error()          # Raises: ValueError
+```
+
+Use this when you're handling the error case explicitly.
+
+### Pattern Matching with fold()
+
+The `fold()` method lets you handle both cases in one place:
 
 ```python
 def format_result(result: Result[int, str]) -> str:
@@ -227,17 +401,151 @@ def format_result(result: Result[int, str]) -> str:
         on_ok=lambda val: f"Success: {val}"
     )
 
-format_result(Result.ok(42))        # "Success: 42"
-format_result(Result.error("bad"))  # "Error: bad"
+format_result(Result.ok(42))        # Returns: "Success: 42"
+format_result(Result.error("bad"))  # Returns: "Error: bad"
 ```
+
+---
+
+## Real-World Examples
+
+### API Error Handling
+
+When calling external APIs, many things can go wrong. Result lets you handle each case appropriately:
+
+```python
+from better_py import Result
+import requests
+
+class ApiError(Enum):
+    NOT_FOUND = "User not found"
+    NETWORK_ERROR = "Network connection failed"
+    SERVER_ERROR = "Server returned error"
+    TIMEOUT = "Request timed out"
+
+def fetch_user(user_id: int) -> Result[dict, ApiError]:
+    try:
+        response = requests.get(f"/api/users/{user_id}", timeout=5)
+
+        if response.status_code == 404:
+            return Result.error(ApiError.NOT_FOUND)
+        if response.status_code >= 500:
+            return Result.error(ApiError.SERVER_ERROR)
+        if response.status_code >= 400:
+            return Result.error(ApiError.from_message(f"Client error: {response.status_code}"))
+
+        return Result.ok(response.json())
+
+    except requests.Timeout:
+        return Result.error(ApiError.TIMEOUT)
+    except requests.ConnectionError:
+        return Result.error(ApiError.NETWORK_ERROR)
+
+# Usage: Handle each error case appropriately
+result = fetch_user(123)
+if result.is_ok():
+    user = result.unwrap()
+    display_user(user)
+else:
+    error = result.unwrap_error()
+    if error == ApiError.NOT_FOUND:
+        show_signup_form()
+    elif error == ApiError.NETWORK_ERROR:
+        show_offline_message()
+    elif error == ApiError.SERVER_ERROR:
+        show_retry_button()
+    elif error == ApiError.TIMEOUT:
+        show_timeout_message()
+```
+
+### File Operations
+
+File operations have multiple failure modes. Result distinguishes between them:
+
+```python
+from better_py import Result
+import json
+
+class FileError(Enum):
+    NOT_FOUND = "File not found"
+    PERMISSION_DENIED = "Permission denied"
+    INVALID_JSON = "Invalid JSON format"
+    UNKNOWN = "Unknown error"
+
+def read_config(path: str) -> Result[dict, FileError]:
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        return Result.ok(data)
+
+    except FileNotFoundError:
+        return Result.error(FileError.NOT_FOUND)
+    except PermissionError:
+        return Result.error(FileError.PERMISSION_DENIED)
+    except json.JSONDecodeError as e:
+        return Result.error(FileError.INVALID_JSON)
+    except Exception as e:
+        return Result.error(FileError.UNKNOWN)
+
+def get_database_config(config_path: str) -> Result[dict, FileError]:
+    return (
+        read_config(config_path)
+        .bind(lambda config:
+            Result.from_value(
+                config.get("database"),
+                FileError.from_message("Missing database config")
+            )
+        )
+    )
+```
+
+### Validation Pipeline
+
+When you have multiple validation steps, Result chains them cleanly:
+
+```python
+from better_py import Result
+
+class ValidationError(Enum):
+    NAME_TOO_SHORT = "Name must be at least 2 characters"
+    NAME_TOO_LONG = "Name must be at most 50 characters"
+    INVALID_EMAIL = "Email must contain @"
+    EMAIL_ALREADY_EXISTS = "Email already registered"
+
+def validate_name(name: str) -> Result[str, ValidationError]:
+    if len(name) < 2:
+        return Result.error(ValidationError.NAME_TOO_SHORT)
+    if len(name) > 50:
+        return Result.error(ValidationError.NAME_TOO_LONG)
+    return Result.ok(name)
+
+def validate_email(email: str) -> Result[str, ValidationError]:
+    if "@" not in email:
+        return Result.error(ValidationError.INVALID_EMAIL)
+    if database.find_by_email(email):
+        return Result.error(ValidationError.EMAIL_ALREADY_EXISTS)
+    return Result.ok(email)
+
+def create_user(name: str, email: str) -> Result[User, ValidationError]:
+    return (
+        validate_name(name)
+        .bind(lambda valid_name:  # Only runs if name is valid
+            validate_email(email).map(lambda valid_email:  # Only runs if email is valid
+                User(name=valid_name, email=valid_email)
+            )
+        )
+    )
+```
+
+This stops at the first validation error, which is often what you want for multi-step forms. If you want to collect all errors, use Validation instead.
 
 ---
 
 ## Combining Results
 
-### or_else()
+### Providing Fallbacks
 
-Provide alternative Result:
+The `or_else()` method provides an alternative Result if the first one fails:
 
 ```python
 def fetch_from_cache(id: int) -> Result[Data, str]:
@@ -246,16 +554,18 @@ def fetch_from_cache(id: int) -> Result[Data, str]:
 def fetch_from_db(id: int) -> Result[Data, str]:
     ...
 
-# Try cache, fall back to DB
-data = (
-    fetch_from_cache(id)
-    .or_else(lambda: fetch_from_db(id))
-)
+def fetch_data(id: int) -> Result[Data, str]:
+    return (
+        fetch_from_cache(id)
+        .or_else(lambda: fetch_from_db(id))
+    )
 ```
 
-### zip()
+If the cache fetch fails, try the database. This is a common pattern for multi-tier data fetching.
 
-Combine multiple Results:
+### Combining Multiple Results
+
+The `zip()` method combines multiple Results into one. All must succeed for the combination to succeed:
 
 ```python
 name = Result.ok("Alice")
@@ -263,363 +573,137 @@ age = Result.ok(30)
 email = Result.error("missing")
 
 result = Result.zip(name, age, email)
-# Result.error("missing") - fails on first error
+# Returns: Result.error("missing") - fails on first error
+```
+
+This is useful when you need multiple pieces of data to proceed:
+
+```python
+def send_welcome_email(user_id: int) -> Result[None, Error]:
+    return (
+        Result.zip(
+            get_user_email(user_id),
+            get_email_template(),
+            get_smtp_config()
+        )
+        .map(lambda parts: send_email(parts[0], parts[1], parts[2]))
+    )
 ```
 
 ---
 
-## Pattern Matching
+## Common Mistakes
 
-Use Python's `match` statement:
+### Mistake 1: Using Result for Simple Optionals
 
-```python
-from better_py import Result
-
-def handle_result(result: Result[int, str]) -> str:
-    match result:
-        case Result(_error=None, _value=value):
-            return f"Success: {value}"
-        case Result(_error=error):
-            return f"Error: {error}"
-```
-
-Or use helper methods:
+When you don't care why something failed, use Maybe instead:
 
 ```python
-if result.is_ok():
-    value = result.unwrap()
-    return f"Success: {value}"
-else:
-    error = result.unwrap_error()
-    return f"Error: {error}"
-```
-
----
-
-## Real-World Examples
-
-### Example 1: API Error Handling
-
-```python
-from better_py import Result
-import requests
-
-def fetch_user(user_id: int) -> Result[dict, str]:
-    try:
-        response = requests.get(f"/api/users/{user_id}")
-        if response.status_code == 404:
-            return Result.error("User not found")
-        if response.status_code >= 400:
-            return Result.error(f"API error: {response.status_code}")
-        return Result.ok(response.json())
-    except requests.RequestException as e:
-        return Result.error(f"Network error: {e}")
-
-def get_user_name(user_id: int) -> Result[str, str]:
-    return (
-        fetch_user(user_id)
-        .map(lambda user: user.get("name"))
-        .bind(lambda name:
-            Result.ok(name) if name
-            else Result.error("User has no name")
-        )
-    )
-```
-
-### Example 2: File Operations
-
-```python
-from better_py import Result
-import json
-
-def read_config(path: str) -> Result[dict, str]:
-    """Read and parse config file"""
-    try:
-        with open(path) as f:
-            data = json.load(f)
-        return Result.ok(data)
-    except FileNotFoundError:
-        return Result.error(f"Config file not found: {path}")
-    except json.JSONDecodeError as e:
-        return Result.error(f"Invalid JSON: {e}")
-    except Exception as e:
-        return Result.error(f"Unexpected error: {e}")
-
-def get_database_config(config_path: str) -> Result[dict, str]:
-    return (
-        read_config(config_path)
-        .bind(lambda config:
-            Result.from_value(
-                config.get("database"),
-                "Missing database config"
-            )
-        )
-    )
-```
-
-### Example 3: Validation Pipeline
-
-```python
-from better_py import Result
-
-def validate_positive(value: int) -> Result[int, str]:
-    if value > 0:
+# DON'T - Result is overkill
+def get_config(key: str) -> Result[str, str]:
+    value = os.getenv(key)
+    if value:
         return Result.ok(value)
-    return Result.error(f"{value} is not positive")
+    return Result.error("Missing config")
 
-def validate_range(value: int) -> Result[int, str]:
-    if 0 <= value <= 100:
-        return Result.ok(value)
-    return Result.error(f"{value} is out of range")
-
-def validate_number(value: int) -> Result[int, str]:
-    return (
-        validate_positive(value)
-        .bind(validate_range)
-    )
-
-# Usage
-validate_number(50)    # Result.ok(50)
-validate_number(-5)   # Result.error("-5 is not positive")
-validate_number(150)  # Result.error("150 is out of range")
+# DO - Maybe is simpler
+def get_config(key: str) -> Maybe[str]:
+    return Maybe.from_value(os.getenv(key))
 ```
 
-### Example 4: Database Operations
+### Mistake 2: Unwrapping Too Early
+
+Just like with Maybe, don't unwrap Result values as soon as you get them:
 
 ```python
-from better_py import Result
+# DON'T - loses Result's benefits
+def get_user_name(id: int) -> str:
+    user = fetch_user(id).unwrap()  # Crashes if fetch fails!
+    return user.name
 
-def create_user(name: str, email: str) -> Result[User, str]:
-    """Create user with validation"""
-    # Validate name
-    if len(name) < 2:
-        return Result.error("Name too short")
-    if len(name) > 50:
-        return Result.error("Name too long")
+# DO - keep it wrapped
+def get_user_name(id: int) -> Result[str, Error]:
+    return fetch_user(id).map(lambda user: user.name)
+```
 
-    # Validate email
-    if "@" not in email:
-        return Result.error("Invalid email")
+### Mistake 3: Mixing Exceptions and Result
 
-    # Check duplicates
-    if db.find_by_email(email):
-        return Result.error("Email already exists")
+Don't use Result inconsistently - either handle errors with Result or with exceptions, not both:
 
-    # Create user
+```python
+# DON'T - confusing mix
+def fetch_user(id: int) -> Result[User, Error]:
     try:
-        user = db.insert(User(name=name, email=email))
+        user = api.get_user(id)
         return Result.ok(user)
-    except DatabaseError as e:
-        return Result.error(f"Database error: {e}")
+    except Exception as e:
+        # Sometimes raises, sometimes returns Result.error
+        if critical:
+            raise  # Now caller needs try/except AND Result handling
+        return Result.error(str(e))
 
-def register_user(data: dict) -> Result[User, str]:
+# DO - use Try to wrap exception-throwing code
+def fetch_user(id: int) -> Result[User, Error]:
     return (
-        validate_input(data)
-        .bind(lambda d: create_user(d["name"], d["email"]))
-        .map(lambda user: send_welcome_email(user))
+        Try(lambda: api.get_user(id))
+        .to_result()
+        .map_error(lambda e: Error.from_exception(e))
     )
 ```
 
 ---
 
-## Common Patterns
+## When NOT to Use Result
 
-### Pattern 1: Error Recovery
+Result isn't always the right choice.
 
-```python
-def fetch_with_fallback(id: int) -> Result[Data, str]:
-    return (
-        fetch_from_primary_db(id)
-        .or_else(lambda: fetch_from_cache(id))
-        .or_else(lambda: fetch_from_backup_db(id))
-    )
-```
+### For Unexpected Errors
 
-### Pattern 2: Error Enrichment
+Use exceptions for bugs and unexpected failures - things that should never happen in normal operation:
 
 ```python
-def divide(a: int, b: int) -> Result[float, str]:
+# Result is overkill for programmer errors
+def divide(a: int, b: int) -> Result[int, str]:
+    if not isinstance(a, int):
+        return Result.error("a must be an int")  # Too defensive!
     if b == 0:
         return Result.error("Division by zero")
-    return Result.ok(a / b)
+    return Result.ok(a // b)
 
-def safe_divide(a: int, b: int) -> Result[float, str]:
-    return (
-        divide(a, b)
-        .map_error(lambda e: f"Cannot divide {a} by {b}: {e}")
-    )
-```
-
-### Pattern 3: Chaining Validations
-
-```python
-def process_order(order: dict) -> Result[ProcessedOrder, str]:
-    return (
-        validate_order(order)
-        .bind(lambda o: check_inventory(o))
-        .bind(lambda o: process_payment(o))
-        .bind(lambda o: ship_order(o))
-    )
-```
-
-### Pattern 4: Collecting Errors
-
-```python
-def validate_all(items: list) -> Result[list, list[str]]:
-    """Collect all validation errors"""
-    results = [validate_item(item) for item in items]
-    errors = [r.unwrap_error() for r in results if r.is_error()]
-
-    if errors:
-        return Result.error(errors)
-    return Result.ok([r.unwrap() for r in results])
-```
-
----
-
-## Best Practices
-
-<Callout type="success" title="Do">
-
- Use Result for operations with known error types
- Make error types specific and informative
- Use map_error to add context
- Handle errors explicitly with is_ok/is_error
- Use or_else for fallback behavior
-
-</Callout>
-
-<Callout type="error" title="Don't">
-
- Use Result for simple optional values (use Maybe)
- Call unwrap() without checking (use unwrap_or)
- Use exceptions and Result inconsistently
- Put exceptions in Result.error (use Try instead)
- Ignore error cases
-
-</Callout>
-
----
-
-## Type Safety
-
-Result is fully generic:
-
-```python
-from better_py import Result
-
-# Type checker tracks types
-result: Result[int, str] = Result.ok(42)
-mapped: Result[int, str] = result.map(lambda x: x * 2)
-to_str: Result[str, str] = mapped.map(str)
-
-# Error type is preserved
-error: Result[int, str] = Result.error("bad")
-still_error: Result[int, str] = error.map(lambda x: x * 2)
-```
-
----
-
-## Error Type Design
-
-Choose meaningful error types:
-
-```python
-# Simple string errors
-Result.error("User not found")
-
-# Enum errors
-from enum import Enum
-class Error(Enum):
-    NOT_FOUND = "User not found"
-    INVALID = "Invalid input"
-    PERMISSION_DENIED = "Permission denied"
-
-Result.error(Error.NOT_FOUND)
-
-# Structured errors
-@dataclass
-class ErrorDetail:
-    code: str
-    message: str
-    context: dict
-
-Result.error(ErrorDetail(
-    code="NOT_FOUND",
-    message="User not found",
-    context={"user_id": 123}
-))
-
-# Union of error types
-ApiError = str | Error | ErrorDetail
-Result[int, ApiError]
-```
-
----
-
-## Performance Notes
-
-- Result is a simple `@dataclass` - very low overhead
-- No try/except overhead for known error cases
-- Structural sharing when chaining operations
-
----
-
-## Comparison: Result vs Maybe
-
-```python
-# Maybe: Value exists or not
-user = Maybe.from_value(find_user(1))
-name = user.map(lambda u: u.name).unwrap_or("Guest")
-
-# Result: Success or error with details
-user = fetch_user(1)
-if user.is_ok():
-    name = user.unwrap().name
-else:
-    print(f"Failed: {user.unwrap_error()}")
-```
-
----
-
-## Comparison: Result vs Exceptions
-
-```python
-# With exceptions
-def divide(a: int, b: int) -> float:
-    if b == 0:
-        raise ZeroDivisionError("Division by zero")
-    return a / b
-
-try:
-    result = divide(10, 0)
-except ZeroDivisionError as e:
-    print(f"Error: {e}")
-
-# With Result
-def divide(a: int, b: int) -> Result[float, str]:
+# Just let Python raise TypeError for wrong types
+def divide(a: int, b: int) -> Result[int, str]:
     if b == 0:
         return Result.error("Division by zero")
-    return Result.ok(a / b)
-
-result = divide(10, 0)
-if result.is_error():
-    print(f"Error: {result.unwrap_error()}")
+    return Result.ok(a // b)
 ```
 
-<Callout type="info" title="When to Use Each">
+### For Simple Scripts
 
-**Result**: Expected error cases that are part of your domain
-**Exceptions**: Unexpected errors (bugs, system failures)
+In throwaway scripts or simple tools, exceptions might be simpler:
 
-</Callout>
+```python
+# For a simple script, this is fine
+def main():
+    user = fetch_user(123)  # Might raise exception
+    print(user.name)
+
+if __name__ == "__main__":
+    main()
+```
+
+Result shines in larger applications and libraries where explicit error handling matters.
+
+### When Interfacing with Exception-Based Code
+
+When you're calling existing code that uses exceptions, wrapping everything in Result can be tedious. In these cases, consider using Try instead, or only convert to Result at your API boundaries.
 
 ---
 
 ## See Also
 
-- [Maybe Monad](/docs/monads/maybe) - For optional values
-- [Validation Monad](/docs/monads/validation) - For accumulating errors
-- [Try Monad](/docs/monads/try) - For wrapping exceptions
-- [Error Handling Guide](/docs/guides/error-handling) - Practical patterns
-- [Result API Reference](/docs/api/monads/result) - Complete API documentation
+- **[Maybe Monad](/docs/monads/maybe)** - For optional values where you don't care why something failed
+- **[Validation Monad](/docs/monads/validation)** - For accumulating all errors instead of stopping at the first
+- **[Try Monad](/docs/monads/try)** - For wrapping exception-throwing code
+- **[Error Handling Guide](/docs/guides/error-handling)** - Practical strategies for real-world applications
+
+Remember: Result is about making error handling explicit and type-safe. Use it when different errors need different handling, and you'll find your code becomes more robust and self-documenting.

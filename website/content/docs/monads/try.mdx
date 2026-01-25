@@ -3,131 +3,600 @@ title: Try Monad
 description: Wrap exception-throwing code in a monad
 ---
 
-The `Try` monad wraps computations that might raise exceptions, converting them into a value (`Success` or `Failure`).
+# Try Monad
+
+The `Try` monad wraps computations that might raise exceptions, converting them into a value that you can handle explicitly. It's like Result, but specifically designed for working with exception-based code.
 
 ---
 
-## Overview
+## Understanding Try: Bridging Exceptions and Functional Error Handling
 
-```python
-from better_py import Try
+Think of Try as a translator between two worlds: the world of exceptions (Python's standard approach) and the world of explicit error handling (better-py's approach). When you have code that throws exceptions, Try wraps it and converts the exception into a value you can handle without try/except blocks.
 
-# Wrap exception-throwing code
-result = Try(lambda: int("42"))      # Success(42)
-result = Try(lambda: int("invalid")) # Failure(ValueError)
-```
+Try has two states:
+- **Success**: The computation completed and returned a value
+- **Failure**: The computation raised an exception
+
+The key insight is that Try lets you work with exception-throwing code using the same patterns you use with Maybe and Result. You don't need try/except blocks scattered throughout your code - Try handles the exception and gives you a value to work with.
 
 <Callout type="success" title="When to Use Try">
 
--  Wrapping legacy code that uses exceptions
--  Interfacing with libraries you don't control
--  Converting exceptions to explicit error handling
+Use Try when you need to interface with code that uses exceptions:
+
+- **Wrapping third-party libraries** that you don't control
+- **Legacy code** that throws exceptions
+- **Python standard library** functions like `int()`, `json.loads()`, or file operations
+- **Converting exception-based code** to explicit error handling
+
+Use Result for your own code where you can define explicit error types. Use Try as a bridge when working with existing exception-based code.
 
 </Callout>
 
 ---
 
-## Creating Try Values
+## Why Try Matters
 
-### Try() constructor
+Python's standard library and most third-party packages use exceptions for error handling. When you're adopting better-py's explicit error handling approach, you have two choices:
 
-Wrap a callable:
+1. Rewrite all the exception-based code (impractical for libraries)
+2. Use Try to wrap exception-based code (practical and realistic)
+
+Try lets you gradually adopt explicit error handling without throwing away the entire Python ecosystem.
+
+### Without Try: Exception Sprawl
+
+```python
+# Exception handling everywhere
+def process_user(user_id: int) -> dict:
+    try:
+        user_data = fetch_user(user_id)
+    except NetworkError as e:
+        logger.error(f"Network error: {e}")
+        raise
+
+    try:
+        parsed = json.loads(user_data)
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON: {e}")
+        raise
+
+    try:
+        age = int(parsed["age"])
+    except (ValueError, KeyError) as e:
+        logger.error(f"Invalid age: {e}")
+        raise
+
+    return {"user_id": user_id, "age": age}
+```
+
+Every function call needs its own try/except block. Error handling is scattered and repetitive.
+
+### With Try: Clean Composition
 
 ```python
 from better_py import Try
 
+def process_user(user_id: int) -> Try[dict]:
+    return (
+        Try(lambda: fetch_user(user_id))
+        .map(lambda data: json.loads(data))
+        .map(lambda parsed: int(parsed["age"]))
+        .map(lambda age: {"user_id": user_id, "age": age})
+    )
+
+# Usage
+result = process_user(123)
+if result.is_success():
+    data = result.unwrap()
+    return json_response(data)
+else:
+    exception = result.get_exception()
+    logger.error(f"Processing failed: {exception}")
+    return json_response({"error": str(exception)}, status=500)
+```
+
+Error handling is centralized at the end. The code reads like a description of what you're trying to accomplish.
+
+---
+
+## Creating Try Values
+
+Try wraps a callable (function) that might raise an exception.
+
+### Wrapping Exception-Throwing Code
+
+Use the `Try()` constructor to wrap a function call:
+
+```python
+from better_py import Try
+
+# Wrapping a function that might raise
+result = Try(lambda: int("42"))      # Success(42)
+result = Try(lambda: int("invalid")) # Failure(ValueError)
+```
+
+Notice that you pass a **function** (lambda), not the result of calling the function. Try calls the function internally and catches any exceptions.
+
+### Wrapping Function Calls
+
+For more complex operations, define a function and wrap it:
+
+```python
 def divide(a: int, b: int) -> int:
     return a // b
 
+# Wrap the function call
 result = Try(lambda: divide(10, 0))  # Failure(ZeroDivisionError)
+result = Try(lambda: divide(10, 2))  # Success(5)
+```
+
+You can also pass arguments by capturing them in the lambda:
+
+```python
+def divide(a: int, b: int) -> int:
+    return a // b
+
+a = 10
+b = 0
+result = Try(lambda: divide(a, b))  # Failure(ZeroDivisionError)
 ```
 
 ---
 
-## Inspecting Try
+## Inspecting Try Values
 
-### is_success() / is_failure()
+Before you can use a Try value, you need to check whether it succeeded or failed.
+
+### Checking for Success
+
+The `is_success()` method returns `True` if the computation succeeded:
 
 ```python
-Try(lambda: 1 + 1).is_success()    # True
-Try(lambda: 1 / 0).is_failure()    # True
+Try(lambda: 1 + 1).is_success()    # Returns: True
+Try(lambda: 1 / 0).is_success()    # Returns: False
 ```
 
-### get_exception()
+### Checking for Failure
 
-Get the exception:
+The `is_failure()` method returns `True` if the computation raised an exception:
+
+```python
+Try(lambda: 1 + 1).is_failure()    # Returns: False
+Try(lambda: 1 / 0).is_failure()    # Returns: True
+```
+
+These two methods are opposites - exactly one will return `True` for any Try value.
+
+### Getting the Exception
+
+The `get_exception()` method returns the exception that was raised:
 
 ```python
 failure = Try(lambda: int("invalid"))
-exc = failure.get_exception()  # ValueError instance
+exception = failure.get_exception()  # Returns: ValueError instance
+print(type(exception))  # <class 'ValueError'>
+print(exception)  # invalid literal for int() with base 10: 'invalid'
 ```
+
+This gives you access to the actual exception object, including its type and message.
 
 ---
 
-## Transforming Try
+## Transforming Try Values
 
-### map()
+Like Maybe and Result, Try allows you to transform values while keeping them safely wrapped.
 
-Transform success value:
+### Transforming Success Values
+
+The `map()` method applies a function to the success value, or passes through failures:
 
 ```python
 Try(lambda: 10).map(lambda x: x * 2)  # Success(20)
+Try(lambda: int("invalid")).map(lambda x: x * 2)  # Failure(ValueError)
 ```
 
-### recover()
-
-Recover from failure:
+If the function inside `map()` raises an exception, it's caught and converted to a Failure:
 
 ```python
-Try(lambda: 1 / 0).recover(lambda e: 0)  # Success(0)
+Try(lambda: 10)
+    .map(lambda x: int("invalid"))  # This raises ValueError
+    .map(lambda x: x * 2)  # Never runs
+# Result: Failure(ValueError)
 ```
 
-### fold()
+### Recovering from Failures
 
-Pattern matching:
+The `recover()` method lets you provide a fallback value or computation if the Try fails:
 
 ```python
-def handle_try(result: Try[int]) -> str:
+Try(lambda: int("invalid"))
+    .recover(lambda e: 0)  # Returns: Success(0)
+
+Try(lambda: int("42"))
+    .recover(lambda e: 0)  # Returns: Success(42) (recover not called)
+```
+
+You can also use the exception information:
+
+```python
+def safe_int_parse(value: str) -> Try[int]:
+    return (
+        Try(lambda: int(value))
+        .recover(lambda e: 0)  # Fallback to 0 on any error
+    )
+```
+
+### Pattern Matching with fold()
+
+The `fold()` method lets you handle both success and failure cases:
+
+```python
+def format_try(result: Try[int]) -> str:
     return result.fold(
         on_failure=lambda exc: f"Exception: {exc}",
         on_success=lambda val: f"Value: {val}"
     )
+
+format_try(Try(lambda: 42))         # Returns: "Value: 42"
+format_try(Try(lambda: int("x")))   # Returns: "Exception: invalid literal for int()..."
 ```
 
 ---
 
 ## Real-World Examples
 
-### Example 1: File Operations
+### File Operations
+
+File operations commonly raise exceptions. Try makes them manageable:
+
+```python
+from better_py import Try
+import json
+
+def read_config(path: str) -> Try[dict]:
+    """Read and parse a JSON config file"""
+    return (
+        Try(lambda: Path(path).read_text())
+        .map(lambda content: json.loads(content))
+    )
+
+# Usage
+result = read_config("config.json")
+if result.is_success():
+    config = result.unwrap()
+    app_config = load_config(config)
+else:
+    exception = result.get_exception()
+    if isinstance(exception, FileNotFoundError):
+        logger.warning(f"Config file not found: {path}, using defaults")
+        app_config = DEFAULT_CONFIG
+    elif isinstance(exception, json.JSONDecodeError):
+        logger.error(f"Invalid JSON in config file: {path}")
+        raise  # Re-raise if JSON is invalid
+    else:
+        logger.error(f"Unexpected error reading config: {exception}")
+        raise
+```
+
+### API Calls
+
+Wrapping API calls that throw exceptions:
+
+```python
+from better_py import Try
+import requests
+
+def fetch_user(user_id: int) -> Try[dict]:
+    """Fetch user from API, handling network errors"""
+    return (
+        Try(lambda: requests.get(f"/api/users/{user_id}", timeout=5))
+        .map(lambda response: response.json())
+    )
+
+def get_user_email(user_id: int) -> Try[str]:
+    """Get user email with error handling"""
+    return (
+        fetch_user(user_id)
+        .map(lambda user: user["email"])
+    )
+
+# Usage
+result = get_user_email(123)
+if result.is_success():
+    email = result.unwrap()
+    send_welcome_email(email)
+else:
+    exception = result.get_exception()
+    if isinstance(exception, requests.Timeout):
+        logger.warning(f"Timeout fetching user {user_id}")
+        schedule_retry(user_id)
+    elif isinstance(exception, requests.ConnectionError):
+        logger.error(f"Connection error fetching user {user_id}")
+        queue_for_later(user_id)
+    else:
+        logger.error(f"Unexpected error: {exception}")
+        notify_admin(exception)
+```
+
+### Data Parsing
+
+Parsing data from various sources often fails:
 
 ```python
 from better_py import Try
 
-def read_config(path: str) -> Try[dict]:
-    return Try(lambda: json.loads(Path(path).read_text()))
+def parse_csv_row(row: str) -> Try[dict]:
+    """Parse a CSV row into a dictionary"""
+    return (
+        Try(lambda: row.split(","))
+        .map(lambda parts: {
+            "name": parts[0],
+            "age": int(parts[1]),  # Might raise ValueError
+            "email": parts[2]
+        })
+    )
 
-config = read_config("config.json")
-if config.is_success():
-    data = config.unwrap()
-    print(f"Config: {data}")
+def import_users(csv_content: str) -> Try[list[dict]]:
+    """Import users from CSV content"""
+    return (
+        Try(lambda: csv_content.strip().split("\n"))
+        .map(lambda rows: [parse_csv_row(row) for row in rows])
+        .map(lambda tries: [t.unwrap() for t in tries if t.is_success()])
+    )
+
+# Usage
+csv_data = """Alice,30,alice@example.com
+Bob,25,bob@example.com
+Charlie,invalid,charlie@example.com"""
+
+result = import_users(csv_data)
+if result.is_success():
+    users = result.unwrap()
+    # Users imported successfully (Charlie skipped due to invalid age)
 else:
-    exc = config.get_exception()
-    print(f"Failed to read config: {exc}")
+    exception = result.get_exception()
+    logger.error(f"Failed to parse CSV: {exception}")
 ```
 
-### Example 2: API Calls
+### Converting to Result
+
+Try can be converted to Result for more structured error handling:
 
 ```python
-def fetch_user(id: int) -> Try[dict]:
-    return Try(lambda: requests.get(f"/api/users/{id}").json())
+from better_py import Try, Result
 
-user = fetch_user(123)
-profile = user.map(lambda u: u["profile"])
+class ApiError(Enum):
+    NETWORK = "Network error"
+    TIMEOUT = "Request timeout"
+    SERVER = "Server error"
+    UNKNOWN = "Unknown error"
+
+def fetch_user_safe(id: int) -> Result[dict, ApiError]:
+    """Fetch user with proper error typing"""
+    return (
+        Try(lambda: requests.get(f"/api/users/{id}", timeout=5))
+        .to_result()
+        .map_error(lambda exc: {
+            requests.Timeout: ApiError.TIMEOUT,
+            requests.ConnectionError: ApiError.NETWORK,
+            requests.HTTPError: ApiError.SERVER,
+        }.get(type(exc), ApiError.UNKNOWN))
+    )
+
+# Now you have a properly typed Result
+result = fetch_user_safe(123)
+if result.is_ok():
+    user = result.unwrap()
+else:
+    error = result.unwrap_error()
+    # Error is now a proper ApiError enum
+    handle_api_error(error)
+```
+
+---
+
+## Common Patterns
+
+### Chaining Try Operations
+
+Like other monads, Try chains cleanly:
+
+```python
+def process_user_data(user_id: int) -> Try[dict]:
+    return (
+        Try(lambda: fetch_user(user_id))
+        .map(lambda user: validate_user(user))
+        .map(lambda user: enrich_user(user))
+        .map(lambda user: format_user(user))
+    )
+```
+
+If any step raises an exception, the chain stops and returns a Failure.
+
+### Providing Fallbacks
+
+Use `or_else()` to provide alternative computations:
+
+```python
+def fetch_with_cache(user_id: int) -> Try[dict]:
+    return (
+        Try(lambda: fetch_from_cache(user_id))
+        .or_else(lambda: Try(lambda: fetch_from_db(user_id)))
+        .or_else(lambda: Try(lambda: fetch_from_api(user_id)))
+    )
+```
+
+Try cache, then DB, then API. If all fail, return the final exception.
+
+### Recovering from Specific Exceptions
+
+You can recover based on exception type:
+
+```python
+def safe_int_parse(value: str, default: int = 0) -> int:
+    return (
+        Try(lambda: int(value))
+        .recover(lambda exc: (
+            default if isinstance(exc, ValueError)
+            else raise  # Re-raise if not ValueError
+        ))
+    ).unwrap()
+```
+
+---
+
+## Common Mistakes
+
+### Mistake 1: Not Using Lambda
+
+Try expects a function, not a value:
+
+```python
+# DON'T - This evaluates immediately, crashes
+result = Try(int("invalid"))  # Crashes!
+
+# DO - Wrap in lambda
+result = Try(lambda: int("invalid"))  # Success/Failure
+```
+
+The lambda delays execution until Try calls it internally.
+
+### Mistake 2: Using Try Everywhere
+
+Try is for interfacing with exception-based code, not for your own logic:
+
+```python
+# DON'T - Try is overkill for your own code
+def divide(a: int, b: int) -> Try[int, Exception]:
+    return Try(lambda: a // b)  # You control this code!
+
+# DO - Use Result for your own code
+def divide(a: int, b: int) -> Result[int, str]:
+    if b == 0:
+        return Result.error("Division by zero")
+    return Result.ok(a // b)
+```
+
+Use Result for code you control. Use Try as a bridge to exception-based code you don't control.
+
+### Mistake 3: Ignoring Exception Information
+
+The exception contains useful information - use it:
+
+```python
+# DON'T - Lose error information
+result = Try(lambda: fetch_user(id))
+if result.is_failure():
+    return Result.error("Failed to fetch user")  # What went wrong?
+
+# DO - Preserve error information
+result = Try(lambda: fetch_user(id))
+if result.is_failure():
+    exc = result.get_exception()
+    return Result.error(f"Failed to fetch user: {exc}")
+```
+
+---
+
+## When NOT to Use Try
+
+Try isn't always the right choice.
+
+### For Your Own Code, Use Result
+
+When you control the code, use Result instead:
+
+```python
+# DON'T - You control this code
+def calculate_discount(price: float) -> Try[float]:
+    return Try(lambda: apply_discount(price))
+
+# DO - Use Result for explicit error handling
+def calculate_discount(price: float) -> Result[float, str]:
+    if price < 0:
+        return Result.error("Price cannot be negative")
+    return Result.ok(apply_discount(price))
+```
+
+Result is clearer and doesn't hide what errors can occur.
+
+### For Expected Errors, Don't Use Exceptions
+
+If an error is expected and part of your domain, model it explicitly:
+
+```python
+# DON'T - Exception for expected case
+def get_user(id: int) -> Try[User]:
+    user = db.query(id)
+    if user is None:
+        raise ValueError("User not found")  # Not found is normal!
+    return Success(user)
+
+# DO - Use Maybe for optional values
+def get_user(id: int) -> Maybe[User]:
+    return Maybe.from_value(db.query(id))
+```
+
+---
+
+## Try vs Result vs Exception
+
+When should you use each?
+
+```python
+# Exception: For bugs and unexpected errors
+def divide(a: int, b: int) -> float:
+    if not isinstance(a, int):
+        raise TypeError("a must be an int")  # Programmer error
+    if b == 0:
+        raise ZeroDivisionError("Division by zero")  # Could also be explicit
+    return a / b
+
+# Result: For expected errors you want to handle explicitly
+def divide(a: int, b: int) -> Result[float, str]:
+    if b == 0:
+        return Result.error("Division by zero")  # Expected case
+    return Result.ok(a / b)
+
+# Try: For wrapping exception-based code you don't control
+def safe_divide(a: int, b: int) -> Try[float]:
+    return Try(lambda: some_lib.divide(a, b))  # Wrapping library
+```
+
+- **Exceptions**: For programmer errors and bugs
+- **Result**: For expected errors in your domain
+- **Try**: For bridging to exception-based code
+
+---
+
+## Converting Between Try and Result
+
+Try and Result can be converted to each other:
+
+```python
+from better_py import Try, Result
+
+# Try to Result
+try_value = Try(lambda: int("42"))
+result = try_value.to_result()  # Result.ok(42)
+
+try_value = Try(lambda: int("invalid"))
+result = try_value.to_result()  # Result.error(ValueError instance)
+
+# Result to Try (less common)
+result = Result.ok(42)
+try_value = Try.from_result(result)  # Success(42)
+
+result = Result.error("failed")
+try_value = Try.from_result(result)  # Failure(Exception("failed"))
 ```
 
 ---
 
 ## See Also
 
-- [Result Monad](/docs/monads/result) - For explicit error handling
-- [Error Handling Guide](/docs/guides/error-handling) - Error strategies
+- **[Result Monad](/docs/monads/result)** - For explicit error handling in your own code
+- **[Maybe Monad](/docs/monads/maybe)** - For optional values
+- **[Error Handling Guide](/docs/guides/error-handling)** - Practical patterns for real-world applications
+
+Remember: Try is a bridge between the exception-based world and the explicit error handling world. Use it when you need to work with existing exception-based code, but prefer Result for your own code where you can define explicit error types.

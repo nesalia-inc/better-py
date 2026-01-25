@@ -1,86 +1,545 @@
 ---
 title: Writer Monad
-description: Computations with logging/output
+description: Computations with logging and output accumulation
 ---
 
-The `Writer` monad represents a computation that produces a value along with a log or output.
+# Writer Monad
 
----
+The Writer monad helps you build computations that produce a value while simultaneously accumulating a log or auxiliary output. Instead of scattering print statements throughout your code or manually passing around log lists, Writer handles the accumulation automatically, letting you focus on your computation while it tracks what happened along the way.
 
-## Overview
+Think of Writer as a computation with two outputs: a primary result that you care about, and a secondary log that records what occurred. The log might be a list of strings for auditing, numbers for counting, or any other monoidal value that can be combined. As you chain Writer operations together, their logs get merged automatically, building up a complete history of the computation.
 
-```python
-from better_py import Writer
+This pattern is incredibly useful for debugging, audit trails, and any situation where you need to understand what your code did without cluttering the business logic with logging statements. The log is built up as part of the computation itself, not as a side effect, which means your code remains pure and testable.
 
-# Create a writer with a log
-writer = Writer(["Processing..."], 42)
-```
+## When to Use Writer
 
-<Callout type="success" title="When to Use Writer">
+Writer is designed for situations where you need to track what happens during a computation. Here are the most common use cases:
 
--  Audit logging
--  Debugging computations
--  Building output alongside computation
+<Callout type="success" title="Use Writer when:">
+
+- **You need an audit trail**: Track every step of a computation for compliance or debugging
+- **Building complex outputs**: Generate results alongside derived data or statistics
+- **Debugging complex transformations**: Log each step without mixing logging with business logic
+- **Counting or measuring**: Track metrics like operations performed, comparisons made, or resources used
 
 </Callout>
 
----
+The key benefit of Writer is that logging becomes part of your data flow rather than a side effect. You can compose operations and their logs combine automatically, without you having to manually concatenate strings or manage log lists.
+
+## How Writer Works
+
+Writer wraps a pair of values: a result and a log. The log must be a monoid, meaning it has a way to combine values (an operation that's associative and has an identity element). Common monoids include lists (using concatenation), strings (using concatenation), and numbers (using addition).
+
+When you use `map` to transform a Writer's result, the log stays the same. When you use `bind` to chain Writer operations, the logs get combined. This is the magic of Writer: you build up complex computations from simple pieces, and the logs accumulate automatically.
+
+Imagine you're processing a bank transfer. In traditional Python, you might write:
+
+```python
+def transfer(amount, from_acc, to_acc):
+    logs = []
+    logs.append(f"Transferring {amount}")
+    from_acc = from_acc.debit(amount)
+    logs.append(f"Debited account {from_acc.id}")
+    to_acc = to_acc.credit(amount)
+    logs.append(f"Credited account {to_acc.id}")
+    return (from_acc, to_acc), logs
+```
+
+The logging is mixed with the business logic. With Writer, you separate these concerns:
+
+```python
+def transfer(amount, from_acc, to_acc):
+    return (
+        Writer.value(from_acc)
+        .tap(lambda _: [f"Transferring {amount}"])
+        .map(lambda acc: acc.debit(amount))
+        .tap(lambda acc: [f"Debited account {acc.id}"])
+        .bind(lambda debited_from:
+            Writer.value(to_acc)
+            .map(lambda acc: acc.credit(amount))
+            .tap(lambda acc: [f"Credited account {acc.id}"])
+            .map(lambda credited_to: (debited_from, credited_to))
+        )
+    )
+```
+
+The logging flows alongside the computation, but doesn't obscure what's happening. Each operation produces both a result and a log entry, and Writer combines them.
 
 ## Creating Writer Values
 
-### Writer()
+Writer provides several constructors for creating values with logs attached. The right one depends on what type of log you're building.
 
-Create with log and value:
+### Creating with a log and value
+
+The most basic way to create a Writer is to provide both the log and the value:
 
 ```python
 from better_py import Writer
 
-writer = Writer(["Step 1", "Step 2"], "result")
+# A computation that produced a result while logging steps
+writer = Writer(
+    log=["Step 1: Initialized", "Step 2: Processed"],
+    value=42
+)
 ```
 
-### Helper constructors
+The log comes first, followed by the primary result. This order emphasizes that the log is part of the Writer's structure, not an afterthought.
+
+### Creating from just a value
+
+If you have a value but no log yet, use `Writer.value()` (or just `Writer.of()`). This creates a Writer with an empty log:
 
 ```python
 from better_py import Writer
 
-# For list logs
-Writer.list_writer(["Log"], value)
-
-# For string logs  
-Writer.str_writer("Log", value)
-
-# For numeric logs
-Writer.sum_writer(1, value)
+writer = Writer.value(100)
+# log is empty, result is 100
 ```
 
----
+This is useful when you're starting a computation that will accumulate logs as it progresses. The empty log depends on the log type: an empty list for list logs, an empty string for string logs, or zero for numeric logs.
 
-## Real-World Examples
+### Using specialized constructors
 
-### Example 1: Audit Trail
+Writer provides type-specific constructors that make the log type explicit:
 
 ```python
 from better_py import Writer
 
-def transfer(amount: float, from_acc: Account, to_acc: Account) -> Writer[list[str], Transaction]:
+# List-based logs (most common)
+list_writer = Writer.list_writer(["Log entry"], 42)
+
+# String-based logs
+str_writer = Writer.str_writer("Log entry", 42)
+
+# Numeric logs (using addition as combining operation)
+sum_writer = Writer.sum_writer(5, 42)
+```
+
+These constructors make your log type clear at a glance. The list-based Writer is the most common, as lists are perfect for building up sequences of log entries.
+
+## Working with Writer
+
+Once you have Writer values, you'll transform them and chain them together to build larger computations. Writer supports the standard monadic operations with automatic log accumulation.
+
+### Transforming results with map
+
+Use `map()` when you want to transform the result without affecting the log:
+
+```python
+from better_py import Writer
+
+writer = Writer.list_writer(["Initialized"], 5)
+
+# Transform the value, log stays the same
+doubled = writer.map(lambda x: x * 2)
+# doubled has log=["Initialized"], value=10
+```
+
+The `map` operation applies a function to the Writer's result while preserving the log unchanged. This makes sense: transforming a result doesn't change what happened to produce it.
+
+### Adding logs with tap
+
+Use `tap()` when you want to add a log entry without changing the value:
+
+```python
+from better_py import Writer
+
+writer = Writer.list_writer([], 5)
+
+# Add a log entry, value stays the same
+with_log = writer.tap(lambda x: [f"Processed {x}"])
+# with_log has log=["Processed 5"], value=5
+```
+
+The `tap` operation is perfect for recording what happened to a value. The function receives the current value and returns log entries to be appended. The value itself flows through unchanged.
+
+### Chaining computations with bind
+
+When you need to sequence operations where later steps depend on earlier results, use `bind()` (also known as `and_then`):
+
+```python
+from better_py import Writer
+
+def validate_input(data: str) -> Writer[list[str], dict]:
+    errors = []
+    if not data:
+        errors.append("Empty input")
+    if len(data) < 3:
+        errors.append("Input too short")
+
+    if errors:
+        return Writer(errors, {})
+    else:
+        return Writer(["Input validated"], {"data": data})
+
+def parse_dict(data: dict) -> Writer[list[str], User]:
+    return Writer(["Parsed to User"], User(**data))
+
+# Chain them together
+def process_input(raw: str) -> Writer[list[str], User]:
     return (
-        Writer([], None)
-        .tap(lambda _: [f"Transferring {amount} from {from_acc.id} to {to_acc.id}"])
-        .map(lambda _: from_acc.debit(amount))
-        .tap(lambda _: [f"Debited {amount} from {from_acc.id}"])
-        .bind(lambda new_from: to_acc.credit(amount).map(lambda new_to: (new_from, new_to)))
+        validate_input(raw)
+        .bind(lambda data: parse_dict(data))
+    )
+```
+
+When you chain Writer operations with `bind`, the logs concatenate. If `validate_input` produces `["Input validated"]` and `parse_dict` produces `["Parsed to User"]`, the combined result has log `["Input validated", "Parsed to User"]`.
+
+### Combining independent Writer values
+
+Sometimes you have multiple Writer computations that don't depend on each other, and you want to combine their results:
+
+```python
+from better_py import Writer
+
+def get_config() -> Writer[list[str], Config]:
+    return Writer(["Loaded config"], Config())
+
+def connect_db() -> Writer[list[str], Database]:
+    return Writer(["Connected to database"], Database())
+
+# Combine them using applicative style
+def initialize() -> Writer[list[str], tuple[Config, Database]]:
+    return (
+        get_config().ap(connect_db())
+        .map(lambda parts: (parts[1], parts[0]))
+    )
+    # log = ["Loaded config", "Connected to database"]
+    # result = (Config(), Database())
+```
+
+The `ap` method combines Writer values, merging their logs and pairing their results. Use this when you need to run multiple independent computations and gather all their outputs.
+
+## Running Writer Computations
+
+When you're ready to extract both the result and the accumulated log, use the `run()` method:
+
+```python
+from better_py import Writer
+
+def process(data: str) -> Writer[list[str], int]:
+    return (
+        Writer.list_writer([], 0)
+        .tap(lambda _: [f"Processing {data}"])
+        .map(lambda _: len(data))
+        .tap(lambda length: [f"Length: {length}"])
     )
 
-logs, transaction = transfer(100, acc1, acc2).run()
-# logs = [
-#   "Transferring 100 from acc1 to acc2",
-#   "Debited 100 from acc1"
-# ]
+log, result = process("hello").run()
+# log = ["Processing hello", "Length: 5"]
+# result = 5
 ```
 
----
+The `run()` method returns a tuple of `(log, result)`. This gives you both the outcome of your computation and a complete record of what happened.
+
+## Real-World Patterns
+
+### Audit trails for financial transactions
+
+Writer is perfect for tracking every step of a financial operation, which is often required for compliance:
+
+```python
+from better_py import Writer
+from datetime import datetime
+
+class Account:
+    def __init__(self, id: int, balance: float):
+        self.id = id
+        self.balance = balance
+
+    def debit(self, amount: float) -> "Account":
+        return Account(self.id, self.balance - amount)
+
+    def credit(self, amount: float) -> "Account":
+        return Account(self.id, self.balance + amount)
+
+def transfer_funds(
+    amount: float,
+    from_account: Account,
+    to_account: Account,
+    reference: str
+) -> Writer[list[str], tuple[Account, Account]]:
+    timestamp = datetime.now().isoformat()
+
+    return (
+        Writer.list_writer([], from_account)
+        .tap(lambda _: [
+            f"[{timestamp}] Starting transfer of ${amount}",
+            f"Reference: {reference}",
+            f"From: {from_account.id}, To: {to_account.id}"
+        ])
+        .map(lambda acc: acc.debit(amount))
+        .tap(lambda acc: [
+            f"[{timestamp}] Debited ${amount} from account {acc.id}",
+            f"New balance: ${acc.balance:.2f}"
+        ])
+        .bind(lambda debited_from =>
+            Writer.list_writer([], to_account)
+            .map(lambda acc: acc.credit(amount))
+            .tap(lambda acc: [
+                f"[{timestamp}] Credited ${amount} to account {acc.id}",
+                f"New balance: ${acc.balance:.2f}"
+            ])
+            .map(lambda credited_to: (debited_from, credited_to))
+        )
+        .tap(lambda _: [
+            f"[{timestamp}] Transfer completed successfully"
+        ])
+    )
+
+# Usage
+acc1 = Account(id=1, balance=1000.0)
+acc2 = Account(id=2, balance=500.0)
+
+audit_log, (new_acc1, new_acc2) = transfer_funds(
+    amount=100.0,
+    from_account=acc1,
+    to_account=acc2,
+    reference="TXN-2024-001"
+).run()
+
+print("Audit trail:")
+for entry in audit_log:
+    print(f"  {entry}")
+```
+
+The audit trail captures every step of the transfer with timestamps and account details. This log can be stored in a database or written to a file for compliance purposes, all without cluttering the business logic with logging statements.
+
+### Debugging complex data transformations
+
+When you're writing complex transformations, Writer helps you understand what's happening at each step:
+
+```python
+from better_py import Writer
+from typing import Callable
+
+def debug_transform[T, U](
+    value: T,
+    transform: Callable[[T], U],
+    step_name: str
+) -> Writer[list[str], U]:
+    result = transform(value)
+    return Writer.list_writer(
+        [f"{step_name}: {value} -> {result}"],
+        result
+    )
+
+def process_data(raw: list[int]) -> Writer[list[str], list[int]]:
+    return (
+        Writer.list_writer(["Starting data processing"], raw)
+        .bind(lambda data =>
+            debug_transform(data, lambda d: [x for x in d if x > 0], "Filter negatives")
+        )
+        .bind(lambda data =>
+            debug_transform(data, lambda d: [x * 2 for x in d], "Double values")
+        )
+        .bind(lambda data =>
+            debug_transform(data, lambda d: sorted(d), "Sort ascending")
+        )
+        .bind(lambda data =>
+            debug_transform(data, lambda d: d[:3], "Take top 3")
+        )
+    )
+
+log, result = process_data([3, -1, 4, -5, 2, -3]).run()
+
+print("Processing log:")
+for entry in log:
+    print(f"  {entry}")
+print(f"\nFinal result: {result}")
+```
+
+This approach lets you trace through a complex pipeline step by step. When something goes wrong, you can see exactly where the transformation diverged from your expectations.
+
+### Counting operations
+
+Writer isn't limited to string logs. You can use it to track metrics by using numbers as the log type with addition as the combining operation:
+
+```python
+from better_py import Writer
+
+def compare_count(a: int, b: int) -> Writer[int, bool]:
+    """Compare two numbers, counting the comparison"""
+    return Writer.sum_writer(1, a > b)
+
+def find_max_count_comparisons(nums: list[int]) -> Writer[int, int]:
+    """Find maximum, counting comparisons made"""
+    if not nums:
+        return Writer.value(0)
+
+    return (
+        Writer.value(nums[0])
+        .bind(lambda current_max:
+            Writer.sum_writer(
+                # Count each number we examine
+                len(nums) - 1,
+                # Actually find the max
+                max(nums)
+            )
+        )
+    )
+
+comparison_count, maximum = find_max_count_comparisons([3, 1, 4, 1, 5, 9, 2, 6]).run()
+print(f"Made {comparison_count} comparisons")
+print(f"Maximum: {maximum}")
+```
+
+This pattern is useful for algorithm analysis, performance monitoring, or any situation where you need to track how much work your code is doing.
+
+### Building structured output
+
+Sometimes you want to build complex output alongside your computation. Writer can accumulate any monoidal structure, not just lists:
+
+```python
+from better_py import Writer
+from dataclasses import dataclass, field
+from typing import Dict
+
+@dataclass
+class Metadata:
+    operations: list[str] = field(default_factory=list)
+    stats: Dict[str, int] = field(default_factory=dict)
+
+def merge_metadata(left: Metadata, right: Metadata) -> Metadata:
+    return Metadata(
+        operations=left.operations + right.operations,
+        stats={**left.stats, **right.stats}
+    )
+
+class DataProcessor:
+    def __init__(self, data: list[int]):
+        self.data = data
+
+    def filter_positive(self) -> Writer[Metadata, list[int]]:
+        filtered = [x for x in self.data if x > 0]
+        return Writer(
+            Metadata(
+                operations=["filter_positive"],
+                stats={"input_size": len(self.data), "output_size": len(filtered)}
+            ),
+            filtered
+        )
+
+    def double_values(self, data: list[int]) -> Writer[Metadata, list[int]]:
+        doubled = [x * 2 for x in data]
+        return Writer(
+            Metadata(
+                operations=["double_values"],
+                stats={"transformed_count": len(data)}
+            ),
+            doubled
+        )
+
+    def sum_values(self, data: list[int]) -> Writer[Metadata, int]:
+        total = sum(data)
+        return Writer(
+            Metadata(
+                operations=["sum_values"],
+                stats={"sum": total}
+            ),
+            total
+        )
+
+def process_with_metadata(nums: list[int]) -> Writer[Metadata, int]:
+    processor = DataProcessor(nums)
+    return (
+        processor.filter_positive()
+        .bind(lambda filtered: processor.double_values(filtered))
+        .bind(lambda doubled: processor.sum_values(doubled))
+    )
+
+metadata, result = process_with_metadata([1, -2, 3, -4, 5]).run()
+print(f"Result: {result}")
+print(f"Operations: {metadata.operations}")
+print(f"Stats: {metadata.stats}")
+```
+
+This pattern lets you build rich metadata about your computation without scattering it throughout your code. The metadata accumulates automatically as you compose operations.
+
+## Common Mistakes
+
+### Expensive log construction
+
+Be careful not to do expensive work just to build log entries:
+
+```python
+# DON'T: Expensive logging computation
+writer.tap(lambda data: [f"Data: {expensive_to_string(data)}"])
+
+# DO: Lazy logging or selective logging
+writer.tap(lambda data: [f"Data count: {len(data)}"])
+```
+
+Log entries should be cheap to create. If you need expensive debugging output, consider creating it only when a debug flag is enabled.
+
+### Logs that are too large
+
+Writer accumulates logs eagerly, so very long-running computations can produce enormous logs:
+
+```python
+# DON'T: Log every item in a large list
+def process_large_list(items: list[int]) -> Writer[list[str], int]:
+    return (
+        Writer.list_writer([], 0)
+        .bind(lambda total:
+            # This creates a log entry for EVERY item
+            Writer.list_writer(
+                [f"Processed {item}" for item in items],
+                sum(items)
+            )
+        )
+    )
+
+# DO: Log summaries
+def process_large_list(items: list[int]) -> Writer[list[str], int]:
+    return (
+        Writer.list_writer([], 0)
+        .tap(lambda _: [f"Processing {len(items)} items"])
+        .map(lambda _: sum(items))
+        .tap(lambda total: [f"Total: {total}"])
+    )
+```
+
+Log at an appropriate level of granularity. For large datasets, log summaries rather than individual items.
+
+### Mixing concerns
+
+Don't use Writer to track things that should be separate concerns:
+
+```python
+# DON'T: Use Writer for the primary return value
+def transfer_amounts(from_id: int, to_id: int, amount: float) -> Writer[list[str], bool]:
+    return Writer(["Transferred"], True)
+
+# DO: Use a proper Result or Either type
+def transfer_amounts(from_id: int, to_id: int, amount: float) -> Result[Writer[list[str], Transaction], Error]:
+    ...
+```
+
+Writer is for auxiliary output, not for success/failure handling. Use Result, Either, or Maybe for error cases.
+
+## When NOT to Use Writer
+
+Writer is a powerful tool, but it's not always the right choice. Here are situations where you should consider alternatives:
+
+### For simple logging
+
+If you just need to log messages to a file or console, use a traditional logging library. Writer is overkill for simple logging and adds complexity without benefit when you don't need to manipulate or inspect the log programmatically.
+
+### For real-time logging
+
+Writer accumulates logs lazily, so you can't access partial logs until the computation completes. If you need to see logs in real-time (for progress monitoring or long-running operations), consider traditional logging or a custom solution.
+
+### For side-effecting logs
+
+Writer keeps logs as pure data. If your logging needs to have side effects (writing to a file as you go, sending logs to a remote service, updating a progress bar), use the IO monad or a traditional logger instead.
+
+### When performance is critical
+
+Writer adds overhead from creating intermediate Writer values and combining logs. In performance-critical code, this overhead might matter. Profile your code to see if Writer is a bottleneck.
 
 ## See Also
 
-- [State Monad](/docs/monads/state) - For state management
-- [IO Monad](/docs/monads/io) - For side effects
+- [State Monad](/docs/monads/state) - For managing state transitions in pure functions
+- [IO Monad](/docs/monads/io) - For side effects that need to happen immediately
+- [Reader Monad](/docs/monads/reader) - For dependency injection and environment passing

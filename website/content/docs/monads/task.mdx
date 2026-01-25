@@ -3,83 +3,470 @@ title: Task Monad
 description: Lazy, memoized async computations
 ---
 
-The `Task` monad represents lazy, memoized asynchronous computations.
+# Task Monad
 
----
+The Task monad provides a way to work with asynchronous operations in a lazy and composable manner. Unlike regular async functions in Python that execute immediately when awaited, Task defers execution until you explicitly call `run()`. This gives you control over when async operations start and makes it easier to compose them together.
 
-## Overview
+Think of Task as a description of an async operation that will happen later. When you create a Task, you're not actually doing anything yet. You're building up a computation that, when run, will execute the async operation and produce a result. This is similar to IO but specifically designed for async/await code, with additional benefits like memoization (caching results so the operation only runs once).
 
-```python
-from better_py import Task
+Task is particularly valuable when you're working with APIs, databases, or any async operation. It lets you describe what async operations you want to perform, compose them together, and then execute them when you're ready. This separation of description and execution makes your async code more predictable and easier to reason about.
 
-async def fetch_data():
-    return await api_call()
+## When to Use Task
 
-task = Task(fetch_data)  # Not executed yet
-result = await task.run()  # Executes now
-```
+Task excels at managing async operations with lazy evaluation and memoization. Here are the situations where it's most valuable:
 
-<Callout type="success" title="When to Use Task">
+<Callout type="success" title="Use Task when:">
 
--  Deferring async operations
--  Memoizing async results
--  Composing async operations
+- **You need lazy async operations**: Defer execution until you're ready, rather than starting immediately
+- **You want memoization**: Cache the result of an async operation so it only runs once even if you use the result multiple times
+- **Composing async operations**: Build complex async workflows from simple pieces
+- **Managing async side effects**: Keep async effects explicit and controlled, similar to IO but for async code
 
 </Callout>
 
----
+The key benefit of Task is that it separates describing an async operation from executing it. You can build up complex async computations, pass them around, compose them, and only execute them when you're ready. The memoization also ensures that expensive operations don't run multiple times unnecessarily.
+
+## How Task Works
+
+Task is a wrapper around an async function. When you create a Task value, you're wrapping a function that, when called, will await an async operation and produce a result. The monad operations let you compose these async functions together.
+
+The crucial feature of Task is that it's lazy: creating the Task doesn't execute the async operation. The operation only runs when you call `await task.run()`. Additionally, Task memoizes the result: once it runs, the result is cached, and subsequent calls to `run()` return the cached value without re-executing the operation.
+
+Imagine you want to fetch data from an API. In traditional async Python, you might write:
+
+```python
+async def fetch_user(user_id: int) -> User:
+    return await api.get_user(user_id)
+
+# This starts the operation immediately when awaited
+user = await fetch_user(123)
+```
+
+With Task, you write:
+
+```python
+def fetch_user(user_id: int) -> Task[User]:
+    return Task(lambda: api.get_user(user_id))
+
+# This creates a Task but doesn't fetch yet
+user_task = fetch_user(123)
+
+# The fetch only happens when you run it
+user = await user_task.run()
+```
+
+The Task version defers the fetch until you explicitly run it. If you never run the Task, the API call never happens. And if you run the Task multiple times, the API call only happens once, with the result being cached.
 
 ## Creating Task Values
 
-### Task()
+Task provides a simple way to wrap async operations. The main constructor takes a function that returns an awaitable.
 
-Wrap an async function:
+### Wrapping async operations
 
-```python
-from better_py import Task
-
-async def fetch_user(id: int):
-    return await db.fetch(id)
-
-task = Task(lambda: fetch_user(123))
-```
-
----
-
-## Running Task
-
-### run()
-
-Execute the task:
-
-```python
-result = await task.run()
-```
-
----
-
-## Real-World Examples
-
-### Example 1: Lazy API Calls
+When you have an async function or operation, wrap it in Task:
 
 ```python
 from better_py import Task
 
-def get_user(id: int) -> Task[User]:
-    return Task(lambda: fetch_user_from_api(id))
+# Wrap an async function
+async def fetch_data():
+    await asyncio.sleep(1)
+    return "data"
 
-# Create tasks (not executed)
-user_task = get_user(1)
-profile_task = get_user(2)
+task = Task(fetch_data)
 
-# Execute later
-user = await user_task.run()
-profile = await profile_task.run()
+# Wrap an async lambda
+task = Task(lambda: fetch_user_from_api(123))
 ```
 
----
+The function you pass to Task should return an awaitable. Task will handle awaiting it when you call `run()`.
+
+### Creating from pure values
+
+Sometimes you need to create a Task from a pure value that's already available:
+
+```python
+from better_py import Task
+
+# Create a Task that completes immediately with a value
+immediate = Task.pure("Hello, World!")
+result = await immediate.run()  # Returns "Hello, World!" immediately
+```
+
+This is useful when you're working with Task operations but need to inject synchronous values into the flow.
+
+### Creating from async functions
+
+If you have an existing async function, you can convert it to return Task:
+
+```python
+from better_py import Task
+
+async def get_user(id: int) -> User:
+    return await db.query("SELECT * FROM users WHERE id = ?", id)
+
+# Convert to Task-returning function
+def get_user_task(id: int) -> Task[User]:
+    return Task(lambda: get_user(id))
+```
+
+This pattern is common when you're refactoring existing async code to use Task.
+
+## Working with Task
+
+Once you have Task values, you'll transform them and chain them together to build async workflows. Task supports the standard monadic operations with memoization.
+
+### Transforming results with map
+
+Use `map()` when you want to transform the result of a Task without adding new async operations:
+
+```python
+from better_py import Task
+
+fetch_user = Task(lambda: api.get_user(123))
+
+# Transform the user to get their name
+user_name = fetch_user.map(lambda user: user.name)
+
+# Run it
+name = await user_name.run()
+```
+
+The `map` operation applies a pure function to the Task's result after the async operation completes. The transformation itself is synchronous and doesn't introduce new async effects.
+
+### Chaining async operations with bind
+
+When you need to sequence async operations where later ones depend on earlier results, use `bind()` (also known as `and_then`):
+
+```python
+from better_py import Task
+
+def fetch_user(user_id: int) -> Task[User]:
+    return Task(lambda: api.get_user(user_id))
+
+def fetch_user_posts(user: User) -> Task[list[Post]]:
+    return Task(lambda: api.get_user_posts(user.id))
+
+def get_user_with_posts(user_id: int) -> Task[tuple[User, list[Post]]]:
+    return (
+        fetch_user(user_id)
+        .bind(lambda user =>
+            fetch_user_posts(user)
+            .map(lambda posts => (user, posts))
+        )
+    )
+
+# Run the whole workflow
+user, posts = await get_user_with_posts(123).run()
+```
+
+When you chain Task operations with `bind`, the async operations happen in sequence. First the user is fetched, then the posts are fetched using that user's ID. The second operation waits for the first to complete.
+
+### Memoization in action
+
+One of Task's key features is memoization. Once a Task runs, its result is cached:
+
+```python
+from better_py import Task
+
+# Create a Task that fetches data
+fetch_data = Task(lambda: expensive_api_call())
+
+# First call runs the operation
+result1 = await fetch_data.run()
+
+# Second call returns cached result, doesn't run again
+result2 = await fetch_data.run()
+
+# result1 and result2 are the same object
+assert result1 is result2
+```
+
+This is particularly useful for expensive operations that you might use multiple times. The operation only runs once, no matter how many times you access the result.
+
+### Running Task operations
+
+When you're ready to execute the async operation, use the `run()` method:
+
+```python
+from better_py import Task
+
+async def greet_user() -> Task[str]:
+    return (
+        Task(lambda: input("What is your name? "))
+        .map(lambda name: f"Hello, {name}!")
+    )
+
+# Run the Task
+message = await greet_user().run()
+print(message)
+```
+
+The `run()` method is async, so you must await it. It executes the wrapped async operation and returns the final result, caching the result for subsequent calls.
+
+## Real-World Patterns
+
+### Lazy API calls
+
+Task is perfect for API interactions where you want to prepare operations but not execute them until necessary:
+
+```python
+from better_py import Task
+import aiohttp
+
+async def fetch_user(user_id: int) -> dict:
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f"https://api.example.com/users/{user_id}") as resp:
+            return await resp.json()
+
+def get_user_task(user_id: int) -> Task[dict]:
+    return Task(lambda: fetch_user(user_id))
+
+# Prepare Tasks without executing
+user_tasks = [get_user_task(id) for id in [1, 2, 3, 4, 5]]
+
+# Execute them all later
+for task in user_tasks:
+    user = await task.run()
+    print(f"User: {user['name']}")
+```
+
+The Tasks are prepared upfront but only executed when you explicitly run them. This lets you batch operations or delay execution until you're ready.
+
+### Composing multiple async operations
+
+Task makes it easy to build complex async workflows from simple operations:
+
+```python
+from better_py import Task
+
+def validate_user(user_id: int) -> Task[bool]:
+    return Task(lambda: check_user_exists(user_id))
+
+def fetch_user_profile(user_id: int) -> Task[dict]:
+    return Task(lambda: api.get_profile(user_id))
+
+def fetch_user_settings(user_id: int) -> Task[dict]:
+    return Task(lambda: api.get_settings(user_id))
+
+def get_complete_user_data(user_id: int) -> Task[dict]:
+    return (
+        validate_user(user_id)
+        .bind(lambda valid =>
+            Task.raise_error("User not found") if not valid
+            else fetch_user_profile(user_id).bind(lambda profile =>
+                fetch_user_settings(user_id).map(lambda settings =>
+                    {**profile, **settings}
+                )
+            )
+        )
+    )
+
+# Usage
+data = await get_complete_user_data(123).run()
+```
+
+The workflow composes validation and two fetch operations. Each step depends on the previous one, and the entire workflow is described before any async operations execute.
+
+### Caching expensive computations
+
+Task's memoization makes it ideal for caching expensive results:
+
+```python
+from better_py import Task
+
+class DataCache:
+    def __init__(self):
+        self._cached_user: Task[User] | None = None
+
+    def get_user(self, user_id: int) -> Task[User]:
+        # Create task on first access
+        if self._cached_user is None:
+            self._cached_user = Task(lambda: self._fetch_user_from_db(user_id))
+
+        # Subsequent calls reuse the same Task
+        return self._cached_user
+
+    async def _fetch_user_from_db(self, user_id: int) -> User:
+        # Expensive database operation
+        await asyncio.sleep(1)  # Simulate slow operation
+        return User(id=user_id, name="Alice")
+
+# Usage
+cache = DataCache()
+
+# First call fetches from database
+user1 = await cache.get_user(123).run()
+
+# Second call returns cached result, no database hit
+user2 = await cache.get_user(123).run()
+
+assert user1 is user2  # Same object, not refetched
+```
+
+The Task ensures the expensive operation only runs once, no matter how many times you request the data. This is particularly useful for shared data in web applications.
+
+### Conditional async operations
+
+Task lets you prepare async operations and conditionally execute them:
+
+```python
+from better_py import Task
+from dataclasses import dataclass
+
+@dataclass
+class Config:
+    use_cache: bool
+    cache_ttl: int
+
+class DataLoader:
+    def __init__(self, config: Config):
+        self.config = config
+        self._cache: dict[str, Task[dict]] = {}
+
+    def load_data(self, key: str) -> Task[dict]:
+        if self.config.use_cache and key in self._cache:
+            # Return cached Task
+            return self._cache[key]
+
+        # Create new Task
+        task = Task(lambda: self._fetch_and_decode(key))
+
+        if self.config.use_cache:
+            self._cache[key] = task
+
+        return task
+
+    async def _fetch_and_decode(self, key: str) -> dict:
+        # Simulate async fetch and decode
+        await asyncio.sleep(0.1)
+        return {"key": key, "data": "..."}
+
+# Usage
+loader = DataLoader(Config(use_cache=True, cache_ttl=3600))
+
+# Prepare multiple loads
+tasks = [loader.load_data(f"key_{i}") for i in range(10)]
+
+# Execute them all
+results = await asyncio.gather(*[task.run() for task in tasks])
+```
+
+Tasks are prepared based on configuration and cache state, then executed in batch. This pattern is common in data loading and caching scenarios.
+
+## Common Mistakes
+
+### Running Task too early
+
+It's tempting to run Task operations as soon as you create them, but this defeats the purpose of lazy evaluation:
+
+```python
+# DON'T: Run immediately
+def process_data(data_id: int) -> Task[ProcessedData]:
+    data = await fetch_data(data_id).run()  # Runs immediately!
+    return Task.pure(process(data))
+
+# DO: Keep it lazy
+def process_data(data_id: int) -> Task[ProcessedData]:
+    return (
+        fetch_data(data_id)
+        .map(process)
+    )
+```
+
+Keep Task values unexecuted until you reach the point where you actually need the result. This lets you compose and optimize operations before running them.
+
+### Creating Tasks instead of using map
+
+Don't wrap simple transformations in new Tasks. Use map instead:
+
+```python
+# DON'T: Unnecessary Task creation
+def get_user_name(user_id: int) -> Task[str]:
+    return (
+        fetch_user(user_id)
+        .bind(lambda user: Task.pure(user.name))
+    )
+
+# DO: Use map for transformations
+def get_user_name(user_id: int) -> Task[str]:
+    return fetch_user(user_id).map(lambda user: user.name)
+```
+
+Use `map` for synchronous transformations and `bind` only when you need to chain async operations.
+
+### Forgetting to cache Tasks
+
+If you want memoization, you need to reuse the same Task object:
+
+```python
+# DON'T: Creating new Tasks
+class Cache:
+    def get_user(self, id: int) -> Task[User]:
+        return Task(lambda: fetch_user(id))  # New Task each time!
+
+# DO: Cache the Task
+class Cache:
+    def __init__(self):
+        self._tasks = {}
+
+    def get_user(self, id: int) -> Task[User]:
+        if id not in self._tasks:
+            self._tasks[id] = Task(lambda: fetch_user(id))
+        return self._tasks[id]
+```
+
+Memoization happens per Task instance. If you create multiple Tasks for the same operation, each will execute independently.
+
+## When NOT to Use Task
+
+Task is a powerful tool, but it's not always the right choice. Here are situations where you should consider alternatives:
+
+### For simple async operations
+
+If you have a straightforward async operation that doesn't benefit from lazy evaluation or memoization, regular async/await is simpler:
+
+```python
+# Simple case: just use async/await
+async def fetch_and_process(id: int) -> str:
+    data = await fetch_data(id)
+    return process(data)
+```
+
+Task adds complexity, so only use it when you need the benefits of lazy evaluation and memoization.
+
+### When you need immediate execution
+
+If you need an async operation to start immediately rather than when you explicitly run it, regular async functions are more appropriate:
+
+```python
+# For immediate execution, use async directly
+async def main():
+    # These start executing immediately
+    task1 = async_operation_1()
+    task2 = async_operation_2()
+
+    # Wait for both to complete
+    await asyncio.gather(task1, task2)
+```
+
+Use Task when you want to defer execution, not when you want it to start immediately.
+
+### For fire-and-forget operations
+
+Task is designed for operations where you care about the result. For background operations where you don't need the return value, asyncio.create_task() is more appropriate:
+
+```python
+# Fire and forget: use asyncio.create_task
+async def main():
+    asyncio.create_task(background_job())  # Runs in background
+    # Continue with other work
+```
+
+Use Task when you need to compose operations and access their results.
 
 ## See Also
 
-- [IO Monad](/docs/monads/io) - For side effects
+- [IO Monad](/docs/monads/io) - For synchronous side effects with lazy evaluation
 - [AsyncResult](/docs/monads/async/async-result) - For async error handling
+- [AsyncIO Guide](/docs/guides/asyncio) - Patterns for working with async code in Python

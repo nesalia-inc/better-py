@@ -3,13 +3,17 @@ title: Protocols
 description: Type-safe protocols for extensible design
 ---
 
-Protocols in better-py provide a way to define type-safe interfaces that work across different types. They enable polymorphism and extensibility while maintaining type safety.
+# Protocols
 
----
+Protocols in better-py provide a way to define type-safe interfaces that work across different types. They enable polymorphism and extensibility while maintaining complete type safety. Instead of rigid inheritance hierarchies, protocols let you define capabilities that any type can implement.
 
-## What are Protocols?
+The power of protocols is that they're structural. A type satisfies a protocol if it has the required methods, regardless of whether it explicitly declares the protocol. This is called duck typing, but with the type system verifying that the duck actually quacks.
 
-Protocols are **structural types** - they define interfaces that any type can implement by providing the required methods, without explicit inheritance:
+## What Are Protocols?
+
+Protocols are structural types that define interfaces. When you define a protocol, you specify the methods that a type must have to satisfy that protocol. Any type with those methods satisfies the protocol, whether or not it explicitly declares it.
+
+This is different from inheritance-based interfaces. With inheritance, a type must explicitly inherit from an interface. With protocols, the type just needs to have the right methods. This makes your code more flexible and less coupled to specific types.
 
 ```python
 from better_py.protocols import Mappable
@@ -18,20 +22,20 @@ from better_py.protocols import Mappable
 class MyContainer:
     def map(self, fn):
         # Implementation
-        ...
+        pass
 
 # MyContainer is a Mappable!
 def process[T: Mappable](container: T) -> T:
     return container.map(lambda x: x * 2)
 ```
 
----
+The type system verifies that the type actually satisfies the protocol. You can't accidentally use a type that doesn't have the required methods. This gives you the flexibility of duck typing with the safety of static typing.
 
-## Why Protocols?
+## Why Protocols Matter
 
-### 1. Flexibility
+Protocols enable code that works with any compatible type. Instead of writing functions that only work with PersistentList, you write functions that work with anything that's reducible. The function becomes more general and reusable.
 
-Work with any compatible type:
+This flexibility doesn't come at the cost of type safety. The type system still verifies that the operations you perform are valid. You get the best of both worlds: flexible code that's also type-safe.
 
 ```python
 from better_py.protocols import Reducible
@@ -48,64 +52,40 @@ sum_all([1, 2, 3])  # 6
 # Works with any custom Reducible
 ```
 
-### 2. Type Safety
-
-```python
-from better_py.protocols import Monoid
-
-def combine[T: Monoid](a: T, b: T) -> T:
-    return a.combine(b)
-
-# Type-safe - only works with Monoids
-result = combine(PersistentList.of(1), PersistentList.of(2))
-```
-
-### 3. Composition
-
-Build reusable abstractions:
+Protocols also enable composition. You can require that a type satisfies multiple protocols, combining capabilities in flexible ways. A type might be both Mappable and Reducible, and your code can take advantage of both capabilities.
 
 ```python
 from better_py.protocols import Mappable, Reducible
 
-def process[T: (Mappable, Reducible)](data: T) -> int:
+def process[T: (Mappable, Reducible)](data: T) -> float:
     return (
         data.map(lambda x: x * 2)
         .reduce(lambda acc, x: acc + x, 0)
-    )
+    ) / len(data)
 ```
 
----
+## Core Protocols in Better-py
 
-## Available Protocols
+Better-py provides a set of core protocols that capture common patterns. These protocols are implemented by better-py's types, and you can also implement them in your own types.
 
-### Mappable
-
-Types that support `map`:
+Mappable types support a map operation that transforms each element. Maybe, Result, and PersistentList are all mappable. Any type with a map method that applies a function to its contents can be mappable.
 
 ```python
 from better_py.protocols import Mappable
 
+# Mappable transforms elements
 protocol Mappable[T]:
     def map[U](self, fn: Callable[[T], U]) -> Mappable[U]:
         """Transform each element"""
-        ...
+        pass
 ```
 
-**Implemented by:**
-- `Maybe`
-- `Result`
-- `PersistentList`
-- Any custom type with `map`
-
----
-
-### Reducible
-
-Types that support `reduce`:
+Reducible types support a reduce operation that combines elements into a single value. All the persistent collections implement this protocol, as do Python's built-in collections.
 
 ```python
 from better_py.protocols import Reducible
 
+# Reducible combines elements
 protocol Reducible[T]:
     def reduce[R](
         self,
@@ -113,186 +93,72 @@ protocol Reducible[T]:
         initial: R
     ) -> R:
         """Reduce to single value"""
-        ...
+        pass
 ```
 
-**Implemented by:**
-- `PersistentList`
-- `PersistentMap`
-- `PersistentSet`
-- Python lists, dicts, sets
-
----
-
-### Monoid
-
-Types that support `combine` and `empty`:
+Monoid types can be combined with each other. Lists combine by concatenation. Numbers combine by addition. Maps combine by merging. This protocol captures the idea of combination in a general way.
 
 ```python
 from better_py.protocols import Monoid
 
+# Monoid combines values
 protocol Monoid[T]:
     def combine(self, other: T) -> T:
         """Combine two values"""
-        ...
+        pass
 
     @staticmethod
     def empty() -> T:
         """Return empty value"""
-        ...
+        pass
 ```
 
-**Implemented by:**
-- `PersistentList` (combine = append)
-- `PersistentMap` (merge)
-- `PersistentSet` (union)
-- `int` (addition)
-- `str` (concatenation)
-
----
-
-### Combinable
-
-Types that can be combined:
+Combinable is a simpler version of Monoid that only requires the combine operation. Numbers, strings, and collections are all combinable.
 
 ```python
 from better_py.protocols import Combinable
 
+# Combinable combines values
 protocol Combinable[T]:
     def combine(self, other: T) -> T:
         """Combine with another value"""
-        ...
+        pass
 ```
 
-**Examples:**
-```python
-# Numbers
-result = 3.combine(4)  # 7
-
-# Lists
-result = PersistentList.of(1, 2).combine(PersistentList.of(3, 4))
-# PersistentList(1, 2, 3, 4)
-
-# Strings
-result = "Hello".combine(" ")  # "Hello "
-```
-
----
-
-### Updatable
-
-Types that support key-value updates:
+Updatable types support key-value updates like a dictionary. PersistentMap implements this protocol, and so do Python dictionaries.
 
 ```python
 from better_py.protocols import Updatable
 
+# Updatable modifies key-value pairs
 protocol Updatable[K, V]:
     def set(self, key: K, value: V) -> Updatable[K, V]:
         """Set a key-value pair"""
-        ...
+        pass
 
     def delete(self, key: K) -> Updatable[K, V]:
         """Delete a key"""
-        ...
+        pass
 ```
 
-**Implemented by:**
-- `PersistentMap`
-- Python dicts (returns mutable copy)
-
----
-
-### Traversable
-
-Types that support `traverse`:
+Traversable types support a traverse operation that's like map but for functions that return monads. This is useful for validation and other scenarios where you're working with monadic operations over collections.
 
 ```python
 from better_py.protocols import Traversable
 
+# Traversable transforms with monadic functions
 protocol Traversable[T]:
     def traverse[M](
         self,
         fn: Callable[[T], M]
     ) -> M:
         """Transform with monadic function"""
-        ...
+        pass
 ```
 
-**Example:**
-```python
-from better_py import Maybe, PersistentList
+## Using Protocols in Your Code
 
-# Validate all items
-def validate_all(items: PersistentList[str]) -> Maybe[PersistentList[int]]:
-    return items.traverse(lambda s: parse_int(s))
-```
-
----
-
-### Parseable
-
-Types that can be parsed:
-
-```python
-from better_py.protocols import Parseable
-
-protocol Parseable[T]:
-    @staticmethod
-    def parse(source: str) -> Result[T, str]:
-        """Parse from string"""
-        ...
-```
-
-**Example:**
-```python
-from better_py import Result
-
-class User(Parseable):
-    @staticmethod
-    def parse(source: str) -> Result[User, str]:
-        try:
-            data = json.loads(source)
-            return Result.ok(User.from_dict(data))
-        except Exception as e:
-            return Result.error(str(e))
-```
-
----
-
-### Validable
-
-Types that can be validated:
-
-```python
-from better_py.protocols import Validable
-
-protocol Validable[T]:
-    def validate(self) -> Validation[T, str]:
-        """Validate the value"""
-        ...
-```
-
-**Example:**
-```python
-from better_py import Validation
-
-class Email(Validable):
-    def __init__(self, address: str):
-        self.address = address
-
-    def validate(self) -> Validation[Email, str]:
-        if "@" not in self.address:
-            return Validation.invalid(["Invalid email format"])
-        return Validation.valid(self)
-```
-
----
-
-## Using Protocols
-
-### Generic Functions
-
-Write functions that work with any protocol implementation:
+Write functions that accept protocol-constrained types when you want them to work with multiple implementations. The type system ensures that any type passed actually satisfies the protocol, catching mismatches at compile time.
 
 ```python
 from better_py.protocols import Monoid
@@ -315,9 +181,7 @@ combine_all(["Hello", " ", "World"])
 # "Hello World"
 ```
 
-### Type Constraints
-
-Ensure types support required operations:
+Type constraints ensure that types support required operations. When you constrain a type parameter with a protocol, the type system verifies that all the operations you perform are valid.
 
 ```python
 from better_py.protocols import Mappable, Reducible
@@ -330,9 +194,7 @@ def process[T: (Mappable, Reducible)](data: T) -> float:
     ) / len(data)
 ```
 
-### Protocol Composition
-
-Combine multiple protocols:
+Protocol composition lets you combine multiple protocols to express complex requirements. A type must satisfy all the protocols in the composition.
 
 ```python
 from better_py.protocols import Mappable, Monoid
@@ -344,11 +206,11 @@ def transform_and_combine[T: (Mappable, Monoid)](
     return items.map(fn).combine(items)
 ```
 
----
-
 ## Implementing Protocols
 
-### Example: Custom Container
+Implementing protocols in your own types is straightforward. Just provide the required methods, and your type automatically satisfies the protocol. You don't need to explicitly declare it.
+
+For example, here's a simple container that's both mappable and reducible:
 
 ```python
 from better_py.protocols import Mappable, Reducible
@@ -377,10 +239,11 @@ result = box.map(lambda x: x * 2)  # Box(10)
 total = box.reduce(lambda acc, x: acc + x, 0)  # 5
 ```
 
-### Example: Custom Monoid
+Custom monoids are useful for domain-specific types that have a natural combination operation. For example, money that can only be combined if the currencies match:
 
 ```python
 from better_py.protocols import Monoid
+from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Money(Monoid):
@@ -401,28 +264,17 @@ wallet = Money(100, "USD").combine(Money(50, "USD"))
 # Money(150, "USD")
 ```
 
----
+<Callout type="info" title="Protocols Enable Extensibility">
+
+The beauty of protocols is that you can add new types without modifying existing code. Your custom type automatically works with any function that accepts its protocols. This is the open/closed principle in action: code is open for extension but closed for modification.
+
+</Callout>
 
 ## Protocol Benefits
 
-### 1. Extensibility
+Protocols make your code extensible. You can add new types that work with existing functions without modifying those functions. The new type just needs to implement the required methods, and the type system verifies the compatibility.
 
-Add new types without changing existing code:
-
-```python
-# Your custom type
-class CustomData:
-    def map(self, fn):
-        # Implementation
-        ...
-
-# Works with all Mappable functions!
-process_any_mappable(custom_data)
-```
-
-### 2. Testability
-
-Easy to create test doubles:
+Testability improves dramatically with protocols. You can create test doubles that implement the same protocols as your production types. The test doubles can be simpler and more predictable than the real dependencies.
 
 ```python
 class FakeDatabase(Reducible):
@@ -433,9 +285,7 @@ class FakeDatabase(Reducible):
 test_with_database(FakeDatabase())
 ```
 
-### 3. Reusability
-
-Write once, use everywhere:
+Reusability increases because functions work with any type that satisfies the protocol. You don't have to write separate versions for each type. One function works with all compatible types.
 
 ```python
 def sum_all[T: Reducible](items: T) -> int:
@@ -446,10 +296,73 @@ sum_all([1, 2, 3])
 sum_all(PersistentList.of(1, 2, 3))
 ```
 
----
+## Practical Examples
 
-## Next Steps
+Protocols shine in real-world scenarios. One example is parsing. You can define a Parseable protocol and implement it for any type that can be created from a string.
 
-- **[Mappable Protocol](/docs/protocols/mappable)** - Complete guide
-- **[Monoid Protocol](/docs/protocols/monoid)** - Monoidal patterns
-- **[All Protocols](/docs/protocols)** - Protocol reference
+```python
+from better_py.protocols import Parseable
+from better_py import Result
+
+protocol Parseable[T]:
+    @staticmethod
+    def parse(source: str) -> Result[T, str]:
+        """Parse from string"""
+        pass
+
+class User(Parseable):
+    @staticmethod
+    def parse(source: str) -> Result[User, str]:
+        try:
+            data = json.loads(source)
+            return Result.ok(User.from_dict(data))
+        except Exception as e:
+            return Result.error(str(e))
+```
+
+Validation is another great use case. Define a Validable protocol and implement it for types that need validation. This gives you a consistent validation interface across all your types.
+
+```python
+from better_py.protocols import Validable
+from better_py import Validation
+
+protocol Validable[T]:
+    def validate(self) -> Validation[T, str]:
+        """Validate the value"""
+        pass
+
+class Email(Validable):
+    def __init__(self, address: str):
+        self.address = address
+
+    def validate(self) -> Validation[Email, str]:
+        if "@" not in self.address:
+            return Validation.invalid(["Invalid email format"])
+        return Validation.valid(self)
+```
+
+## When to Use Protocols
+
+Protocols excel at defining capabilities that multiple types share. If you find yourself writing the same function for multiple types, consider defining a protocol and making the function generic.
+
+Protocols are also great for library APIs. Define protocols for the capabilities your library needs, and users can implement them with their own types. This makes your library flexible without sacrificing type safety.
+
+<Callout type="success" title="Great Use Cases for Protocols">
+
+Define protocols when multiple types need to share capabilities, when you want to write generic reusable functions, when building extensible library APIs, or when you need to mock types for testing.
+
+</Callout>
+
+<Callout type="warning" title="When Protocols Might Be Overkill">
+
+For simple one-off types or internal implementation details, protocols might be unnecessary. Use protocols when the abstraction pays for itself in reusability and clarity.
+
+</Callout>
+
+## Protocols in Practice
+
+Protocols transform how you think about interfaces. Instead of rigid hierarchies, you have flexible capabilities. Instead of explicit inheritance, you have structural compatibility. This makes code more adaptable and easier to evolve.
+
+The type system ensures that protocols aren't just conventions. When you say a function accepts a Mappable type, the type checker verifies that any type you pass actually has a map method. You get duck typing with compile-time verification.
+
+Ready to explore protocols in depth? The protocol documentation shows all available protocols and how to implement them effectively in your code.

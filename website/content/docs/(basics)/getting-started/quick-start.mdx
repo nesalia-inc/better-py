@@ -4,26 +4,26 @@ description: Build your first functional program in 5 minutes
 ---
 
 import { Steps, Step } from 'fumadocs-ui/components/steps';
-import { CheckCircle, AlertCircle } from 'lucide-react';
 
-Let's build your first functional program with better-py! In this guide, we'll create a simple user lookup service that demonstrates the core concepts.
-
----
-
-## What We'll Build
-
-We'll build a **user service** that:
-
-1.  Looks up users safely (with `Maybe`)
-2.  Handles errors explicitly (with `Result`)
-3.  Validates input data (with `Validation`)
-4.  Chains operations cleanly
+The best way to learn better-py is to build something real. In this guide, we'll create a user lookup service that demonstrates the core concepts of functional programming: optional values, error handling, and data validation.
 
 ---
 
-## Step 1: Set Up Your Project
+## What We're Building
 
-Create a new project:
+We'll build a simple user service with three layers of safety:
+
+1. **Safe lookups** with `Maybe` - handle missing users without crashes
+2. **Explicit errors** with `Result` - validate input and show clear error messages
+3. **Data validation** with `Validation` - accumulate multiple errors at once
+
+This isn't just academic. These patterns appear constantly in real applications: database queries, API calls, form processing, and configuration parsing. By the end, you'll have patterns you can apply immediately.
+
+---
+
+## Setting Up the Project
+
+First, create a new directory and set up a Python environment:
 
 ```bash
 mkdir user-service
@@ -33,11 +33,28 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install better-py-fp
 ```
 
+This creates a clean workspace with better-py installed. The virtual environment keeps dependencies isolated, which is always a good practice.
+
 ---
 
-## Step 2: Basic Maybe Usage
+## Understanding Maybe: Handling Missing Values
 
-Let's start with the simplest monad - `Maybe`. Create `main.py`:
+Before we write code, let's understand the problem we're solving. In traditional Python code, when you look up something that might not exist, you have to remember to check for `None`:
+
+```python
+# Traditional approach - error-prone
+user = find_user(1)
+if user is not None:
+    email = user.get("email")
+    if email is not None:
+        print(email)
+```
+
+This works but it's tedious. It's easy to forget a check, leading to crashes. Maybe solves this by making the possibility of absence explicit in the type system.
+
+Think of Maybe as a container that either holds a value or holds nothing. Every operation you perform acknowledges this uncertainty, so you can't accidentally access a missing value.
+
+Let's start building our user service with Maybe:
 
 ```python
 from better_py import Maybe
@@ -61,20 +78,23 @@ if result.is_some():
     print(f"Found user: {user['name']}")
 else:
     print("User not found")
-
-# Output: Found user: Alice
 ```
 
-<Callout type="info" title="Why Maybe?">
+The return type `Maybe[dict]` tells anyone reading this code that the user might not exist. You don't need to read the implementation to know you should handle both cases. Compare this to a function that returns `dict | None` - you have to guess whether `None` is actually possible or just a theoretical possibility.
 
-`Maybe` makes it explicit that a value might not exist. No more `None` checks or `TypeError: 'NoneType' object is not subscriptable`!
+<Callout type="info" title="Why not just use None?">
+
+The problem with `None` is that it's implicit. You can return `None` from any function, but Python won't force callers to handle it. Maybe makes absence explicit and requires you to acknowledge it.
+
 </Callout>
 
 ---
 
-## Step 3: Chaining Maybe Operations
+## Transforming Maybe Values
 
-Now let's chain operations safely:
+Looking up a user is just the beginning. Often you want to extract or transform data from the user. Maybe provides operations that let you work with the value inside while maintaining safety.
+
+Let's say we want to get a user's email address. The challenge is that the user might not exist, and even if they do, they might not have an email set. We need to handle both cases:
 
 ```python
 from better_py import Maybe
@@ -82,9 +102,9 @@ from better_py import Maybe
 def get_user_email(user_id: int) -> Maybe[str]:
     """Get user email or Nothing if not found"""
     return (
-        find_user(user_id)           # Maybe[dict]
+        find_user(user_id)                    # Maybe[dict]
         .map(lambda user: user.get("email"))  # Maybe[str | None]
-        .bind(lambda email:          # Maybe[str]
+        .bind(lambda email:                   # Maybe[str]
             Maybe.some(email) if email
             else Maybe.nothing()
         )
@@ -101,11 +121,19 @@ print(email.unwrap_or_else(lambda: "No email"))
 # Output: No email
 ```
 
+This code demonstrates two key operations: `map` and `bind`. Use `map` when your transformation returns a regular value, and `bind` when your transformation returns another Maybe. The distinction matters because `bind` flattens nested Maybe structures, keeping your code clean.
+
+The beauty of this approach is that it reads like a series of steps: "find the user, get their email, ensure it exists." If any step fails (returns Nothing), the entire chain safely returns Nothing without throwing an error.
+
 ---
 
-## Step 4: Adding Error Handling with Result
+## Handling Errors with Result
 
-Let's add error handling for invalid input:
+Maybe handles the case where something doesn't exist, but sometimes you need to explain why something failed. This is where Result comes in.
+
+Result represents either success (with a value) or failure (with an error). Unlike exceptions, which can be thrown from anywhere, Result forces you to handle errors explicitly at the call site.
+
+Let's add input validation to our user service:
 
 ```python
 from better_py import Result
@@ -128,11 +156,20 @@ else:
 # Output: Error: User ID must be positive
 ```
 
+The type `Result[int, str]` tells you that on success you get an integer, and on failure you get a string error message. Unlike exceptions, which hide their failure modes, Result makes error handling part of the function signature.
+
+This is particularly valuable in larger systems. When you see a function returns `Result[User, str]`, you immediately know you need to handle both success and failure cases. You don't need to read the function body or catch obscure exceptions.
+
 ---
 
-## Step 5: Combining Maybe and Result
+## Combining Maybe and Result
 
-Now let's combine everything:
+Real applications need both types of safety: input validation (Result) and data lookups (Maybe). The key is knowing when to use each:
+
+- Use **Result** when you have meaningful error information (validation failures, parse errors, I/O errors)
+- Use **Maybe** when absence is a normal possibility (cache misses, optional fields, lookups)
+
+Let's combine them in our user service:
 
 ```python
 from better_py import Maybe, Result
@@ -154,24 +191,28 @@ def get_user_safe(user_id: int) -> Result[dict, str]:
 # Test the complete flow
 result = get_user_safe(1)
 if result.is_ok():
-    print(f" Success: {result.unwrap()}")
+    print(f"Success: {result.unwrap()}")
 else:
-    print(f" Error: {result.unwrap_error()}")
-# Output:  Success: {'id': 1, 'name': 'Alice', 'email': 'alice@example.com'}
+    print(f"Error: {result.unwrap_error()}")
+# Output: Success: {'id': 1, 'name': 'Alice', 'email': 'alice@example.com'}
 
 result = get_user_safe(-1)
 if result.is_ok():
-    print(f" Success: {result.unwrap()}")
+    print(f"Success: {result.unwrap()}")
 else:
-    print(f" Error: {result.unwrap_error()}")
-# Output:  Error: User ID must be positive
+    print(f"Error: {result.unwrap_error()}")
+# Output: Error: User ID must be positive
 ```
+
+Notice how each layer adds safety: validation prevents invalid input, Maybe handles missing users, and Result propagates meaningful errors. If you called this function, you'd know exactly what could go wrong and how to handle each case.
 
 ---
 
-## Step 6: Data Validation with Validation
+## Accumulating Errors with Validation
 
-Let's add form validation that accumulates errors:
+Sometimes you want to show all errors at once rather than failing on the first one. This is especially useful in form validation, where users prefer to see all issues at once instead of fixing them one at a time.
+
+Validation accumulates errors while still maintaining type safety:
 
 ```python
 from better_py import Validation
@@ -198,27 +239,30 @@ def validate_user_data(name: str, email: str) -> Validation[dict, str]:
         lambda data: {"name": data[0], "email": data[1]}
     )
 
-# Test validation
+# Test validation with multiple errors
 result = validate_user_data("A", "bademail")
 if result.is_valid():
-    print(f" Valid: {result.unwrap()}")
+    print(f"Valid: {result.unwrap()}")
 else:
-    print(f" Errors: {result.get_errors()}")
-# Output:  Errors: ['Name must be at least 2 characters', 'Invalid email format']
+    print(f"Errors: {result.get_errors()}")
+# Output: Errors: ['Name must be at least 2 characters', 'Invalid email format']
 
+# Test with valid data
 result = validate_user_data("Alice", "alice@example.com")
 if result.is_valid():
-    print(f" Valid: {result.unwrap()}")
+    print(f"Valid: {result.unwrap()}")
 else:
-    print(f" Errors: {result.get_errors()}")
-# Output:  Valid: {'name': 'Alice', 'email': 'alice@example.com'}
+    print(f"Errors: {result.get_errors()}")
+# Output: Valid: {'name': 'Alice', 'email': 'alice@example.com'}
 ```
+
+The power here is that both validations run regardless of whether the first one fails. The `ap` (apply) operation combines them, collecting all errors together. This gives users a better experience by showing everything they need to fix.
 
 ---
 
-## Step 7: Complete Example
+## Putting It All Together
 
-Here's our complete user service:
+Now let's assemble our complete user service. This demonstrates how these concepts work together in a real application:
 
 ```python
 from better_py import Maybe, Result, Validation
@@ -241,12 +285,6 @@ def validate_user_id(user_id: int) -> Result[int, str]:
     if user_id > 1000:
         return Result.error("User ID too large")
     return Result.ok(user_id)
-
-def validate_email(email: str) -> Validation[str, str]:
-    """Validate email format"""
-    if "@" in email and "." in email:
-        return Validation.valid(email)
-    return Validation.invalid(["Invalid email format"])
 
 # Main function
 def get_user_info(user_id: int) -> Result[dict, str]:
@@ -274,83 +312,61 @@ def main():
     try:
         user_id = int(sys.argv[1])
     except ValueError:
-        print(" Error: User ID must be a number")
+        print("Error: User ID must be a number")
         return
 
     result = get_user_info(user_id)
 
     if result.is_ok():
         user = result.unwrap()
-        print(f" Found user:")
-        print(f"   Name: {user['name']}")
-        print(f"   Email: {user['email']}")
+        print(f"Found user:")
+        print(f"  Name: {user['name']}")
+        print(f"  Email: {user['email']}")
     else:
-        print(f" {result.unwrap_error()}")
+        print(f"{result.unwrap_error()}")
 
 if __name__ == "__main__":
     main()
 ```
 
-Test it:
+Save this as `main.py` and test it with different inputs:
 
 ```bash
 python main.py 1
-#  Found user:
-#    Name: Alice
-#    Email: alice@example.com
+# Found user:
+#   Name: Alice
+#   Email: alice@example.com
 
 python main.py 999
-#  User 999 not found
+# User 999 not found
 
 python main.py -1
-#  Validation error: User ID must be positive
+# Validation error: User ID must be positive
 ```
 
+Every error is handled explicitly. No unexpected crashes, no confusing stack traces for users, and complete type safety throughout.
+
 ---
 
-## Key Takeaways
+## Key Concepts to Remember
 
-Congratulations! You've learned:
+You've just learned the three core abstractions that better-py provides:
 
-1.  **Maybe** - Handle optional values safely
-2.  **Result** - Explicit error handling
-3.  **Validation** - Accumulate multiple errors
-4.  **Chaining** - Compose operations cleanly
+**Maybe** handles optional values. Use it when something might not exist, and you don't need to explain why. Database lookups, cache hits, and dictionary access with default values are good candidates.
 
-<Callout type="success" title="You're Ready!">
+**Result** handles operations that can fail with meaningful errors. Use it when you need to communicate what went wrong. File parsing, network requests, and validation all benefit from Result.
 
-You now understand the core concepts of better-py. Continue learning:
+**Validation** accumulates multiple errors. Use it when you want to show all problems at once, like form validation or batch processing.
 
-- [Maybe Monad](/docs/monads/maybe) - Deep dive into Maybe
-- [Result Monad](/docs/monads/result) - Master error handling
-- [Validation Monad](/docs/monads/validation) - Form validation patterns
-- [Real-world Examples](/docs/examples) - See better-py in action
+The pattern across all three is the same: make error cases explicit in the type system, force callers to handle them, and provide clean operations for composing them together.
+
+<Callout type="success" title="You're ready to build!">
+
+You now understand the core concepts of better-py. The mental model you've developed here applies to many real-world scenarios. Continue your journey by diving deeper into each concept:
+
+- [Maybe Monad](/docs/monads/maybe) - Learn advanced patterns for optional values
+- [Result Monad](/docs/monads/result) - Master error handling strategies
+- [Validation Monad](/docs/monads/validation) - Explore form validation patterns
+- [Real-world Examples](/docs/examples) - See better-py in production code
 
 </Callout>
-
----
-
-## Next Steps
-
-<Cards>
-  <Card
-    title="Core Concepts"
-    href="/docs/concepts"
-    description="Learn about monads, immutability, and type safety"
-  />
-  <Card
-    title="Error Handling Guide"
-    href="/docs/guides/error-handling"
-    description="Master error handling strategies"
-  />
-  <Card
-    title="FastAPI Example"
-    href="/docs/examples/web-api/fastapi"
-    description="Build a REST API with better-py"
-  />
-  <Card
-    title="Best Practices"
-    href="/docs/best-practices"
-    description="Write better functional code"
-  />
-</Cards>
