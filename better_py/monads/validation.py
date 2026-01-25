@@ -107,8 +107,8 @@ class Validation(Mappable[T], Generic[E, T]):
         """Apply a function to the errors."""
         raise NotImplementedError()
 
-    def ap(self, other: Validation[E, Callable[[T], U]]) -> Validation[E, U]:
-        """Apply a Validation containing a function to this Validation."""
+    def ap(self, other: Validation[E, T]) -> Validation[E, U]:
+        """Apply this Validation (containing a function) to another Validation."""
         raise NotImplementedError()
 
     def flat_map(self, f: Callable[[T], Validation[E, U]]) -> Validation[E, U]:
@@ -220,11 +220,11 @@ class Valid(Validation[E, T], Generic[E, T]):
         return self
 
     @override
-    def ap(self, other: Validation[E, Callable[[T], U]]) -> Validation[E, U]:
-        """Apply a Validation containing a function to this Validation.
+    def ap(self, other: Validation[E, T]) -> Validation[E, U]:
+        """Apply this Validation (containing a function) to another Validation.
 
         Args:
-            other: Validation containing a function
+            other: Validation containing a value
 
         Returns:
             Valid(f(value)) if other is Valid, otherwise Invalid
@@ -236,7 +236,8 @@ class Valid(Validation[E, T], Generic[E, T]):
         """
         if other.is_invalid():
             return Invalid(other.unwrap_errors())
-        return Valid(other.unwrap()(self._value))
+        # self contains the function, other contains the value
+        return Valid(self._value(other.unwrap()))
 
     @override
     def flat_map(self, f: Callable[[T], Validation[E, U]]) -> Validation[E, U]:
@@ -396,11 +397,13 @@ class Invalid(Validation[E, T], Generic[E, T]):
         return Invalid(f(self._errors))
 
     @override
-    def ap(self, other: Validation[E, Callable[[T], U]]) -> Validation[E, U]:
-        """Apply a Validation containing a function to this Validation.
+    def ap(self, other: Validation[E, T]) -> Validation[E, U]:
+        """Apply this Validation (containing a function) to another Validation.
+
+        For Invalid, this accumulates errors from both validations.
 
         Args:
-            other: Validation containing a function
+            other: Validation containing a value
 
         Returns:
             Invalid with accumulated errors
@@ -413,7 +416,7 @@ class Invalid(Validation[E, T], Generic[E, T]):
         if other.is_invalid():
             # Accumulate errors from both sides
             return Invalid(self._errors + other.unwrap_errors())
-        return self
+        return Invalid(self._errors)
 
     @override
     def flat_map(self, f: Callable[[T], Validation[E, U]]) -> Validation[E, U]:
