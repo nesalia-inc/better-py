@@ -2,6 +2,16 @@
 
 The Maybe monad represents optional values: either Some(value) or Nothing.
 This is a type-safe alternative to using None.
+
+New API (preferred):
+    >>> some = Some(5)
+    >>> nothing = Nothing()
+    >>> some_none = Some(None)
+
+Legacy API (still supported):
+    >>> some = Maybe.some(5)
+    >>> nothing = Maybe.nothing()
+    >>> some_none = Maybe.some_none()
 """
 
 from __future__ import annotations
@@ -17,31 +27,23 @@ T = TypeVar("T")
 U = TypeVar("U")
 
 
-@dataclass(frozen=True, slots=True)
 class Maybe(Mappable[T], Generic[T]):
-    """Maybe monad for optional values.
+    """Base class for Maybe monad.
 
-    A Maybe is either Some(value) or Nothing, representing the presence
-    or absence of a value in a type-safe way.
-
-    Note: Maybe can now contain None as a valid value. Use Maybe.some_none()
-    to explicitly create a Maybe containing None, distinguishing it from
-    Nothing (no value).
+    This class provides factory methods for creating Maybe values.
+    For new code, prefer using Some() and Nothing() directly.
 
     Type Parameters:
         T: The type of the contained value
 
-    Example:
+    Example (new API - preferred):
+        >>> some = Some(5)
+        >>> nothing = Nothing()
+
+    Example (legacy API - still supported):
         >>> some = Maybe.some(5)
         >>> nothing = Maybe.nothing()
-        >>> some_none = Maybe.some_none()
-        >>> some.is_some()  # True
-        >>> nothing.is_nothing()  # True
-        >>> some_none.is_some()  # True - contains None as a value
     """
-
-    _value: T | None
-    _is_defined: bool = True  # False for Nothing, True for Some (even if value is None)
 
     @staticmethod
     def some(value: T) -> Maybe[T]:
@@ -57,7 +59,7 @@ class Maybe(Mappable[T], Generic[T]):
             >>> Maybe.some(42)
             Some(42)
         """
-        return Maybe(value, True)
+        return Some(value)
 
     @staticmethod
     def some_none() -> Maybe[T | None]:
@@ -74,7 +76,7 @@ class Maybe(Mappable[T], Generic[T]):
             >>> maybe_none.unwrap() is None  # True - the value is None
             >>> maybe_none == Maybe.nothing()  # False - different from Nothing
         """
-        return Maybe(None, True)
+        return Some(None)
 
     @staticmethod
     def nothing() -> Maybe[T]:
@@ -87,7 +89,7 @@ class Maybe(Mappable[T], Generic[T]):
             >>> Maybe.nothing()
             Nothing
         """
-        return Maybe(None, False)
+        return Nothing()
 
     @staticmethod
     def from_value(value: T | None) -> Maybe[T]:
@@ -109,85 +111,165 @@ class Maybe(Mappable[T], Generic[T]):
             To explicitly wrap None as a value, use Maybe.some_none()
         """
         if value is None:
-            return Maybe(None, False)
-        return Maybe(value, True)
+            return Nothing()
+        return Some(value)
 
+    # Abstract methods that subclasses must implement
+    def is_some(self) -> bool:
+        """Check if this is Some variant."""
+        raise NotImplementedError()
+
+    def is_nothing(self) -> bool:
+        """Check if this is Nothing variant."""
+        raise NotImplementedError()
+
+    def unwrap(self) -> T:
+        """Get the contained value, raising an error if Nothing."""
+        raise NotImplementedError()
+
+    def unwrap_or(self, default: T) -> T:
+        """Get the contained value or a default."""
+        raise NotImplementedError()
+
+    def unwrap_or_else(self, supplier: Callable[[], T]) -> T:
+        """Get the contained value or compute a default."""
+        raise NotImplementedError()
+
+    def map(self, f: Callable[[T], U]) -> Maybe[U]:
+        """Apply a function to the contained value."""
+        raise NotImplementedError()
+
+    def bind(self, f: Callable[[T], Maybe[U]]) -> Maybe[U]:
+        """Chain operations that return Maybe (monadic bind)."""
+        raise NotImplementedError()
+
+    def flat_map(self, f: Callable[[T], Maybe[U]]) -> Maybe[U]:
+        """Alias for bind."""
+        raise NotImplementedError()
+
+    def and_then(self, f: Callable[[T], Maybe[U]]) -> Maybe[U]:
+        """Alias for bind (more readable chaining)."""
+        raise NotImplementedError()
+
+    def ap(self, fn: Maybe[Callable[[T], U]]) -> Maybe[U]:
+        """Apply a Maybe containing a function to this Maybe."""
+        raise NotImplementedError()
+
+    def or_else(self, default: Maybe[T]) -> Maybe[T]:
+        """Return this Maybe, or default if this is Nothing."""
+        raise NotImplementedError()
+
+    @staticmethod
+    def lift2(f: Callable[[T, U], object], ma: Maybe[T], mb: Maybe[U]) -> Maybe[object]:
+        """Lift a binary function to operate on Maybe values."""
+        curried = ma.map(lambda x: lambda y: f(x, y))
+        return mb.ap(curried)
+
+    @staticmethod
+    def lift3(
+        f: Callable[[T, U, object], object],
+        ma: Maybe[T],
+        mb: Maybe[U],
+        mc: Maybe[object],
+    ) -> Maybe[object]:
+        """Lift a ternary function to operate on Maybe values."""
+        curried = ma.map(lambda x: lambda y: lambda z: f(x, y, z))
+        return mc.ap(mb.ap(curried))
+
+    @staticmethod
+    def zip(*monads: Maybe[T]) -> Maybe[tuple[T, ...]]:
+        """Combine multiple Maybe values into a tuple."""
+        result: list[T] = []
+        for m in monads:
+            if m.is_nothing():
+                return Nothing()
+            result.append(m.unwrap())
+        return Some(tuple(result))
+
+
+@dataclass(frozen=True, slots=True)
+class Some(Maybe[T], Generic[T]):
+    """Some variant of Maybe, containing a value.
+
+    Type Parameters:
+        T: The type of the contained value
+
+    Example:
+        >>> some = Some(42)
+        >>> some.is_some()  # True
+        >>> some.unwrap()  # 42
+    """
+
+    _value: T
+
+    @override
     def is_some(self) -> bool:
         """Check if this is Some variant.
 
         Returns:
-            True if containing a value (even if that value is None), False otherwise
+            True - this is Some
 
         Example:
-            >>> Maybe.some(5).is_some()  # True
-            >>> Maybe.nothing().is_some()  # False
-            >>> Maybe.some_none().is_some()  # True - contains None as value
+            >>> Some(5).is_some()  # True
         """
-        return self._is_defined
+        return True
 
+    @override
     def is_nothing(self) -> bool:
         """Check if this is Nothing variant.
 
         Returns:
-            True if empty, False otherwise
+            False - this is Some
 
         Example:
-            >>> Maybe.some(5).is_nothing()  # False
-            >>> Maybe.nothing().is_nothing()  # True
-            >>> Maybe.some_none().is_nothing()  # False - it's Some(None)
+            >>> Some(5).is_nothing()  # False
         """
-        return not self._is_defined
+        return False
 
+    @override
     def unwrap(self) -> T:
-        """Get the contained value, raising an error if Nothing.
+        """Get the contained value.
 
         Returns:
-            The contained value (which may be None for some_none())
-
-        Raises:
-            ValueError: If this is Nothing
+            The contained value (which may be None for Some(None))
 
         Example:
-            >>> Maybe.some(42).unwrap()  # 42
-            >>> Maybe.some_none().unwrap()  # None (valid value)
-            >>> Maybe.nothing().unwrap()  # Raises ValueError
+            >>> Some(42).unwrap()  # 42
+            >>> Some(None).unwrap()  # None
         """
-        if not self._is_defined:
-            raise ValueError("Cannot unwrap Nothing")
         return self._value
 
+    @override
     def unwrap_or(self, default: T) -> T:
         """Get the contained value or a default.
 
         Args:
-            default: The default value to return if Nothing
+            default: The default value (ignored for Some)
 
         Returns:
-            The contained value, or default if Nothing
+            The contained value
 
         Example:
-            >>> Maybe.some(42).unwrap_or(0)  # 42
-            >>> Maybe.some_none().unwrap_or(0)  # None (contained value)
-            >>> Maybe.nothing().unwrap_or(0)  # 0
+            >>> Some(42).unwrap_or(0)  # 42
         """
-        return self._value if self._is_defined else default
+        return self._value
 
+    @override
     def unwrap_or_else(self, supplier: Callable[[], T]) -> T:
         """Get the contained value or compute a default.
 
         Args:
-            supplier: A function that produces the default value
+            supplier: The default supplier (ignored for Some)
 
         Returns:
-            The contained value, or supplier() if Nothing
+            The contained value
 
         Example:
-            >>> Maybe.some(42).unwrap_or_else(lambda: 0)  # 42
-            >>> Maybe.some_none().unwrap_or_else(lambda: 0)  # None (contained value)
-            >>> Maybe.nothing().unwrap_or_else(lambda: 0)  # 0
+            >>> Some(42).unwrap_or_else(lambda: 0)  # 42
         """
-        return self._value if self._is_defined else supplier()
+        return self._value
 
+    @override
     def map(self, f: Callable[[T], U]) -> Maybe[U]:
         """Apply a function to the contained value.
 
@@ -195,17 +277,14 @@ class Maybe(Mappable[T], Generic[T]):
             f: Function to apply
 
         Returns:
-            Some(f(value)) if Some, otherwise Nothing
+            Some(f(value))
 
         Example:
-            >>> Maybe.some(5).map(lambda x: x * 2)  # Some(10)
-            >>> Maybe.some_none().map(lambda x: x or "default")  # Some("default")
-            >>> Maybe.nothing().map(lambda x: x * 2)  # Nothing
+            >>> Some(5).map(lambda x: x * 2)  # Some(10)
         """
-        if not self._is_defined:
-            return Maybe(None, False)
-        return Maybe(f(self._value), True)
+        return Some(f(self._value))
 
+    @override
     def bind(self, f: Callable[[T], Maybe[U]]) -> Maybe[U]:
         """Chain operations that return Maybe (monadic bind).
 
@@ -215,18 +294,15 @@ class Maybe(Mappable[T], Generic[T]):
             f: Function that takes a value and returns a Maybe
 
         Returns:
-            The result of applying f if Some, otherwise Nothing
+            The result of applying f
 
         Example:
-            >>> def divide(x): return Maybe.some(10 / x) if x != 0 else Maybe.nothing()
-            >>> Maybe.some(2).bind(divide)  # Some(5.0)
-            >>> Maybe.some(0).bind(divide)  # Nothing
-            >>> Maybe.nothing().bind(divide)  # Nothing
+            >>> def divide(x): return Some(10 / x) if x != 0 else Nothing()
+            >>> Some(2).bind(divide)  # Some(5.0)
         """
-        if not self._is_defined:
-            return Maybe(None, False)
         return f(self._value)
 
+    @override
     def flat_map(self, f: Callable[[T], Maybe[U]]) -> Maybe[U]:
         """Alias for bind.
 
@@ -234,13 +310,14 @@ class Maybe(Mappable[T], Generic[T]):
             f: Function that takes a value and returns a Maybe
 
         Returns:
-            The result of applying f if Some, otherwise Nothing
+            The result of applying f
 
         Example:
-            >>> Maybe.some(5).flat_map(lambda x: Maybe.some(x * 2))  # Some(10)
+            >>> Some(5).flat_map(lambda x: Some(x * 2))  # Some(10)
         """
         return self.bind(f)
 
+    @override
     def and_then(self, f: Callable[[T], Maybe[U]]) -> Maybe[U]:
         """Alias for bind (more readable chaining).
 
@@ -248,13 +325,14 @@ class Maybe(Mappable[T], Generic[T]):
             f: Function that takes a value and returns a Maybe
 
         Returns:
-            The result of applying f if Some, otherwise Nothing
+            The result of applying f
 
         Example:
-            >>> Maybe.some(5).and_then(lambda x: Maybe.some(x * 2))  # Some(10)
+            >>> Some(5).and_then(lambda x: Some(x * 2))  # Some(10)
         """
         return self.bind(f)
 
+    @override
     def ap(self, fn: Maybe[Callable[[T], U]]) -> Maybe[U]:
         """Apply a Maybe containing a function to this Maybe.
 
@@ -262,110 +340,215 @@ class Maybe(Mappable[T], Generic[T]):
             fn: A Maybe containing a function
 
         Returns:
-            Some(f(value)) if both are Some, otherwise Nothing
+            Some(f(value)) if fn is Some, otherwise Nothing
 
         Example:
-            >>> add = Maybe.some(lambda x: x + 1)
-            >>> value = Maybe.some(5)
+            >>> add = Some(lambda x: x + 1)
+            >>> value = Some(5)
             >>> add.ap(value)  # Some(6)
-            >>> Maybe.nothing().ap(value)  # Nothing
-            >>> add.ap(Maybe.nothing())  # Nothing
         """
-        if not self._is_defined or not fn._is_defined:
-            return Maybe(None, False)
-        assert fn._value is not None
-        return Maybe(fn._value(self._value), True)
+        if fn.is_nothing():
+            return Nothing()
+        return Some(fn.unwrap()(self._value))
 
-    @staticmethod
-    def lift2(f: Callable[[T, U], object], ma: Maybe[T], mb: Maybe[U]) -> Maybe[object]:
-        """Lift a binary function to operate on Maybe values.
-
-        Args:
-            f: A binary function
-            ma: First Maybe value
-            mb: Second Maybe value
-
-        Returns:
-            Some(f(a, b)) if both are Some, otherwise Nothing
-
-        Example:
-            >>> Maybe.lift2(lambda x, y: x + y, Maybe.some(1), Maybe.some(2))  # Some(3)
-            >>> Maybe.lift2(lambda x, y: x + y, Maybe.some(1), Maybe.nothing())  # Nothing
-        """
-        curried = ma.map(lambda x: lambda y: f(x, y))
-        return mb.ap(curried)
-
-    @staticmethod
-    def lift3(f: Callable[[T, U, object], object], ma: Maybe[T], mb: Maybe[U], mc: Maybe[object]) -> Maybe[object]:
-        """Lift a ternary function to operate on Maybe values.
-
-        Args:
-            f: A ternary function
-            ma: First Maybe value
-            mb: Second Maybe value
-            mc: Third Maybe value
-
-        Returns:
-            Some(f(a, b, c)) if all are Some, otherwise Nothing
-
-        Example:
-            >>> Maybe.lift3(lambda x, y, z: x + y + z, Maybe.some(1), Maybe.some(2), Maybe.some(3))  # Some(6)
-        """
-        curried = ma.map(lambda x: lambda y: lambda z: f(x, y, z))
-        return mc.ap(mb.ap(curried))
-
-    @staticmethod
-    def zip(*monads: Maybe[T]) -> Maybe[tuple[T, ...]]:
-        """Combine multiple Maybe values into a tuple.
-
-        Args:
-            *monads: Maybe values to combine
-
-        Returns:
-            Some(tuple of values) if all are Some, otherwise Nothing
-
-        Example:
-            >>> Maybe.zip(Maybe.some(1), Maybe.some(2), Maybe.some(3))  # Some((1, 2, 3))
-            >>> Maybe.zip(Maybe.some(1), Maybe.nothing(), Maybe.some(3))  # Nothing
-        """
-        result: list[T] = []
-        for m in monads:
-            if not m._is_defined:
-                return Maybe(None, False)
-            result.append(m._value)
-        return Maybe(tuple(result), True)
-
+    @override
     def or_else(self, default: Maybe[T]) -> Maybe[T]:
-        """Return this Maybe, or default if this is Nothing.
+        """Return this Maybe (since it's Some).
 
         Args:
-            default: The Maybe to return if this is Nothing
+            default: The default Maybe (ignored)
 
         Returns:
-            This Maybe if Some, otherwise default
+            This Some
 
         Example:
-            >>> Maybe.some(5).or_else(Maybe.some(10))  # Some(5)
-            >>> Maybe.some_none().or_else(Maybe.some(10))  # Some(None)
-            >>> Maybe.nothing().or_else(Maybe.some(10))  # Some(10)
+            >>> Some(5).or_else(Some(10))  # Some(5)
         """
-        return self if self._is_defined else default
+        return self
 
     @override
     def __repr__(self) -> str:
-        if not self._is_defined:
-            return "Nothing"
         return f"Some({self._value!r})"
 
+    @override
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Maybe):
-            return False
-        # Two Maybes are equal if both are Nothing or both have same value and defined state
-        if not self._is_defined and not other._is_defined:
-            return True
-        if self._is_defined != other._is_defined:
-            return False
-        return self._value == other._value
+        if isinstance(other, Some):
+            return self._value == other._value
+        return False
 
 
-__all__ = ["Maybe"]
+@dataclass(frozen=True, slots=True)
+class Nothing(Maybe[T], Generic[T]):
+    """Nothing variant of Maybe, representing absence of a value.
+
+    Type Parameters:
+        T: The type that would be contained if this were Some
+
+    Example:
+        >>> nothing = Nothing()
+        >>> nothing.is_nothing()  # True
+        >>> nothing.unwrap_or(0)  # 0
+    """
+
+    @override
+    def is_some(self) -> bool:
+        """Check if this is Some variant.
+
+        Returns:
+            False - this is Nothing
+
+        Example:
+            >>> Nothing().is_some()  # False
+        """
+        return False
+
+    @override
+    def is_nothing(self) -> bool:
+        """Check if this is Nothing variant.
+
+        Returns:
+            True - this is Nothing
+
+        Example:
+            >>> Nothing().is_nothing()  # True
+        """
+        return True
+
+    @override
+    def unwrap(self) -> T:
+        """Get the contained value, raising an error.
+
+        Raises:
+            ValueError: Always, since Nothing has no value
+
+        Example:
+            >>> Nothing().unwrap()  # Raises ValueError
+        """
+        raise ValueError("Cannot unwrap Nothing")
+
+    @override
+    def unwrap_or(self, default: T) -> T:
+        """Get the contained value or a default.
+
+        Args:
+            default: The default value to return
+
+        Returns:
+            The default value
+
+        Example:
+            >>> Nothing().unwrap_or(0)  # 0
+        """
+        return default
+
+    @override
+    def unwrap_or_else(self, supplier: Callable[[], T]) -> T:
+        """Get the contained value or compute a default.
+
+        Args:
+            supplier: A function that produces the default value
+
+        Returns:
+            supplier()
+
+        Example:
+            >>> Nothing().unwrap_or_else(lambda: 0)  # 0
+        """
+        return supplier()
+
+    @override
+    def map(self, f: Callable[[T], U]) -> Maybe[U]:
+        """Apply a function to the contained value.
+
+        Args:
+            f: Function to apply (ignored for Nothing)
+
+        Returns:
+            Nothing
+
+        Example:
+            >>> Nothing().map(lambda x: x * 2)  # Nothing
+        """
+        return Nothing()
+
+    @override
+    def bind(self, f: Callable[[T], Maybe[U]]) -> Maybe[U]:
+        """Chain operations that return Maybe.
+
+        Args:
+            f: Function (ignored for Nothing)
+
+        Returns:
+            Nothing
+
+        Example:
+            >>> def divide(x): return Some(10 / x) if x != 0 else Nothing()
+            >>> Nothing().bind(divide)  # Nothing
+        """
+        return Nothing()
+
+    @override
+    def flat_map(self, f: Callable[[T], Maybe[U]]) -> Maybe[U]:
+        """Alias for bind.
+
+        Args:
+            f: Function (ignored for Nothing)
+
+        Returns:
+            Nothing
+        """
+        return Nothing()
+
+    @override
+    def and_then(self, f: Callable[[T], Maybe[U]]) -> Maybe[U]:
+        """Alias for bind.
+
+        Args:
+            f: Function (ignored for Nothing)
+
+        Returns:
+            Nothing
+        """
+        return Nothing()
+
+    @override
+    def ap(self, fn: Maybe[Callable[[T], U]]) -> Maybe[U]:
+        """Apply a Maybe containing a function to this Maybe.
+
+        Args:
+            fn: A Maybe containing a function
+
+        Returns:
+            Nothing
+
+        Example:
+            >>> add = Some(lambda x: x + 1)
+            >>> Nothing().ap(add)  # Nothing
+        """
+        return Nothing()
+
+    @override
+    def or_else(self, default: Maybe[T]) -> Maybe[T]:
+        """Return the default Maybe.
+
+        Args:
+            default: The Maybe to return
+
+        Returns:
+            default
+
+        Example:
+            >>> Nothing().or_else(Some(10))  # Some(10)
+        """
+        return default
+
+    @override
+    def __repr__(self) -> str:
+        return "Nothing"
+
+    @override
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Nothing)
+
+
+__all__ = ["Maybe", "Some", "Nothing"]
