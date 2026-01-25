@@ -1,0 +1,27 @@
+include README.md
+include LICENSE
+include pyproject.toml
+recursive-include better_py *.py
+recursive-include better_py py.typed
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude .git*
+global-exclude .DS_Store
+global-exclude *.so
+prune .venv
+prune .git
+prune docs
+prune website
+prune .pytest_cache
+prune .ruff_cache
+prune htmlcov
+prune .coverage*
+prune dist
+prune build
+prune *.egg-info
+exclude .claude
+exclude .vscode
+exclude tests
+exclude scripts
+exclude docs
+exclude website

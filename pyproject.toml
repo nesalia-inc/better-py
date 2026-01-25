@@ -61,6 +61,29 @@ Changelog = "https://github.com/nesalia-inc/better-py/blob/main/CHANGELOG.md"
 [tool.hatch.build.targets.wheel]
 packages = ["better_py"]
 
+[tool.hatch.build.targets.sdist]
+include = [
+    "/better_py",
+    "/README.md",
+    "/LICENSE",
+    "/pyproject.toml",
+]
+exclude = [
+    "/docs",
+    "/website",
+    "/tests",
+    "/scripts",
+    "/.claude",
+    "/.github",
+    "/dist",
+    "/build",
+    "/.git",
+    "/.pytest_cache",
+    "/htmlcov",
+    "/.coverage*",
+    "/MANIFEST.in",
+]
+
 [tool.uv]
 dev-dependencies = [
     "pytest>=8.0",
