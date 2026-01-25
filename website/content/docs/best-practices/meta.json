@@ -1,3 +1,15 @@
 {
-  "pages": ["index", "performance", "error-messages", "type-annotations", "testing", "anti-patterns", "when-not-to-use"]
+  "title": "Best Practices",
+  "description": "Recommended patterns and anti-patterns to avoid",
+  "icon": "CheckCircleIcon",
+  "root": true,
+  "pages": [
+    "index",
+    "performance",
+    "error-messages",
+    "type-annotations",
+    "testing",
+    "anti-patterns",
+    "when-not-to-use"
+  ]
 }

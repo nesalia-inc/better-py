@@ -1,3 +1,14 @@
 {
-  "pages": ["index", "compose", "curry", "pipe", "partial-right", "flip"]
+  "title": "Utilities",
+  "description": "Function utilities for composition and transformation",
+  "icon": "WrenchIcon",
+  "root": true,
+  "pages": [
+    "index",
+    "compose",
+    "curry",
+    "pipe",
+    "partial-right",
+    "flip"
+  ]
 }

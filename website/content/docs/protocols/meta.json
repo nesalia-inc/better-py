@@ -1,3 +1,17 @@
 {
-  "pages": ["index", "mappable", "reducible", "combinable", "monoid", "updatable", "traversable", "parseable", "validable"]
+  "title": "Protocols",
+  "description": "Protocol-based abstractions for polymorphic behavior",
+  "icon": "CodeIcon",
+  "root": true,
+  "pages": [
+    "index",
+    "mappable",
+    "reducible",
+    "combinable",
+    "monoid",
+    "updatable",
+    "traversable",
+    "parseable",
+    "validable"
+  ]
 }

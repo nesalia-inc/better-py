@@ -1,3 +1,19 @@
 {
-  "pages": ["index", "cli-tool", "...web-api", "...database", "data-pipeline", "configuration", "microservices"]
+  "title": "Examples",
+  "description": "Real-world examples and use cases",
+  "icon": "LightbulbIcon",
+  "root": true,
+  "pages": [
+    "index",
+    "cli-tool",
+    "web-api/index",
+    "web-api/fastapi",
+    "web-api/django",
+    "database/index",
+    "database/sqlalchemy",
+    "database/mongodb",
+    "data-pipeline",
+    "configuration",
+    "microservices"
+  ]
 }
