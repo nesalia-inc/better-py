@@ -5,6 +5,8 @@ description: Function composition utilities
 
 ## `compose(*functions)` - Compose Right-to-Left
 
+Function composition combines multiple functions into a single function. The output of each function becomes the input of the next, executed from right to left (mathematical convention).
+
 ```python
 from better_py.functions import compose
 
@@ -12,22 +14,25 @@ double = lambda x: x * 2
 increment = lambda x: x + 1
 
 transform = compose(double, increment)
-transform(5)  # 12 (double(increment(5)))
+transform(5)  # 12: increment runs first, then double
 ```
 
 ## `compose_left(*functions)` - Compose Left-to-Right
+
+Same as compose but reads left-to-right, which can be more intuitive for data pipelines.
 
 ```python
 from better_py.functions import compose_left
 
 transform = compose_left(increment, double)
-transform(5)  # 12 (double(increment(5)))
+transform(5)  # 12: increment runs first, then double
 ```
 
 ## Common Pattern
 
 ```python
 validate = compose(check_auth, check_perms, get_user)
+# Data flows: get_user → check_perms → check_auth
 ```
 
 ## Compose vs Pipe

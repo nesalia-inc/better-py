@@ -5,6 +5,8 @@ description: Left-to-right function chaining
 
 ## `pipe(value, *functions)` - Chain Functions Left-to-Right
 
+Pipe passes a value through a sequence of functions, reading naturally from left to right. Each function receives the output of the previous one.
+
 ```python
 from better_py.functions import pipe
 
@@ -15,6 +17,8 @@ Equivalent to: `third(second(first(value)))`.
 
 ## `flow(*functions)` - Create Reusable Function
 
+Creates a reusable function from a chain of transformations. Like `pipe` but returns a function instead of executing immediately.
+
 ```python
 from better_py.functions import flow
 
@@ -23,6 +27,8 @@ process(5)  # 12
 ```
 
 ## `Pipeline` - Fluent Collection API
+
+Builder pattern for collection operations. Chain map, filter, and other operations before executing on a collection.
 
 ```python
 from better_py.functions import Pipeline
