@@ -3,5 +3,24 @@
   "description": "The docs framework",
   "icon": "Building",
   "root": true,
-  "pages": ["---Introduction---", "index", "what-is-better-py", "comparisons", "---Monads---", "monads", "monads/maybe", "monads/result", "monads/either", "monads/validation", "monads/try", "monads/io", "monads/reader", "monads/writer", "monads/state", "monads/task", "monads/unit", "monads/async-maybe", "monads/async-result"]
+  "pages": [
+    "---Introduction---",
+    "index",
+    "what-is-better-py",
+    "comparisons",
+    "---Monads---",
+    "monads/maybe",
+    "monads/result",
+    "monads/either",
+    "monads/validation",
+    "monads/try",
+    "monads/io",
+    "monads/reader",
+    "monads/writer",
+    "monads/state",
+    "monads/task",
+    "monads/unit",
+    "monads/async-maybe",
+    "monads/async-result"
+  ]
 }
