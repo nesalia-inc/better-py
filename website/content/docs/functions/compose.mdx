@@ -1,95 +1,36 @@
 ---
 title: Compose
-description: Function composition and building complex transformations
+description: Function composition utilities
 ---
 
-Function **composition** combines simple functions into complex ones. The output of one function becomes the input of the next.
-
 ## `compose(*functions)` - Compose Right-to-Left
-
-Composes functions so `compose(f, g, h)(x)` equals `f(g(h(x))`):
 
 ```python
 from better_py.functions import compose
 
-add_one = lambda x: x + 1
 double = lambda x: x * 2
+increment = lambda x: x + 1
 
-process = compose(double, add_one)
-process(5)  # 12 (double(add_one(5)))
+transform = compose(double, increment)
+transform(5)  # 12 (double(increment(5)))
 ```
 
-Functions are applied right to left (mathematical convention).
-
 ## `compose_left(*functions)` - Compose Left-to-Right
-
-Composes functions left to right: `compose_left(f, g, h)(x)` equals `h(g(f(x)))`):
 
 ```python
 from better_py.functions import compose_left
 
-process = compose_left(add_one, double)
-process(5)  # 12 (double(add_one(5)))
+transform = compose_left(increment, double)
+transform(5)  # 12 (double(increment(5)))
 ```
 
-This is equivalent to `pipe` but returns a function instead of executing immediately.
-
-## Why Compose?
-
-Instead of monolithic functions, compose small, testable ones:
+## Common Pattern
 
 ```python
-register_user = compose(
-    send_welcome_email,
-    create_db_record,
-    validate_email,
-    validate_username
-)
-```
-
-Each function can be tested independently and reused in different compositions.
-
-## Common Patterns
-
-### Validation Chain
-
-```python
-validate_user = compose(
-    check_not_banned,
-    check_is_active,
-    check_exists,
-    get_user
-)
-```
-
-### Data Pipeline
-
-```python
-pipeline = compose(
-    aggregate_metrics,
-    group_by_category,
-    normalize_data,
-    parse_json
-)
+validate = compose(check_auth, check_perms, get_user)
 ```
 
 ## Compose vs Pipe
 
-| | compose | pipe |
-|---|---|---|
-| **Returns** | Function | Value |
-| **Use** | Reusable transformations | One-time processing |
-| **Order** | Right to left | Left to right |
-
-```python
-# Create tool
-process = compose(clean, transform, validate)
-
-# Use tool
-pipe(data, process)  # or: process(data)
-```
-
-## See Also
-
-- [pipe & flow](/docs/functions/pipe) - Left-to-right data flow
-- [curry](/docs/functions/curry) - Partial application
+- **compose**: Returns function → reusable
+- **pipe**: Returns value → one-off

@@ -1,11 +1,9 @@
 ---
 title: Curry
-description: Currying, partial application, and function specialization
+description: Currying and partial application
 ---
 
-**Currying** transforms multi-argument functions into sequences of single-argument functions, enabling partial application and function specialization.
-
-## `curry(func)` - Convert to Curried Function
+## `curry(func)` - Transform to Curried Function
 
 ```python
 from better_py.functions import curry
@@ -14,108 +12,35 @@ from better_py.functions import curry
 def add(x, y, z):
     return x + y + z
 
-# Call with one at a time or multiple at once
-add(1)(2)(3)     # 6
-add(1, 2)(3)     # 6
-add(1)(2, 3)     # 6
+add(1)(2)(3)  # 6
+add(1, 2)(3)  # 6
 ```
 
-Functions execute when all **required** parameters (without defaults) are provided:
-
-```python
-@curry
-def func(a, b, c=10, d=20):
-    return a + b + c + d
-
-func(1)(2)        # 1 + 2 + 10 + 20 = 33 (uses defaults)
-func(1)(2, 5)     # 1 + 2 + 5 + 20 = 28 (override c)
-```
-
-## Partial Application
-
-Create specialized functions by providing some arguments now:
-
-```python
-from better_py.functions import curry
-
-@curry
-def fetch_data(api_key, endpoint, params):
-    return requests.get(f"api.com/{endpoint}", params=params,
-                        headers={"Authorization": f"Bearer {api_key}"})
-
-# Specialize for different endpoints
-user_fetcher = fetch_data("secret-key")("users")
-post_fetcher = fetch_data("secret-key")("posts")
-
-user_by_id = user_fetcher({"id": 1})
-```
-
-## `partial_right(func, *args, **kwargs)` - Fix Right Arguments
-
-Applies arguments from the right (unlike `functools.partial`):
+## `partial_right(func, *args)` - Fix Right Arguments
 
 ```python
 from better_py.functions import partial_right
 
-def divide(dividend, divisor):
-    return dividend / divisor
-
-divide_by_2 = partial_right(divide, 2)
-divide_by_10 = partial_right(divide, 10)
-
-divide_by_2(20)   # 10
+divide_by_2 = partial_right(lambda x, y: x / y, 2)
+divide_by_2(10)  # 5
 ```
 
-Useful for binary operations where you want to fix the second parameter.
-
 ## `flip(func)` - Swap First Two Arguments
-
-Swaps the first two arguments of a function:
 
 ```python
 from better_py.functions import flip
 
-def map_collection(func, collection):
-    return [func(item) for item in collection]
-
-map_flipped = flip(map_collection)
-map_flipped([1, 2, 3], lambda x: x * 2)  # [2, 4, 6]
+subtract_from = flip(lambda x, y: x - y)
+subtract_from(10, 3)  # 7 (10 - 3)
 ```
 
-## Common Patterns
-
-### Function Factory
+## Common Pattern
 
 ```python
 @curry
-def query(connection, table, columns, where, limit):
-    return connection.query(f"SELECT {columns} FROM {table} WHERE {where} LIMIT {limit}")
+def fetch(api_key, endpoint, params):
+    return api_call(endpoint, params, api_key)
 
-# Build specialized queries
-user_query = query(prod_conn, "users", "id, name")
-active_users = user_query("active = true", 100)
+get_users = fetch("key")("users")
+get_users({"id": 1})
 ```
-
-### Filter Builder
-
-```python
-@curry
-def filter_by(predicate, items):
-    return [item for item in items if predicate(item)]
-
-evens = filter_by(lambda x: x % 2 == 0)
-positives = filter_by(lambda x: x > 0)
-
-evens([1, 2, 3, 4])  # [2, 4]
-```
-
-## When to Use
-
-- **curry**: Creating reusable, configurable functions
-- **partial_right**: Fixing rightmost arguments (binary ops, divisors)
-- **flip**: Swapping argument order for ergonomics
-
-## See Also
-
-- [compose](/docs/functions/compose) - Function composition
-- [pipe & flow](/docs/functions/pipe) - Data flow pipelines

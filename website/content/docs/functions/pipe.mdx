@@ -1,101 +1,37 @@
 ---
 title: Pipe & Flow
-description: Left-to-right function chaining and data flow
+description: Left-to-right function chaining
 ---
 
-The **pipe** and **flow** utilities enable left-to-right function chaining, transforming how we think about data transformations in Python.
-
-## `pipe(value, *functions)` - Pipe Value Through Functions
-
-Applies functions to a value in left-to-right order: `pipe(x, f, g, h)` equals `h(g(f(x)))`.
+## `pipe(value, *functions)` - Chain Functions Left-to-Right
 
 ```python
 from better_py.functions import pipe
 
-add_one = lambda x: x + 1
-double = lambda x: x * 2
-
-pipe(5, add_one, double)  # 12
+pipe(5, lambda x: x + 1, lambda x: x * 2)  # 12
 ```
 
-Each step transforms the result of the previous one. This is perfect for data processing pipelines:
+Equivalent to: `third(second(first(value)))`.
 
-```python
-pipe("data.json",
-    read_file,
-    parse_json,
-    clean_data,
-    save_data
-)
-```
-
-**Use `pipe` when:** You have one-off transformations that need to happen in sequence.
-
-## `flow(*functions)` - Create Reusable Pipeline
-
-Creates a reusable function from a series of functions:
+## `flow(*functions)` - Create Reusable Function
 
 ```python
 from better_py.functions import flow
 
-add_one = lambda x: x + 1
-double = lambda x: x * 2
-
-process = flow(add_one, double)
+process = flow(lambda x: x + 1, lambda x: x * 2)
 process(5)  # 12
-process(10)  # 22
 ```
 
-**Use `flow` when:** You need to apply the same transformation to multiple inputs.
-
-## `Pipeline` Class - Fluent API
-
-Provides method chaining for collection operations:
+## `Pipeline` - Fluent Collection API
 
 ```python
 from better_py.functions import Pipeline
 
-result = (Pipeline()
-    .map(lambda x: x * 2)
-    .filter(lambda x: x > 5)
-    .reduce(lambda acc, x: acc + x, 0)
-    .execute([1, 2, 3, 4]))
-```
-
-## Common Patterns
-
-### Data Processing Pipeline
-
-```python
-def process_logs(log_file):
-    return pipe(
-        log_file,
-        read_log_file,
-        parse_entries,
-        filter_errors,
-        aggregate_stats
-    )
-```
-
-### Reusable Transformer
-
-```python
-clean_and_normalize = flow(
-    remove_outliers,
-    normalize,
-    scale_features
-)
-
-analyze = flow(load_data, clean_and_normalize, apply_model)
+Pipeline().map(lambda x: x * 2).filter(lambda x: x > 0).execute([1, -2, 3])  # [2, 6]
 ```
 
 ## When to Use
 
-- **pipe**: One-off transformations, immediate execution
-- **flow**: Reusable pipelines, pass as function
-- **Pipeline**: Collection operations, fluent interface
-
-## See Also
-
-- [compose](/docs/functions/compose) - Right-to-left composition
-- [curry](/docs/functions/curry) - Partial application
+- **pipe**: One-off transformations
+- **flow**: Reusable pipelines
+- **Pipeline**: Collection operations
