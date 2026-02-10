@@ -3,44 +3,40 @@ title: Comparisons
 description: Compare better-py with other functional programming libraries in Python
 ---
 
-import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
-import { Callout } from 'fumadocs-ui/components/callout';
-
 # Comparisons
 
 See how better-py compares to other functional programming libraries and approaches in Python.
 
 ## vs Returns Library
 
-<Tabs items={['better-py', 'Returns']}>
-  <Tab value="better-py">
-    ```python
-    from better_py import Some, Nothing, Ok, Error
+### better-py
 
-    # Maybe for optional values
-    value = Some(42)
-    result = value.map(lambda x: x * 2)
+```python
+from better_py import Some, Nothing, Ok, Error
 
-    # Result for error handling
-    result = Ok(42)
-    error = Error("something went wrong")
-    ```
-  </Tab>
-  <Tab value="Returns">
-    ```python
-    from returns.maybe import Some, Nothing
-    from returns.result import Success, Failure
+# Maybe for optional values
+value = Some(42)
+result = value.map(lambda x: x * 2)
 
-    # Maybe for optional values
-    value = Some(42)
-    result = value.map(lambda x: x * 2)
+# Result for error handling
+result = Ok(42)
+error = Error("something went wrong")
+```
 
-    # Result for error handling
-    result = Success(42)
-    failure = Failure("something went wrong")
-    ```
-  </Tab>
-</Tabs>
+### Returns
+
+```python
+from returns.maybe import Some, Nothing
+from returns.result import Success, Failure
+
+# Maybe for optional values
+value = Some(42)
+result = value.map(lambda x: x * 2)
+
+# Result for error handling
+result = Success(42)
+failure = Failure("something went wrong")
+```
 
 ### Key Differences
 
@@ -53,36 +49,33 @@ See how better-py compares to other functional programming libraries and approac
 | **Learning curve** | Gentler, Pythonic | Steeper |
 | **Philosophy** | Pragmatic | Academic |
 
-<Callout type="info">
-better-py focuses on feeling like natural Python objects, while Returns follows more traditional functional programming patterns.
-</Callout>
+> **Info:** better-py focuses on feeling like natural Python objects, while Returns follows more traditional functional programming patterns.
 
 ## vs PyMonad
 
-<Tabs items={['better-py', 'PyMonad']}>
-  <Tab value="better-py">
-    ```python
-    from better_py import Some, Nothing
+### better-py
 
-    value = Some(42)
-    result = (
-        value
-        .map(lambda x: x * 2)
-        .filter(lambda x: x > 50)
-        .or_else(0)
-    )
-    ```
-  </Tab>
-  <Tab value="PyMonad">
-    ```python
-    from pymonad.Maybe import Just, Nothing
+```python
+from better_py import Some, Nothing
 
-    value = Just(42)
-    result = value.amap(lambda x: x * 2)
-    # No built-in filter, or_else, etc.
-    ```
-  </Tab>
-</Tabs>
+value = Some(42)
+result = (
+    value
+    .map(lambda x: x * 2)
+    .filter(lambda x: x > 50)
+    .or_else(0)
+)
+```
+
+### PyMonad
+
+```python
+from pymonad.Maybe import Just, Nothing
+
+value = Just(42)
+result = value.amap(lambda x: x * 2)
+# No built-in filter, or_else, etc.
+```
 
 ### Key Differences
 
@@ -96,47 +89,47 @@ better-py focuses on feeling like natural Python objects, while Returns follows 
 
 ## vs Option/Maybe from Other Libraries
 
-<Tabs items={['better-py', 'Optional[T]', 'typing-ext']}>
-  <Tab value="better-py">
-    ```python
-    from better_py import Some, Nothing
+### better-py
 
-    def get_user(id: int) -> Some[User] | Nothing:
-        if user := db.find(id):
-            return Some(user)
-        return Nothing()
+```python
+from better_py import Some, Nothing
 
-    user = get_user(1)
-    name = user.map(lambda u: u.name).or_else("Guest")
-    ```
-  </Tab>
-  <Tab value="Optional[T]">
-    ```python
-    from typing import Optional
+def get_user(id: int) -> Some[User] | Nothing:
+    if user := db.find(id):
+        return Some(user)
+    return Nothing()
 
-    def get_user(id: int) -> Optional[User]:
-        return db.find(id)
+user = get_user(1)
+name = user.map(lambda u: u.name).or_else("Guest")
+```
 
-    user = get_user(1)
-    if user:
-        name = user.name
-    else:
-        name = "Guest"
-    ```
-  </Tab>
-  <Tab value="typing-ext">
-    ```python
-    from typing_ext import Option, Some, Nothing
+### Optional[T]
 
-    def get_user(id: int) -> Option[User]:
-        if user := db.find(id):
-            return Some(user)
-        return Nothing
+```python
+from typing import Optional
 
-    name = get_user(1).map_or("Guest", lambda u: u.name)
-    ```
-  </Tab>
-</Tabs>
+def get_user(id: int) -> Optional[User]:
+    return db.find(id)
+
+user = get_user(1)
+if user:
+    name = user.name
+else:
+    name = "Guest"
+```
+
+### typing-ext
+
+```python
+from typing_ext import Option, Some, Nothing
+
+def get_user(id: int) -> Option[User]:
+    if user := db.find(id):
+        return Some(user)
+    return Nothing
+
+name = get_user(1).map_or("Guest", lambda u: u.name)
+```
 
 ### Key Differences
 
@@ -152,32 +145,31 @@ better-py focuses on feeling like natural Python objects, while Returns follows 
 
 better-py draws inspiration from Rust's excellent error handling:
 
-<Tabs items={['better-py', 'Rust']}>
-  <Tab value="better-py">
-    ```python
-    from better_py import Some, Nothing, Ok, Error
+### better-py
 
-    # Maybe ≈ Option
-    value = Some(42)
-    result = value.map(lambda x: x * 2).or_else(0)
+```python
+from better_py import Some, Nothing, Ok, Error
 
-    # Result ≈ Result
-    result = Ok(42)
-    value = result.unwrap_or(0)
-    ```
-  </Tab>
-  <Tab value="Rust">
-    ```rust
-    // Option
-    let value = Some(42);
-    let result = value.map(|x| x * 2).unwrap_or(0);
+# Maybe ≈ Option
+value = Some(42)
+result = value.map(lambda x: x * 2).or_else(0)
 
-    // Result
-    let result: Result<i32, &str> = Ok(42);
-    let value = result.unwrap_or(0);
-    ```
-  </Tab>
-</Tabs>
+# Result ≈ Result
+result = Ok(42)
+value = result.unwrap_or(0)
+```
+
+### Rust
+
+```rust
+// Option
+let value = Some(42);
+let result = value.map(|x| x * 2).unwrap_or(0);
+
+// Result
+let result: Result<i32, &str> = Ok(42);
+let value = result.unwrap_or(0);
+```
 
 ### Key Differences
 
@@ -189,9 +181,7 @@ better-py draws inspiration from Rust's excellent error handling:
 | **Performance** | Overhead of objects | Zero-cost |
 | **Ergonomics** | Pythonic idioms | Rust idioms |
 
-<Callout type="info">
-better-py aims to bring Rust-like ergonomics to Python, while accepting the limitations of Python's type system.
-</Callout>
+> **Info:** better-py aims to bring Rust-like ergonomics to Python, while accepting the limitations of Python's type system.
 
 ## Summary
 
