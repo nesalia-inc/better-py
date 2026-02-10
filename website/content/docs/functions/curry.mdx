@@ -3,299 +3,9 @@ title: Curry
 description: Currying, partial application, and function specialization
 ---
 
-**Currying** and **partial application** are techniques that transform how we think about function arguments. Instead of providing all arguments at once, we can provide some now and some later, creating specialized functions along the way. This enables powerful patterns for code reuse and abstraction.
+**Currying** transforms multi-argument functions into sequences of single-argument functions, enabling partial application and function specialization.
 
-## The Concept of Currying
-
-Currying transforms a function that takes multiple arguments into a sequence of functions, each taking a single argument. Named after mathematician Haskell Curry, this technique has deep roots in lambda calculus and functional programming.
-
-The key insight is this: a function of two arguments `f(a, b)` can be represented as a function of one argument that returns another function of one argument. Instead of `f(a, b)`, you write `f(a)(b)`.
-
-This seems like a small difference, but it has profound implications for code reuse and abstraction.
-
-## Why Curry Matters
-
-Traditional programming requires you to provide all arguments at once. Currying lets you provide arguments gradually, creating specialized functions at each step.
-
-Consider a database query function:
-
-```python
-# Traditional: provide all arguments at once
-def query(table, columns, where, order_by):
-    return f"SELECT {columns} FROM {table} WHERE {where} ORDER BY {order_by}"
-
-# Every call needs all arguments
-query("users", "id, name", "active = true", "name")
-```
-
-With currying, you can create specialized query builders:
-
-```python
-from better_py.functions import curry
-
-@curry
-def query(table, columns, where, order_by):
-    return f"SELECT {columns} FROM {table} WHERE {where} ORDER BY {order_by}"
-
-# Create specialized functions
-user_query = query("users")
-active_users = user_query("id, name")
-active_by_name = active_users("active = true")
-
-# Now queries are simpler and more self-documenting
-active_by_name("name")
-```
-
-Each curried call creates a more specialized function, and the final call executes the query. This isn't just about fewer arguments—it's about creating domain-specific languages and abstractions.
-
-## Understanding Default Parameters
-
-Better-py's `curry` handles default parameters thoughtfully. Functions execute when all **required** parameters (those without defaults) are provided. Optional parameters with defaults can override the default but don't prevent early execution.
-
-```python
-from better_py.functions import curry
-
-@curry
-def func(required1, required2, optional1=10, optional2=20):
-    return required1 + required2 + optional1 + optional2
-
-# Executes when required params are provided (uses defaults)
-func(1)(2)  # Returns 1 + 2 + 10 + 20 = 33
-
-# Can override defaults
-func(1)(2, 5)     # Returns 1 + 2 + 5 + 20 = 28
-func(1)(2, 5, 3)  # Returns 1 + 2 + 5 + 3 = 11
-```
-
-This design gives you flexibility—provide what makes sense, let defaults handle the rest.
-
-## The Power of Partial Application
-
-Currying enables **partial application**—providing some arguments now and others later. This is incredibly powerful for creating reusable function components.
-
-### Creating Function Factories
-
-Think of partial application as a function factory. You provide some configuration, and you get back a function customized for that configuration:
-
-```python
-from better_py.functions import curry
-
-@curry
-def fetch_data(api_key, endpoint, params):
-    return requests.get(f"https://api.example.com/{endpoint}",
-                        params=params,
-                        headers={"Authorization": f"Bearer {api_key}"})
-
-# Create API-specific fetchers
-user_fetcher = fetch_data("secret-key")
-posts_fetcher = fetch_data("secret-key")
-
-# Further specialize
-user_by_id = user_fetcher("users")
-posts_by_user = posts_fetcher("posts")
-
-# Use the specialized functions
-user_by_id({"id": 1})
-posts_by_user({"user_id": 1})
-```
-
-Each specialization creates a more specific function. The original `fetch_data` is general, but through currying, you create domain-specific tools.
-
-### Higher-Order Functions
-
-Currying shines with higher-order functions like `map` and `filter`:
-
-```python
-from better_py.functions import curry
-
-@curry
-def filter_by(predicate, items):
-    return [item for item in items if predicate(item)]
-
-# Create specialized filters
-evens = filter_by(lambda x: x % 2 == 0)
-positives = filter_by(lambda x: x > 0)
-adults = filter_by(lambda p: p.age >= 18)
-
-# Use the specialized filters
-evens([1, 2, 3, 4, 5, 6])        # [2, 4, 6]
-positives([-1, 0, 1, 2])           # [1, 2]
-```
-
-The `filter_by` function is generic, but through partial application, you create specific, reusable filters.
-
-## Understanding `partial_right`
-
-Standard Python's `functools.partial` applies arguments from the left (the first arguments). But sometimes you need to fix the **rightmost** arguments. That's where `partial_right` comes in.
-
-### Why Right-Side Application?
-
-Consider division: `divide(dividend, divisor) = dividend / divisor`. If you want a function that divides by a specific number, you need to fix the **right** argument:
-
-```python
-from better_py.functions import partial_right
-
-def divide(dividend, divisor):
-    return dividend / divisor
-
-# Fix the divisor (right argument)
-divide_by_2 = partial_right(divide, 2)
-divide_by_10 = partial_right(divide, 10)
-
-divide_by_2(20)   # 20 / 2 = 10
-divide_by_10(50)  # 50 / 10 = 5
-```
-
-This is particularly useful for binary operations where the right argument represents configuration or a fixed value.
-
-### Common Use Cases
-
-**Binary operations** often benefit from right-side partial application:
-
-```python
-from better_py.functions import partial_right
-
-# Power operations
-square = partial_right(pow, 2)
-cube = partial_right(pow, 3)
-
-square(5)  # 25
-cube(5)    # 125
-
-# Subtraction (fix what you're subtracting)
-subtract_from_100 = partial_right(subtract, 100)
-subtract_from_100(75)  # 75 - 100 = -25
-```
-
-## Understanding `flip`
-
-The `flip` function swaps the first two arguments of a function. This seems simple, but it's incredibly useful for adapting functions to different contexts.
-
-### Making Functions More Ergonomic
-
-Sometimes you have a function with arguments in the wrong order for your use case. Instead of rewriting the function, just flip it:
-
-```python
-from better_py.functions import flip
-
-def map_collection(func, collection):
-    return [func(item) for item in collection]
-
-def double(x):
-    return x * 2
-
-# Normal order: func, collection
-map_collection(double, [1, 2, 3])  # [2, 4, 6]
-
-# Flipped order: collection, func
-map_flipped = flip(map_collection)
-map_flipped([1, 2, 3], double)     # [2, 4, 6]
-```
-
-The flipped version is more natural when the collection is the primary object of interest and the transformation varies.
-
-### Integrating with Different APIs
-
-Different libraries have different conventions. Flip helps bridge the gap:
-
-```python
-from better_py.functions import flip
-
-# Library A's convention
-def process(handler, data):
-    return handler(data)
-
-# Your code has data first, handler second
-def my_handler(data):
-    return process_data(data)
-
-# Flip to match conventions
-process_flipped = flip(process)
-process_flipped(my_handler, my_data)
-```
-
-## Real-World Patterns
-
-### Configuration Management
-
-Currying is perfect for building configuration-driven APIs:
-
-```python
-from better_py.functions import curry
-
-@curry
-def database_query(connection, table, columns, where, limit):
-    return connection.query(f"SELECT {columns} FROM {table} WHERE {where} LIMIT {limit}")
-
-# Build query builders from configuration
-prod_query = database_query(prod_connection)
-dev_query = database_query(dev_connection)
-
-# Further specialize for different tables
-user_query = prod_query("users", "id, name, email")
-post_query = prod_query("posts", "id, title, content")
-
-# Use specialized queries
-active_users = user_query("active = true", 100)
-recent_posts = post_query("created_at > '2024-01-01'", 50)
-```
-
-Each level of specialization adds more context while maintaining flexibility.
-
-### Validation Builders
-
-Validation often requires multiple checks. Currying lets you build validation functions that are both general and specific:
-
-```python
-from better_py.functions import curry
-
-@curry
-def validate(validator, error_message, value):
-    if not validator(value):
-        raise ValueError(f"{error_message}: got {value}")
-    return value
-
-# Create validators with context
-validate_positive = validate(lambda x: x > 0, "Must be positive")
-validate_email = validate(is_valid_email, "Invalid email format")
-validate_age = validate(lambda x: 18 <= x <= 120, "Invalid age")
-
-# Use the validators
-validate_positive(5)              # 5
-validate_email("test@example.com")  # "test@example.com"
-```
-
-Each validator carries its error message, making error reporting context-specific.
-
-### Functional Data Pipelines
-
-Currying combines beautifully with other functional tools:
-
-```python
-from better_py.functions import compose, curry
-
-@curry
-def transform(transformer, data):
-    return transformer(data)
-
-@curry
-def filter_data(predicate, data):
-    return [item for item in data if predicate(item)]
-
-# Build a data processing pipeline
-process = compose(
-    filter_data(lambda x: x > 0),
-    transform(lambda x: x * 2),
-)
-
-process([1, -2, 3, -4, 5])  # [2, 6, 10]
-```
-
-Each curried function is a building block that combines with others.
-
-## Testing Curried Functions
-
-Curried functions can be tested at multiple levels of specialization:
+## `curry(func)` - Convert to Curried Function
 
 ```python
 from better_py.functions import curry
@@ -304,91 +14,108 @@ from better_py.functions import curry
 def add(x, y, z):
     return x + y + z
 
-# Test with all arguments
-def test_add():
-    assert add(1)(2)(3) == 6
-
-# Test partial application
-def test_add_five():
-    add_five = add(2)(3)  # Curried to expect one more argument
-    assert add_five(5) == 10
-
-# Test different specialization paths
-def test_add_paths():
-    assert add(1)(2)(3) == 6
-    assert add(1, 2)(3) == 6
-    assert add(1)(2, 3) == 6
+# Call with one at a time or multiple at once
+add(1)(2)(3)     # 6
+add(1, 2)(3)     # 6
+add(1)(2, 3)     # 6
 ```
 
-This gives you confidence that currying works correctly regardless of how arguments are provided.
-
-## Performance Considerations
-
-Currying creates intermediate function objects, which has overhead. However, this overhead is typically negligible compared to the actual work your functions do.
-
-If you're in performance-critical code (tight loops, high-frequency trading, etc.), you might want to avoid currying and use traditional functions. Profile first—don't optimize based on intuition alone.
-
-## Common Pitfalls
-
-### Too Many Specializations
-
-It's easy to create too many specialized functions, making code harder to navigate:
+Functions execute when all **required** parameters (without defaults) are provided:
 
 ```python
-# Too many similar functions
-get_user_by_id = get_user("users")
-get_user_by_email = get_user("users")
-get_user_by_name = get_user("users")
-get_active_user_by_id = get_user("users", active=True)
-# ... dozens more
+@curry
+def func(a, b, c=10, d=20):
+    return a + b + c + d
 
-# Better: keep it general
-user_by_id = get_user("users")
-user_by_email = get_user("users")
+func(1)(2)        # 1 + 2 + 10 + 20 = 33 (uses defaults)
+func(1)(2, 5)     # 1 + 2 + 5 + 20 = 28 (override c)
 ```
 
-Create specializations when there's clear semantic value and reuse potential.
+## Partial Application
 
-### Forgetting Required Arguments
-
-With currying, it's easy to forget when all required arguments are provided:
+Create specialized functions by providing some arguments now:
 
 ```python
 from better_py.functions import curry
 
 @curry
-def process(config, data, options):
-    return apply(process_data(data, config), options)
+def fetch_data(api_key, endpoint, params):
+    return requests.get(f"api.com/{endpoint}", params=params,
+                        headers={"Authorization": f"Bearer {api_key}"})
 
-# When does this execute?
-processor = process(config)  # Not yet—still needs data and options
-result = processor(data)    # Not yet—still needs options
-final = processor(data, opts)  # Now it executes
+# Specialize for different endpoints
+user_fetcher = fetch_data("secret-key")("users")
+post_fetcher = fetch_data("secret-key")("posts")
+
+user_by_id = user_fetcher({"id": 1})
 ```
 
-Keep track of how many required arguments your functions have.
+## `partial_right(func, *args, **kwargs)` - Fix Right Arguments
 
-## When to Use Curry
+Applies arguments from the right (unlike `functools.partial`):
 
-Use **curry** when:
-- Building reusable, configurable functions
-- Creating domain-specific languages
-- Implementing function factories
-- Working with higher-order functions
-- Need partial application for code reuse
+```python
+from better_py.functions import partial_right
 
-Use **partial_right** when:
-- Need to fix rightmost arguments
-- Working with binary operations
-- Creating specialized versions of two-argument functions
+def divide(dividend, divisor):
+    return dividend / divisor
 
-Use **flip** when:
-- Adapting functions to different APIs
-- Need to swap argument order
-- Making functions ergonomic for specific use cases
+divide_by_2 = partial_right(divide, 2)
+divide_by_10 = partial_right(divide, 10)
+
+divide_by_2(20)   # 10
+```
+
+Useful for binary operations where you want to fix the second parameter.
+
+## `flip(func)` - Swap First Two Arguments
+
+Swaps the first two arguments of a function:
+
+```python
+from better_py.functions import flip
+
+def map_collection(func, collection):
+    return [func(item) for item in collection]
+
+map_flipped = flip(map_collection)
+map_flipped([1, 2, 3], lambda x: x * 2)  # [2, 4, 6]
+```
+
+## Common Patterns
+
+### Function Factory
+
+```python
+@curry
+def query(connection, table, columns, where, limit):
+    return connection.query(f"SELECT {columns} FROM {table} WHERE {where} LIMIT {limit}")
+
+# Build specialized queries
+user_query = query(prod_conn, "users", "id, name")
+active_users = user_query("active = true", 100)
+```
+
+### Filter Builder
+
+```python
+@curry
+def filter_by(predicate, items):
+    return [item for item in items if predicate(item)]
+
+evens = filter_by(lambda x: x % 2 == 0)
+positives = filter_by(lambda x: x > 0)
+
+evens([1, 2, 3, 4])  # [2, 4]
+```
+
+## When to Use
+
+- **curry**: Creating reusable, configurable functions
+- **partial_right**: Fixing rightmost arguments (binary ops, divisors)
+- **flip**: Swapping argument order for ergonomics
 
 ## See Also
 
-- [compose](/docs/functions/compose) - For building function combinations
-- [pipe & flow](/docs/functions/pipe) - For data flow pipelines
-- [monads](/docs/monads) - For context-aware composition
+- [compose](/docs/functions/compose) - Function composition
+- [pipe & flow](/docs/functions/pipe) - Data flow pipelines
