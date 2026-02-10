@@ -23,7 +23,6 @@
     "monads/async-maybe",
     "monads/async-result",
     "---Functions---",
-    "functions",
     "functions/pipe",
     "functions/compose",
     "functions/curry"

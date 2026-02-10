@@ -1,280 +1,319 @@
 ---
 title: Pipe & Flow
-description: Left-to-right function chaining and data flow
+description: Left-to-right function chaining and data flow programming
 ---
 
 # Pipe & Flow
 
-The **pipe** utilities provide left-to-right function chaining, similar to Unix pipes or F#'s pipe operator. This makes code read naturally from left to right.
+The **pipe** and **flow** utilities enable left-to-right function chaining, transforming how we think about data transformations in Python. Instead of nesting function calls or using temporary variables, you can create readable pipelines that flow naturally from left to right, much like Unix pipes or dataflow diagrams.
 
-## Overview
+## The Philosophy of Data Flow Programming
 
-`pipe` applies functions to a value in left-to-right order:
-- `pipe(x, f, g, h)` is equivalent to `h(g(f(x)))`
-- Functions are applied in sequence, making code easy to read
-- Perfect for data transformation pipelines
+Traditional Python code often reads "inside out" or requires intermediate variables that add clutter. Consider this nested function call:
 
-## `pipe(value, *functions)` - Pipe Value Through Functions
+```python
+# Traditional approach - hard to read
+result = uppercase(remove_spaces(parse_json(read_file("data.json"))))
+```
 
-Apply functions to a value in left-to-right order.
+With pipe, the same operation reads in natural execution order:
+
+```python
+# Pipe approach - reads left to right
+result = pipe(
+    "data.json",
+    read_file,
+    parse_json,
+    remove_spaces,
+    uppercase
+)
+```
+
+The difference isn't just syntactic—it changes how you think about your code. Each step in the pipeline is a clear, testable transformation that takes input and produces output. You can read it like a sentence: "Take data.json, read the file, parse JSON, remove spaces, then uppercase."
+
+## Why Left-to-Right Matters
+
+Most data processing follows a natural sequence: fetch → clean → transform → output. Yet in traditional programming, we write this sequence backwards because of how function composition works mathematically. The pipe operators reverse this, aligning your code with your mental model.
+
+This becomes more powerful with complex transformations. Instead of tracking nested parentheses in your head:
+
+```python
+# The nightmare of nested calls
+transform_data(
+    clean(
+        validate(
+            fetch(raw_input)
+        )
+    )
+)
+```
+
+You get a straightforward pipeline:
+
+```python
+# The clarity of pipe
+pipe(raw_input,
+    fetch,
+    validate,
+    clean,
+    transform_data
+)
+```
+
+## Understanding `pipe`
+
+The `pipe` function takes a value and any number of functions, applying each function to the result of the previous one. Think of it as a series of connected pipes where data flows through each transformation.
+
+### When to Use Pipe
+
+Pipe shines when you have **one-off transformations** where the operation sequence matters more than reusability. It's perfect for data processing scripts, ETL operations, and any situation where you're transforming data through a clear sequence of steps.
+
+Consider a web scraper that fetches HTML, extracts links, filters them, and saves them:
 
 ```python
 from better_py.functions import pipe
 
-add_one = lambda x: x + 1
-double = lambda x: x * 2
-
-# pipe(5, add_one, double) = double(add_one(5))
-pipe(5, add_one, double)  # 12
+def scrape_links(url):
+    return pipe(
+        url,
+        fetch_html,
+        extract_links,
+        filter_internal,
+        save_links
+    )
 ```
 
-### Multiple Operations
+Each step is a pure function that can be tested independently. If you need to add a step (like validation), just insert it in the appropriate position:
 
 ```python
-from better_py.functions import pipe
-
-def fetch(id):
-    return {"id": id, "name": f"User {id}"}
-
-def validate(user):
-    return user if user.get("id") > 0 else None
-
-def transform(user):
-    return user.get("name", "").upper()
-
-result = pipe(1, fetch, validate, transform)  # "USER 1"
+def scrape_links(url):
+    return pipe(
+        url,
+        fetch_html,
+        extract_links,
+        validate_links,    # Added step
+        filter_internal,
+        save_links
+    )
 ```
 
-### Real-World Example
+## Understanding `flow`
 
-```python
-from better_py.functions import pipe
+While `pipe` executes immediately, `flow` creates a **reusable pipeline**. You can think of it as creating a named transformation pipeline that you can apply to different inputs.
 
-def read_file(path):
-    with open(path) as f:
-        return f.read()
+This is particularly powerful when you have common transformation patterns that you apply in multiple places. Instead of repeating the same sequence of operations, define it once with `flow` and reuse it.
 
-def parse_json(content):
-    return json.loads(content)
+### Creating Domain-Specific Languages
 
-def extract_config(data):
-    return data.get("config", {})
-
-config = pipe("config.json", read_file, parse_json, extract_config)
-```
-
-## `flow(*functions)` - Create Reusable Pipeline
-
-Create a reusable function from a series of functions.
+Flow functions become tiny domain-specific languages for your problem space. A data science workflow might have flows like:
 
 ```python
 from better_py.functions import flow
 
-add_one = lambda x: x + 1
-double = lambda x: x * 2
+# Create reusable data science pipelines
+clean_and_normalize = flow(
+    remove_outliers,
+    normalize,
+    scale_features
+)
 
-# Create a reusable pipeline
-process = flow(add_one, double)
-process(5)  # 12
-process(10)  # 22
+analyze = flow(
+    load_dataset,
+    clean_and_normalize,
+    apply_model,
+    generate_report
+)
+
+# Now you can analyze any dataset with one call
+analyze(training_data)
+analyze(test_data)
 ```
 
-### Building Transformations
+Each flow becomes a higher-level abstraction that encapsulates domain knowledge. New team members can understand `analyze` without knowing the implementation details of each step.
 
-```python
-from better_py.functions import flow
+## Understanding `Pipeline` Class
 
-def trim(text):
-    return text.strip()
+The `Pipeline` class provides a **fluent, object-oriented interface** for building transformations. It's particularly useful when working with collections, as it provides familiar methods like `map`, `filter`, and `reduce`.
 
-def uppercase(text):
-    return text.upper()
+Think of Pipeline as a data transformation builder. You construct your transformation by chaining method calls, then execute it on your data.
 
-def clean(text):
-    return text.replace("\n", " ")
+### Method Chaining vs. Function Composition
 
-# Create a text processing pipeline
-normalize_text = flow(trim, clean, uppercase)
-normalize_text("  hello\nworld  ")  # "HELLO WORLD"
-```
-
-### Real-World Example
-
-```python
-from better_py.functions import flow
-
-def fetch_users():
-    return database.query("SELECT * FROM users")
-
-def filter_active(users):
-    return [u for u in users if u.get("active")]
-
-def get_emails(users):
-    return [u.get("email") for u in users if u.get("email")]
-
-# Create reusable pipeline
-get_active_emails = flow(fetch_users, filter_active, get_emails)
-emails = get_active_emails()
-```
-
-## `Pipeline` Class - Fluent API
-
-The `Pipeline` class provides a fluent interface for building transformations.
-
-### Creating Pipelines
+The choice between `pipe`/`flow` and `Pipeline` often comes down to style and context. Use `Pipeline` when you're doing collection operations or prefer object-oriented style. Use `pipe`/`flow` when you prefer functional style or need to pass the pipeline as a value.
 
 ```python
 from better_py.functions import Pipeline
 
-# Create a pipeline
-pipeline = Pipeline()
-
-# Add operations
-result = (pipeline
-    .map(lambda x: x * 2)
-    .filter(lambda x: x > 5)
-    .execute([1, 2, 3, 4]))  # [6, 8]
-```
-
-### Pipeline Methods
-
-#### `map(func)` - Transform Elements
-
-```python
-from better_py.functions import Pipeline
-
-Pipeline().map(lambda x: x * 2).execute([1, 2, 3])  # [2, 4, 6]
-```
-
-#### `filter(predicate)` - Filter Elements
-
-```python
-from better_py.functions import Pipeline
-
-Pipeline().filter(lambda x: x > 2).execute([1, 2, 3, 4])  # [3, 4]
-```
-
-#### `reduce(func, initial)` - Reduce to Single Value
-
-```python
-from better_py.functions import Pipeline
-
-Pipeline().reduce(lambda acc, x: acc + x, 0).execute([1, 2, 3, 4])  # 10
-```
-
-#### `apply(func)` - Custom Operation
-
-```python
-from better_py.functions import Pipeline
-
-def reverse(items):
-    return items[::-1]
-
-Pipeline().apply(reverse).execute([1, 2, 3])  # [3, 2, 1]
-```
-
-### Chaining Pipeline Operations
-
-```python
-from better_py.functions import Pipeline
-
-data = [1, 2, 3, 4, 5, 6]
-
+# Pipeline's fluent interface
 result = (Pipeline()
     .map(lambda x: x * 2)
-    .filter(lambda x: x > 5)
+    .filter(lambda x: x > 10)
     .reduce(lambda acc, x: acc + x, 0)
     .execute(data))
-
-result  # 12 + 8 + 10 + 12 = 42
 ```
 
-### Real-World Example
+The Pipeline class is especially useful in object-oriented codebases where you might want to combine it with method chaining on your own objects.
+
+## Real-World Patterns
+
+### Data Processing Pipeline
+
+Imagine processing log files: you need to read them, parse entries, filter errors, aggregate statistics, and generate a report. With pipe, each step is clear and testable:
 
 ```python
-from better_py.functions import Pipeline
-
-orders = [
-    {"id": 1, "total": 100, "status": "pending"},
-    {"id": 2, "total": 200, "status": "completed"},
-    {"id": 3, "total": 150, "status": "pending"},
-]
-
-# Build a processing pipeline
-result = (Pipeline()
-    .filter(lambda o: o["status"] == "pending")
-    .map(lambda o: o["total"])
-    .reduce(lambda acc, x: acc + x, 0)
-    .execute(orders))
-
-result  # 100 + 150 = 250
+def process_logs(log_file):
+    return pipe(
+        log_file,
+        read_log_file,
+        parse_log_entries,
+        filter_errors,
+        aggregate_stats,
+        format_report
+    )
 ```
 
-## `pipeable(func)` - Mark Functions as Pipeable
+If logs are in a different format, just swap out `parse_log_entries`. If you need different filtering, change `filter_errors`. Each component is independent and reusable.
 
-Decorator to mark a function as pipeable (semantic marker).
+### Building Feature Transformers
+
+In machine learning, you often create feature transformation pipelines. Flow makes this elegant:
 
 ```python
-from better_py.functions import pipe, pipeable
+from better_py.functions import flow
 
-@pipeable
-def add_one(x):
-    return x + 1
+# Define transformation pipeline once
+text_features = flow(
+    lowercase,
+    remove_punctuation,
+    tokenize,
+    remove_stopwords,
+    stem_words
+)
 
-@pipeable
-def double(x):
-    return x * 2
-
-# Can be used in pipe operations
-pipe(5, add_one, double)  # 12
+# Apply to any text
+features1 = text_features(user_review_1)
+features2 = text_features(user_review_2)
 ```
 
-## Pipe Syntax with `|` Operator
+The pipeline encapsulates best practices. When you need to change how you process text, you update the flow in one place, and all callers benefit.
 
-The `Pipeline` class supports the `|` operator for pipe-like syntax.
+### ETL Operations
+
+Extract-Transform-Load (ETL) operations are natural fits for pipe:
 
 ```python
-from better_py.functions import Pipeline
+from better_py.functions import pipe
 
-add_one = lambda x: x + 1
-double = lambda x: x * 2
+def etl_process(source):
+    return pipe(
+        source,
+        extract_data,
+        clean_data,
+        transform_data,
+        load_data
+    )
+```
 
-# Use | operator
-result = (Pipeline()
-    | add_one
-    | double)
+Each stage is a clear boundary. You can monitor performance at each step, add error handling, or parallelize stages independently.
 
-result.execute(5)  # 12
+## Performance Considerations
+
+One concern with function chaining is intermediate object creation. In Python, pipe creates intermediate results as it chains functions. For most applications, this overhead is negligible compared to the actual work being done.
+
+However, for performance-critical code with large datasets, consider:
+- **Combining operations** to reduce intermediate steps
+- **Using generators** instead of lists for large data
+- **Pipeline class** for collection operations (can be more efficient)
+
+## Testing and Debugging
+
+Piped code is often easier to test because each function can be tested in isolation:
+
+```python
+# Test each transformation independently
+def test_parse_json():
+    assert parse_json('{"key": "value"}') == {"key": "value"}
+
+def test_remove_spaces():
+    assert remove_spaces("a b c") == "abc"
+
+# Then test the pipeline
+def test_full_pipeline():
+    result = pipe('{"key": "  value  "}', parse_json, remove_spaces)
+    assert result == {"key": "value"}
+```
+
+Debugging is also easier—you can insert logging or inspection at any step:
+
+```python
+def debug_step(value):
+    print(f"Debug: {value}")
+    return value
+
+pipe(data,
+    step1,
+    debug_step,    # Inspect intermediate value
+    step2,
+    debug_step,    # Inspect another intermediate value
+    step3)
+```
+
+## Common Pitfalls
+
+### Mixing Pipe Types
+
+Be consistent with your pipe style. Mixing function pipes with method chains can make code harder to read:
+
+```python
+# Confusing: mixing styles
+result = data.pipe(func1).pipe(func2).method().pipe(func3)
+
+# Better: choose one style
+result = pipe(data, func1, func2, func3)
+# or
+result = data.method1().method2().method3()
+```
+
+### Too Many Steps
+
+If your pipe has many steps, consider grouping related operations into named functions:
+
+```python
+# Too many steps - hard to follow
+pipe(data, a, b, c, d, e, f, g, h)
+
+# Better: group operations
+def preprocess(data):
+    return pipe(data, a, b, c, d)
+
+def postprocess(data):
+    return pipe(data, e, f, g, h)
+
+pipe(data, preprocess, postprocess)
 ```
 
 ## When to Use Pipe & Flow
 
 ### Use `pipe` when:
-- You have one-time transformations
-- Operations form a clear sequence
-- You want readable left-to-right code
+- Transforming data through a clear sequence
+- Writing one-off data processing scripts
+- Operations don't need to be reused
+- Readability is more important than reusability
 
 ### Use `flow` when:
-- You need reusable pipelines
-- Passing the pipeline as a function
-- Building transformation utilities
+- Building reusable transformation pipelines
+- Creating domain-specific languages
+- Need to pass the pipeline as a parameter
+- Applying the same transformation to multiple inputs
 
 ### Use `Pipeline` class when:
-- You need method chaining
-- Building complex transformations
 - Working with collections
-
-## Comparison
-
-| Feature | `pipe` | `flow` | `Pipeline` |
-|---------|--------|--------|------------|
-| **Immediate execution** | Yes | No | No |
-| **Returns function** | No | Yes | No |
-| **Method chaining** | No | No | Yes |
-| **Collection methods** | No | No | Yes |
-| **Reusability** | Low | High | High |
+- Prefer object-oriented fluent interface
+- Need method chaining with custom operations
+- Building complex transformation builders
 
 ## See Also
 
-- [compose](/docs/functions/compose) - Right-to-left composition
-- [curry](/docs/functions/curry) - Partial application
+- [compose](/docs/functions/compose) - For right-to-left composition
+- [curry](/docs/functions/curry) - For partial application
+- [Maybe monad](/docs/monads/maybe) - For handling optional values in pipelines

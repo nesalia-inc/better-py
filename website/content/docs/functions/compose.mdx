@@ -1,294 +1,343 @@
 ---
 title: Compose
-description: Function composition utilities for combining functions
+description: Function composition and building complex transformations
 ---
 
 # Compose
 
-The **compose** utilities provide function composition - combining multiple functions into a single function. Functions are composed from right to left, following mathematical convention.
+Function **composition** is one of the most fundamental concepts in functional programming. It's the process of combining simple functions to build more complex ones, where the output of one function becomes the input of the next. The `compose` utilities bring this powerful concept to Python in a way that's both practical and intuitive.
 
-## Overview
+## The Mathematical Foundation
 
-`compose` combines functions so that `compose(f, g, h)(x)` is equivalent to `f(g(h(x)))`:
-- Functions are applied **right to left** (mathematical convention)
-- Returns a new function that can be called later
-- Perfect for building complex transformations from simple ones
+In mathematics, function composition is denoted as (f ∘ g)(x) = f(g(x)). The compose functions follow this convention—functions are applied **right to left**. This might feel backwards at first, but it matches how mathematicians have thought about functions for centuries.
 
-## `compose(*functions)` - Compose Functions Right-to-Left
+Why right to left? Think of it as "nesting" function calls:
 
-Compose functions so the rightmost is applied first.
+```python
+# These are equivalent:
+result = compose(f, g, h)(x)      # Compose style
+result = f(g(h(x)))                 # Traditional style
+```
+
+The rightmost function (`h`) is applied first, then `g`, then `f`. This ordering makes compose equivalent to function nesting, which helps with reasoning about function behavior.
+
+## Why Composition Matters
+
+Composition changes how you think about building software. Instead of writing large, monolithic functions that do everything, you write small, focused functions and compose them together. This has profound benefits:
+
+- **Testability**: Small functions are easier to test than large ones
+- **Reusability**: Composable functions can be reused in different contexts
+- **Readability**: Well-named composed functions read like sentences
+- **Maintainability**: Changes are localized to specific functions
+
+Consider user registration. Instead of one giant function:
+
+```python
+def register_user(username, email, password):
+    # 50 lines of validation, database calls, email sending...
+```
+
+You compose focused functions:
+
+```python
+register_user = compose(
+    send_welcome_email,
+    create_database_record,
+    validate_password,
+    validate_email,
+    validate_username
+)
+```
+
+Now each validation can be tested independently, and the registration flow is crystal clear.
+
+## Understanding `compose`
+
+The `compose` function creates a new function that applies its arguments right to left. This is particularly useful when you want to create reusable function combinations.
+
+### Building Transformation Pipelines
+
+Think of compose as building a processing pipeline where data flows from right to left. The rightmost function is the first transformation, and each subsequent function refines the result further.
+
+For example, in natural language processing:
 
 ```python
 from better_py.functions import compose
-
-add_one = lambda x: x + 1
-double = lambda x: x * 2
-
-# compose(double, add_one)(5) = double(add_one(5))
-process = compose(double, add_one)
-process(5)  # 12
-```
-
-### How It Works
-
-```
-compose(f, g, h)(x) = f(g(h(x)))
-
-Application order:
-1. h(x) is applied first
-2. g(result) is applied second
-3. f(result) is applied last
-```
-
-### Multiple Functions
-
-```python
-from better_py.functions import compose
-
-increment = lambda x: x + 1
-double = lambda x: x * 2
-square = lambda x: x ** 2
-
-# compose(square, double, increment)(3)
-# = square(double(increment(3)))
-# = square(double(4))
-# = square(8)
-# = 64
-
-transform = compose(square, double, increment)
-transform(3)  # 64
-```
-
-### Real-World Example
-
-```python
-from better_py.functions import compose
-
-def fetch_user(user_id):
-    return database.get_user(user_id)
-
-def validate_user(user):
-    if not user or not user.get("active"):
-        raise ValueError("Invalid user")
-    return user
-
-def get_user_email(user):
-    return user.get("email")
-
-# Compose functions
-get_valid_email = compose(get_user_email, validate_user, fetch_user)
-email = get_valid_email(1)
-```
-
-## `compose_left(*functions)` - Compose Functions Left-to-Right
-
-Compose functions so the leftmost is applied first (alias for `pipe` behavior).
-
-```python
-from better_py.functions import compose_left
-
-add_one = lambda x: x + 1
-double = lambda x: x * 2
-
-# compose_left(add_one, double)(5) = double(add_one(5))
-process = compose_left(add_one, double)
-process(5)  # 12
-```
-
-### How It Works
-
-```
-compose_left(f, g, h)(x) = h(g(f(x)))
-
-Application order:
-1. f(x) is applied first
-2. g(result) is applied second
-3. h(result) is applied last
-```
-
-### Real-World Example
-
-```python
-from better_py.functions import compose_left
-
-def read_file(path):
-    with open(path) as f:
-        return f.read()
-
-def parse_json(content):
-    return json.loads(content)
-
-def extract_data(data):
-    return data.get("results", [])
-
-# Compose left to right (natural reading order)
-load_data = compose_left(read_file, parse_json, extract_data)
-results = load_data("data.json")
-```
-
-## Creating Reusable Compositions
-
-### Data Processing Pipeline
-
-```python
-from better_py.functions import compose
-
-def clean_text(text):
-    return text.strip().lower()
-
-def remove_special_chars(text):
-    return ''.join(c for c in text if c.isalnum() or c.isspace())
-
-def tokenize(text):
-    return text.split()
 
 # Build a text processing pipeline
-process_text = compose(tokenize, remove_special_chars, clean_text)
-words = process_text("  Hello, World!  ")  # ["hello", "world"]
+process_text = compose(
+    capitalize_sentences,
+    fix_grammar,
+    remove_stopwords,
+    tokenize,
+    lowercase
+)
 ```
 
-### Validation Chain
+When you apply `process_text(text)`, the text is lowercased first, then tokenized, then stopword removal happens, etc. Each function is a lens that focuses the transformation, and compose brings them together into a cohesive whole.
+
+### Type Safety and Composition
+
+One of the beautiful aspects of function composition is how it works with types. If you have functions `f: B → C` and `g: A → B`, then `compose(f, g): A → C`. The types line up perfectly—the output type of one function matches the input type of the next.
+
+This is why composed functions feel so natural to write—the types guide you. If you try to compose functions with mismatched types, you'll know immediately when you try to use the result.
+
+## Understanding `compose_left`
+
+The `compose_left` function is `compose`'s mirror image—functions are applied **left to right**. This is actually the same as `pipe`, but returns a function instead of executing immediately.
+
+Why have both? It's about your mental model and what you're trying to express:
+
+- Use `compose` when thinking mathematically (building transformations)
+- Use `compose_left` when thinking procedurally (processing steps)
+
+```python
+# Mathematical: building a transformation
+transform = compose(square, double, increment)
+
+# Procedural: defining a process
+process = compose_left(step1, step2, step3)
+```
+
+Both create functions, but they emphasize different aspects of your intent.
+
+## The Power of Point-Free Style
+
+Composition enables **point-free style**, where you don't explicitly name arguments. Instead of saying "take x and apply f, g, h to it," you just say "compose f, g, h."
+
+```python
+# With explicit argument
+def process(x):
+    return h(g(f(x)))
+
+# Point-free style
+process = compose(h, g, f)
+```
+
+Point-free style is controversial—some love its elegance, others find it obscure. The key is to use it when it improves clarity. Point-free shines when the composition itself tells the story:
+
+```python
+# Clear and intent-revealing
+fetch_and_process = compose(process_data, fetch_resource)
+
+# Less clear
+def operation(x):
+    return process_data(fetch_resource(x))
+```
+
+## Common Patterns
+
+### Validation Chaining
+
+Composed functions excel at multi-step validation where each step validates something specific:
 
 ```python
 from better_py.functions import compose
 
-def check_not_none(value):
-    if value is None:
-        raise ValueError("Value is None")
-    return value
-
-def check_positive(value):
-    if value <= 0:
-        raise ValueError("Value must be positive")
-    return value
-
-def check_range(value):
-    if value > 100:
-        raise ValueError("Value must be <= 100")
-    return value
-
-# Compose validations
-validate = compose(check_range, check_positive, check_not_none)
-validate(50)  # 50
-validate(-5)  # Raises ValueError
+validate_user = compose(
+    check_not_banned,
+    check_is_active,
+    check_exists,
+    get_user
+)
 ```
 
-### Transformation Builder
+The composition reads like a checklist: "get the user, check if they exist, check if active, check if not banned." If any check fails, the composition short-circuits (assuming the validation functions return Result or Maybe types).
+
+### Data Transformation Builders
+
+In data engineering, you often build complex transformations from simple primitives:
 
 ```python
 from better_py.functions import compose
 
-def celsius_to_fahrenheit(c):
-    return (c * 9/5) + 32
-
-def fahrenheit_to_kelvin(f):
-    return (f - 32) * 5/9 + 273.15
-
-def format_temperature(k):
-    return f"{k:.2f}K"
-
-# Compose transformations
-c_to_k_formatted = compose(format_temperature, fahrenheit_to_kelvin, celsius_to_fahrenheit)
-result = c_to_k_formatted(25)  # "298.15K"
+# Build a data pipeline
+pipeline = compose(
+    aggregate_metrics,
+    group_by_category,
+    normalize_data,
+    extract_fields,
+    parse_json
+)
 ```
 
-## Decorator Pattern
+Each step is a clear transformation, and the pipeline is a reusable asset. Different teams can use the same pipeline on different data sources.
 
-The `compose` module also provides a `decorator` helper:
+### Middleware and Decorator Chains
+
+Web frameworks use composition heavily for middleware chains:
 
 ```python
-from better_py.functions.compose import decorator
+from better_py.functions import compose
 
-def double(x):
-    return x * 2
-
-@decorator(double)
-def my_function():
-    return 5
-
-my_function()  # 10
+# Build request handler from middleware
+handle_request = compose(
+    send_response,
+    add_security_headers,
+    log_request,
+    authenticate,
+    rate_limit
+)
 ```
 
-## Compose vs Pipe
+Each middleware wraps the next, creating an onion-like structure. Composition makes this elegant rather than nested and confusing.
 
-| Feature | `compose` | `pipe` |
-|---------|-----------|--------|
-| **Execution order** | Right to left | Left to right |
+## Compose vs. Pipe: Which to Choose?
+
+The choice often comes down to reusability and mental model:
+
+| Aspect | `compose` | `pipe` |
+|--------|-----------|--------|
 | **Returns** | Function | Value |
-| **Mathematical** | Yes (f ∘ g) | No |
-| **Reading order** | Reverse | Natural |
-| **Use case** | Building transformations | One-time processing |
+| **Use when** | Building reusable transformations | One-time data processing |
+| **Mental model** | Mathematical, structural | Procedural, operational |
+| **Best for** | Libraries, frameworks, utilities | Scripts, data processing |
 
-### When to Use Compose
+Think of it this way: `compose` creates a tool, `pipe` uses the tool.
 
 ```python
-from better_py.functions import compose, pipe
+# Create a reusable tool
+process = compose(clean, transform, validate)
 
-# Use compose for reusable transformations
-process = compose(f, g, h)
-result1 = process(x)
-result2 = process(y)
+# Use the tool immediately
+pipe(data, process)
 
-# Use pipe for one-time processing
-result = pipe(x, f, g, h)
+# Or use it multiple times
+processed_data1 = process(data1)
+processed_data2 = process(data2)
 ```
 
-## Real-World Patterns
+## Real-World Examples
 
-### Function Factory
+### Financial Calculations
+
+In financial applications, calculations often involve multiple steps that need to be composed:
 
 ```python
 from better_py.functions import compose
 
-def make_processor(preprocessor, processor, postprocessor):
-    return compose(postprocessor, processor, preprocessor)
-
-# Create specialized processors
-csv_processor = make_processor(
-    lambda x: x.strip(),
-    lambda x: x.split(","),
-    lambda xs: [float(x) for x in xs]
+# Build a pricing calculator
+calculate_price = compose(
+    apply_tax,
+    apply_discount,
+    calculate_shipping,
+    get_base_price
 )
 
-csv_processor(" 1, 2, 3, 4  ")  # [1.0, 2.0, 3.0, 4.0]
+price = calculate_price(order)
 ```
 
-### Middleware Pattern
+Each step is independent and can be changed without affecting others. Need to change the tax rate? Update `apply_tax`. Need free shipping? Modify `calculate_shipping`.
+
+### Image Processing Pipeline
+
+Image processing naturally composes—each filter or transformation is a function:
 
 ```python
 from better_py.functions import compose
 
-def auth_middleware(request):
-    # Add auth info
-    request["authenticated"] = True
-    return request
-
-def logging_middleware(request):
-    print(f"Processing: {request}")
-    return request
-
-def handler(request):
-    return f"Handled: {request.get('authenticated')}"
-
-# Compose middleware with handler
-process = compose(handler, logging_middleware, auth_middleware)
-process({"user": "alice"})
+# Build an image enhancement pipeline
+enhance_image = compose(
+    save_image,
+    sharpen,
+    adjust_contrast,
+    denoise,
+    load_image
+)
 ```
+
+The pipeline reads like a recipe and can be reused on any image. You can create different pipelines for different purposes (portrait enhancement, landscape enhancement, etc.).
+
+### Data Science Workflows
+
+Data science workflows involve many steps—data loading, cleaning, feature engineering, modeling, evaluation:
+
+```python
+from better_py.functions import compose
+
+# Build a complete ML pipeline
+train_model = compose(
+    evaluate,
+    train,
+    feature_engineer,
+    clean_data,
+    load_dataset
+)
+```
+
+Each step can be swapped out for experimentation without changing the overall structure.
+
+## Testing Composed Functions
+
+Composed functions are testable at multiple levels:
+
+```python
+# Test individual functions
+def test_lowercase():
+    assert lowercase("HELLO") == "hello"
+
+# Test the composition
+def test_process_text():
+    assert process_text("HELLO") == "hello"  # simplified
+
+# Test in different contexts
+def test_process_text_with_punctuation():
+    assert process_text("HELLO!") == "hello!"
+```
+
+This layered testing gives you confidence that each part works and that they work together correctly.
+
+## Performance Considerations
+
+Each function call in a composition has overhead. For most applications, this overhead is negligible. However, in tight loops or performance-critical code, you might need to inline or manually optimize composed functions.
+
+Remember that premature optimization is the root of much evil. Profile before optimizing—you'll often find that the function composition overhead isn't your bottleneck.
+
+## Common Pitfalls
+
+### Function Order Errors
+
+It's easy to get the order wrong, especially with compose's right-to-left application:
+
+```python
+# Common mistake: wrong order
+bad = compose(f, g, h)  # Applies h, then g, then f
+
+# Intended order
+good = compose(h, g, f)  # Applies f, then g, then h
+```
+
+Test your composed functions to ensure they apply in the order you expect.
+
+### Type Mismatches
+
+Composition requires that output types match input types:
+
+```python
+# This will fail: g returns str, f expects int
+f = lambda x: x + 1        # int -> int
+g = lambda x: str(x)       # int -> str
+bad_compose = compose(f, g)  # Type error!
+```
+
+Python won't catch this at compile time, but you'll get runtime errors when you try to use the composed function.
 
 ## When to Use Compose
 
 Use **compose** when:
 - Building reusable function combinations
+- Creating libraries and frameworks
 - Following mathematical conventions
-- Creating transformation pipelines
-- Need to pass the composed function
+- Need to pass composed functions as values
+- Emphasizing transformation over execution
 
 Use **compose_left** when:
 - Want left-to-right reading order
-- Building readable pipelines
-- Need a reusable version of `pipe`
+- Building procedural pipelines
+- Need reusable pipe-like functions
 
 ## See Also
 
-- [pipe & flow](/docs/functions/pipe) - Left-to-right data flow
-- [curry](/docs/functions/curry) - Partial application
+- [pipe & flow](/docs/functions/pipe) - For left-to-right data flow
+- [curry](/docs/functions/curry) - For partial application
+- [monads](/docs/monads) - For context-aware composition
