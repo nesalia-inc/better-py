@@ -1,6 +1,0 @@
-{
-  "title": "Monads",
-  "description": "Functional programming monads for error handling, optional values, and effect management",
-  "icon": "Layers",
-  "pages": ["---Overview---", "index", "---Core Monads---", "maybe", "result", "either", "validation", "try", "---Effect Monads---", "io", "reader", "writer", "state", "task", "unit", "---Async Monads---", "async-maybe", "async-result"]
-}
