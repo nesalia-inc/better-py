@@ -21,6 +21,11 @@
     "monads/task",
     "monads/unit",
     "monads/async-maybe",
-    "monads/async-result"
+    "monads/async-result",
+    "---Functions---",
+    "functions",
+    "functions/pipe",
+    "functions/compose",
+    "functions/curry"
   ]
 }

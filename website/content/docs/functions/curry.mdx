@@ -1,0 +1,340 @@
+---
+title: Curry
+description: Currying and partial application utilities
+---
+
+# Curry
+
+The **curry** utilities provide currying and partial application - transforming functions that take multiple arguments into functions that take arguments one at a time.
+
+## Overview
+
+**Currying** converts a function that takes multiple arguments into a sequence of functions that each take a single argument:
+
+- A curried function can be called with some arguments and returns a function waiting for the rest
+- Enables partial application and function specialization
+- Creates more reusable and composable code
+
+## `curry(func)` - Convert to Curried Function
+
+Convert a function into a curried function.
+
+```python
+from better_py.functions import curry
+
+@curry
+def add(x, y, z):
+    return x + y + z
+
+# Call with arguments one at a time
+add(1)(2)(3)  # 6
+
+# Or multiple at once
+add(1, 2)(3)  # 6
+add(1)(2, 3)  # 6
+```
+
+### How It Works
+
+```
+Normal function:  add(1, 2, 3) = 6
+Curried function: add(1)(2)(3) = 6
+
+Each call returns a new function until all arguments are provided:
+add(1)      → returns function waiting for y, z
+add(1)(2)    → returns function waiting for z
+add(1)(2)(3) → executes: 1 + 2 + 3 = 6
+```
+
+### Partial Application
+
+```python
+from better_py.functions import curry
+
+@curry
+def filter_by(predicate, items):
+    return [item for item in items if predicate(item)]
+
+# Partially apply to create specialized functions
+evens = filter_by(lambda x: x % 2 == 0)
+positives = filter_by(lambda x: x > 0)
+
+evens([1, 2, 3, 4, 5, 6])    # [2, 4, 6]
+positives([-1, 0, 1, 2])      # [1, 2]
+```
+
+### With Default Parameters
+
+```python
+from better_py.functions import curry
+
+@curry
+def func(a, b, c=10, d=20):
+    return a + b + c + d
+
+curried = curry(func)
+
+# Defaults applied when all required args provided
+curried(1)(2)        # 1 + 2 + 10 + 20 = 33
+
+# Can override defaults
+curried(1)(2, 5)     # 1 + 2 + 5 + 20 = 28
+curried(1)(2, 5, 3)  # 1 + 2 + 5 + 3 = 11
+```
+
+### Real-World Example
+
+```python
+from better_py.functions import curry
+
+@curry
+def fetch_resource(base_url, endpoint, params):
+    url = f"{base_url}/{endpoint}"
+    return requests.get(url, params=params).json()
+
+# Create specialized fetchers
+api_fetcher = fetch_resource("https://api.example.com")
+user_fetcher = api_fetcher("users")
+posts_fetcher = api_fetcher("posts")
+
+# Use the specialized functions
+user = user_fetcher({"id": 1})
+posts = posts_fetcher({"limit": 10})
+```
+
+## `partial_right(func, *args, **kwargs)` - Partial Application from Right
+
+Partially apply arguments from the right side (unlike `functools.partial` which applies from the left).
+
+```python
+from better_py.functions import partial_right
+
+def subtract(x, y):
+    return x - y
+
+# Apply from the right: fix the second argument
+subtract_from_10 = partial_right(subtract, 10)
+
+subtract_from_10(5)  # 5 - 10 = -5
+subtract_from_10(20) # 20 - 10 = 10
+```
+
+### Comparison with functools.partial
+
+```python
+from functools import partial
+from better_py.functions import partial_right
+
+def power(base, exponent):
+    return base ** exponent
+
+# functools.partial applies from left
+power_of_2 = partial(power, 2)  # base is fixed
+power_of_2(3)  # 2 ** 3 = 8
+
+# partial_right applies from right
+square = partial_right(power, 2)  # exponent is fixed
+square(3)  # 3 ** 2 = 9
+```
+
+### Real-World Example
+
+```python
+from better_py.functions import partial_right
+
+def divide(dividend, divisor):
+    return dividend / divisor
+
+# Create functions that divide by specific values
+divide_by_2 = partial_right(divide, 2)
+divide_by_10 = partial_right(divide, 10)
+
+divide_by_2(20)   # 10.0
+divide_by_10(50)  # 5.0
+```
+
+### With Keyword Arguments
+
+```python
+from better_py.functions import partial_right
+
+def request(url, method="GET", headers=None):
+    if headers is None:
+        headers = {}
+    return requests.request(method, url, headers=headers)
+
+# Partially apply keyword arguments
+post_request = partial_right(request, method="POST")
+json_request = partial_right(request, headers={"Content-Type": "application/json"})
+
+post_request("https://api.example.com/data")
+json_request("https://api.example.com/data")
+```
+
+## `flip(func)` - Flip First Two Arguments
+
+Flip the order of the first two arguments of a function.
+
+```python
+from better_py.functions import flip
+
+def subtract(x, y):
+    return x - y
+
+normal = subtract(5, 10)  # 5 - 10 = -5
+flipped_subtract = flip(subtract)
+
+flipped_subtract(5, 10)  # subtract(10, 5) = 5
+```
+
+### Real-World Example
+
+```python
+from better_py.functions import flip
+
+def map_collection(collection, func):
+    return [func(item) for item in collection]
+
+def double(x):
+    return x * 2
+
+# Normal: map_collection(func, collection)
+map_collection([1, 2, 3], double)  # [2, 4, 6]
+
+# Flipped: map_collection(collection, func)
+map_flipped = flip(map_collection)
+map_flipped(double, [1, 2, 3])  # [2, 4, 6]
+```
+
+## Common Patterns
+
+### Function Specialization
+
+```python
+from better_py.functions import curry
+
+@curry
+def http_request(method, url, headers, body):
+    return requests.request(method, url, headers=headers, json=body)
+
+# Create specialized functions
+get_request = http_request("GET")
+post_request = http_request("POST")
+
+# Further specialize
+api_get = get_request("https://api.example.com")
+api_post = post_request("https://api.example.com")
+
+# Use the specialized functions
+api_get({"Authorization": "Bearer token"}, None)
+api_post({"Authorization": "Bearer token"}, {"data": "value"})
+```
+
+### Validation Builders
+
+```python
+from better_py.functions import curry
+
+@curry
+def validate(validator, value, error_message):
+    if not validator(value):
+        raise ValueError(error_message)
+    return value
+
+# Create validators
+is_positive = lambda x: x > 0
+is_email = lambda x: "@" in x
+
+# Build validation functions
+validate_positive = validate(is_positive, error_message="Must be positive")
+validate_email = validate(is_email, error_message="Must be an email")
+
+validate_positive(5)  # 5
+validate_email("test@example.com")  # "test@example.com"
+```
+
+### Configuration Builders
+
+```python
+from better_py.functions import curry
+
+@curry
+def build_query(table, columns, where, order_by):
+    cols = ", ".join(columns)
+    query = f"SELECT {cols} FROM {table}"
+    if where:
+        query += f" WHERE {where}"
+    if order_by:
+        query += f" ORDER BY {order_by}"
+    return query
+
+# Build query constructors
+user_query = build_query("users")
+select_users = user_query(["id", "name", "email"])
+
+active_users = select_users(
+    where="active = true",
+    order_by="name"
+)
+
+print(active_users)
+# SELECT id, name, email FROM users WHERE active = true ORDER BY name
+```
+
+### Data Transformation
+
+```python
+from better_py.functions import curry
+
+@curry
+def transform_by(mapper, source, keys):
+    return {key: mapper(value) for key, value in source.items() if key in keys}
+
+# Create transformers
+uppercase = lambda s: s.upper()
+double = lambda n: n * 2
+
+# Build specific transformers
+uppercase_names = transform_by(uppercase, keys=["first_name", "last_name"])
+double_metrics = transform_by(double, keys=["count", "total"])
+
+data = {"first_name": "john", "last_name": "doe", "count": 5, "total": 10}
+uppercase_names(data)  # {"first_name": "JOHN", "last_name": "DOE"}
+```
+
+## Placeholder for Partial Application
+
+The `_` placeholder allows specifying which arguments to fill in partial application:
+
+```python
+from better_py.functions import _
+
+def func(a, b, c):
+    return (a, b, c)
+
+# Fill second argument now, leave first and third for later
+# Note: This is a conceptual placeholder - actual implementation may vary
+```
+
+## When to Use Curry
+
+Use **curry** when:
+- Creating specialized functions from general ones
+- Building reusable function libraries
+- Implementing function factories
+- Need partial application
+
+Use **partial_right** when:
+- Need to fix the rightmost arguments
+- Working with functions where parameters have specific order
+- Creating specialized versions of binary operations
+
+Use **flip** when:
+- Need to swap argument order
+- Adapting functions for use with higher-order functions
+- Making functions more ergonomic
+
+## See Also
+
+- [compose](/docs/functions/compose) - Function composition
+- [pipe & flow](/docs/functions/pipe) - Left-to-right data flow

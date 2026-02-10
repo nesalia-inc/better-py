@@ -1,0 +1,280 @@
+---
+title: Pipe & Flow
+description: Left-to-right function chaining and data flow
+---
+
+# Pipe & Flow
+
+The **pipe** utilities provide left-to-right function chaining, similar to Unix pipes or F#'s pipe operator. This makes code read naturally from left to right.
+
+## Overview
+
+`pipe` applies functions to a value in left-to-right order:
+- `pipe(x, f, g, h)` is equivalent to `h(g(f(x)))`
+- Functions are applied in sequence, making code easy to read
+- Perfect for data transformation pipelines
+
+## `pipe(value, *functions)` - Pipe Value Through Functions
+
+Apply functions to a value in left-to-right order.
+
+```python
+from better_py.functions import pipe
+
+add_one = lambda x: x + 1
+double = lambda x: x * 2
+
+# pipe(5, add_one, double) = double(add_one(5))
+pipe(5, add_one, double)  # 12
+```
+
+### Multiple Operations
+
+```python
+from better_py.functions import pipe
+
+def fetch(id):
+    return {"id": id, "name": f"User {id}"}
+
+def validate(user):
+    return user if user.get("id") > 0 else None
+
+def transform(user):
+    return user.get("name", "").upper()
+
+result = pipe(1, fetch, validate, transform)  # "USER 1"
+```
+
+### Real-World Example
+
+```python
+from better_py.functions import pipe
+
+def read_file(path):
+    with open(path) as f:
+        return f.read()
+
+def parse_json(content):
+    return json.loads(content)
+
+def extract_config(data):
+    return data.get("config", {})
+
+config = pipe("config.json", read_file, parse_json, extract_config)
+```
+
+## `flow(*functions)` - Create Reusable Pipeline
+
+Create a reusable function from a series of functions.
+
+```python
+from better_py.functions import flow
+
+add_one = lambda x: x + 1
+double = lambda x: x * 2
+
+# Create a reusable pipeline
+process = flow(add_one, double)
+process(5)  # 12
+process(10)  # 22
+```
+
+### Building Transformations
+
+```python
+from better_py.functions import flow
+
+def trim(text):
+    return text.strip()
+
+def uppercase(text):
+    return text.upper()
+
+def clean(text):
+    return text.replace("\n", " ")
+
+# Create a text processing pipeline
+normalize_text = flow(trim, clean, uppercase)
+normalize_text("  hello\nworld  ")  # "HELLO WORLD"
+```
+
+### Real-World Example
+
+```python
+from better_py.functions import flow
+
+def fetch_users():
+    return database.query("SELECT * FROM users")
+
+def filter_active(users):
+    return [u for u in users if u.get("active")]
+
+def get_emails(users):
+    return [u.get("email") for u in users if u.get("email")]
+
+# Create reusable pipeline
+get_active_emails = flow(fetch_users, filter_active, get_emails)
+emails = get_active_emails()
+```
+
+## `Pipeline` Class - Fluent API
+
+The `Pipeline` class provides a fluent interface for building transformations.
+
+### Creating Pipelines
+
+```python
+from better_py.functions import Pipeline
+
+# Create a pipeline
+pipeline = Pipeline()
+
+# Add operations
+result = (pipeline
+    .map(lambda x: x * 2)
+    .filter(lambda x: x > 5)
+    .execute([1, 2, 3, 4]))  # [6, 8]
+```
+
+### Pipeline Methods
+
+#### `map(func)` - Transform Elements
+
+```python
+from better_py.functions import Pipeline
+
+Pipeline().map(lambda x: x * 2).execute([1, 2, 3])  # [2, 4, 6]
+```
+
+#### `filter(predicate)` - Filter Elements
+
+```python
+from better_py.functions import Pipeline
+
+Pipeline().filter(lambda x: x > 2).execute([1, 2, 3, 4])  # [3, 4]
+```
+
+#### `reduce(func, initial)` - Reduce to Single Value
+
+```python
+from better_py.functions import Pipeline
+
+Pipeline().reduce(lambda acc, x: acc + x, 0).execute([1, 2, 3, 4])  # 10
+```
+
+#### `apply(func)` - Custom Operation
+
+```python
+from better_py.functions import Pipeline
+
+def reverse(items):
+    return items[::-1]
+
+Pipeline().apply(reverse).execute([1, 2, 3])  # [3, 2, 1]
+```
+
+### Chaining Pipeline Operations
+
+```python
+from better_py.functions import Pipeline
+
+data = [1, 2, 3, 4, 5, 6]
+
+result = (Pipeline()
+    .map(lambda x: x * 2)
+    .filter(lambda x: x > 5)
+    .reduce(lambda acc, x: acc + x, 0)
+    .execute(data))
+
+result  # 12 + 8 + 10 + 12 = 42
+```
+
+### Real-World Example
+
+```python
+from better_py.functions import Pipeline
+
+orders = [
+    {"id": 1, "total": 100, "status": "pending"},
+    {"id": 2, "total": 200, "status": "completed"},
+    {"id": 3, "total": 150, "status": "pending"},
+]
+
+# Build a processing pipeline
+result = (Pipeline()
+    .filter(lambda o: o["status"] == "pending")
+    .map(lambda o: o["total"])
+    .reduce(lambda acc, x: acc + x, 0)
+    .execute(orders))
+
+result  # 100 + 150 = 250
+```
+
+## `pipeable(func)` - Mark Functions as Pipeable
+
+Decorator to mark a function as pipeable (semantic marker).
+
+```python
+from better_py.functions import pipe, pipeable
+
+@pipeable
+def add_one(x):
+    return x + 1
+
+@pipeable
+def double(x):
+    return x * 2
+
+# Can be used in pipe operations
+pipe(5, add_one, double)  # 12
+```
+
+## Pipe Syntax with `|` Operator
+
+The `Pipeline` class supports the `|` operator for pipe-like syntax.
+
+```python
+from better_py.functions import Pipeline
+
+add_one = lambda x: x + 1
+double = lambda x: x * 2
+
+# Use | operator
+result = (Pipeline()
+    | add_one
+    | double)
+
+result.execute(5)  # 12
+```
+
+## When to Use Pipe & Flow
+
+### Use `pipe` when:
+- You have one-time transformations
+- Operations form a clear sequence
+- You want readable left-to-right code
+
+### Use `flow` when:
+- You need reusable pipelines
+- Passing the pipeline as a function
+- Building transformation utilities
+
+### Use `Pipeline` class when:
+- You need method chaining
+- Building complex transformations
+- Working with collections
+
+## Comparison
+
+| Feature | `pipe` | `flow` | `Pipeline` |
+|---------|--------|--------|------------|
+| **Immediate execution** | Yes | No | No |
+| **Returns function** | No | Yes | No |
+| **Method chaining** | No | No | Yes |
+| **Collection methods** | No | No | Yes |
+| **Reusability** | Low | High | High |
+
+## See Also
+
+- [compose](/docs/functions/compose) - Right-to-left composition
+- [curry](/docs/functions/curry) - Partial application

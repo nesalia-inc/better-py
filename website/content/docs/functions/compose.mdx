@@ -1,0 +1,294 @@
+---
+title: Compose
+description: Function composition utilities for combining functions
+---
+
+# Compose
+
+The **compose** utilities provide function composition - combining multiple functions into a single function. Functions are composed from right to left, following mathematical convention.
+
+## Overview
+
+`compose` combines functions so that `compose(f, g, h)(x)` is equivalent to `f(g(h(x)))`:
+- Functions are applied **right to left** (mathematical convention)
+- Returns a new function that can be called later
+- Perfect for building complex transformations from simple ones
+
+## `compose(*functions)` - Compose Functions Right-to-Left
+
+Compose functions so the rightmost is applied first.
+
+```python
+from better_py.functions import compose
+
+add_one = lambda x: x + 1
+double = lambda x: x * 2
+
+# compose(double, add_one)(5) = double(add_one(5))
+process = compose(double, add_one)
+process(5)  # 12
+```
+
+### How It Works
+
+```
+compose(f, g, h)(x) = f(g(h(x)))
+
+Application order:
+1. h(x) is applied first
+2. g(result) is applied second
+3. f(result) is applied last
+```
+
+### Multiple Functions
+
+```python
+from better_py.functions import compose
+
+increment = lambda x: x + 1
+double = lambda x: x * 2
+square = lambda x: x ** 2
+
+# compose(square, double, increment)(3)
+# = square(double(increment(3)))
+# = square(double(4))
+# = square(8)
+# = 64
+
+transform = compose(square, double, increment)
+transform(3)  # 64
+```
+
+### Real-World Example
+
+```python
+from better_py.functions import compose
+
+def fetch_user(user_id):
+    return database.get_user(user_id)
+
+def validate_user(user):
+    if not user or not user.get("active"):
+        raise ValueError("Invalid user")
+    return user
+
+def get_user_email(user):
+    return user.get("email")
+
+# Compose functions
+get_valid_email = compose(get_user_email, validate_user, fetch_user)
+email = get_valid_email(1)
+```
+
+## `compose_left(*functions)` - Compose Functions Left-to-Right
+
+Compose functions so the leftmost is applied first (alias for `pipe` behavior).
+
+```python
+from better_py.functions import compose_left
+
+add_one = lambda x: x + 1
+double = lambda x: x * 2
+
+# compose_left(add_one, double)(5) = double(add_one(5))
+process = compose_left(add_one, double)
+process(5)  # 12
+```
+
+### How It Works
+
+```
+compose_left(f, g, h)(x) = h(g(f(x)))
+
+Application order:
+1. f(x) is applied first
+2. g(result) is applied second
+3. h(result) is applied last
+```
+
+### Real-World Example
+
+```python
+from better_py.functions import compose_left
+
+def read_file(path):
+    with open(path) as f:
+        return f.read()
+
+def parse_json(content):
+    return json.loads(content)
+
+def extract_data(data):
+    return data.get("results", [])
+
+# Compose left to right (natural reading order)
+load_data = compose_left(read_file, parse_json, extract_data)
+results = load_data("data.json")
+```
+
+## Creating Reusable Compositions
+
+### Data Processing Pipeline
+
+```python
+from better_py.functions import compose
+
+def clean_text(text):
+    return text.strip().lower()
+
+def remove_special_chars(text):
+    return ''.join(c for c in text if c.isalnum() or c.isspace())
+
+def tokenize(text):
+    return text.split()
+
+# Build a text processing pipeline
+process_text = compose(tokenize, remove_special_chars, clean_text)
+words = process_text("  Hello, World!  ")  # ["hello", "world"]
+```
+
+### Validation Chain
+
+```python
+from better_py.functions import compose
+
+def check_not_none(value):
+    if value is None:
+        raise ValueError("Value is None")
+    return value
+
+def check_positive(value):
+    if value <= 0:
+        raise ValueError("Value must be positive")
+    return value
+
+def check_range(value):
+    if value > 100:
+        raise ValueError("Value must be <= 100")
+    return value
+
+# Compose validations
+validate = compose(check_range, check_positive, check_not_none)
+validate(50)  # 50
+validate(-5)  # Raises ValueError
+```
+
+### Transformation Builder
+
+```python
+from better_py.functions import compose
+
+def celsius_to_fahrenheit(c):
+    return (c * 9/5) + 32
+
+def fahrenheit_to_kelvin(f):
+    return (f - 32) * 5/9 + 273.15
+
+def format_temperature(k):
+    return f"{k:.2f}K"
+
+# Compose transformations
+c_to_k_formatted = compose(format_temperature, fahrenheit_to_kelvin, celsius_to_fahrenheit)
+result = c_to_k_formatted(25)  # "298.15K"
+```
+
+## Decorator Pattern
+
+The `compose` module also provides a `decorator` helper:
+
+```python
+from better_py.functions.compose import decorator
+
+def double(x):
+    return x * 2
+
+@decorator(double)
+def my_function():
+    return 5
+
+my_function()  # 10
+```
+
+## Compose vs Pipe
+
+| Feature | `compose` | `pipe` |
+|---------|-----------|--------|
+| **Execution order** | Right to left | Left to right |
+| **Returns** | Function | Value |
+| **Mathematical** | Yes (f ∘ g) | No |
+| **Reading order** | Reverse | Natural |
+| **Use case** | Building transformations | One-time processing |
+
+### When to Use Compose
+
+```python
+from better_py.functions import compose, pipe
+
+# Use compose for reusable transformations
+process = compose(f, g, h)
+result1 = process(x)
+result2 = process(y)
+
+# Use pipe for one-time processing
+result = pipe(x, f, g, h)
+```
+
+## Real-World Patterns
+
+### Function Factory
+
+```python
+from better_py.functions import compose
+
+def make_processor(preprocessor, processor, postprocessor):
+    return compose(postprocessor, processor, preprocessor)
+
+# Create specialized processors
+csv_processor = make_processor(
+    lambda x: x.strip(),
+    lambda x: x.split(","),
+    lambda xs: [float(x) for x in xs]
+)
+
+csv_processor(" 1, 2, 3, 4  ")  # [1.0, 2.0, 3.0, 4.0]
+```
+
+### Middleware Pattern
+
+```python
+from better_py.functions import compose
+
+def auth_middleware(request):
+    # Add auth info
+    request["authenticated"] = True
+    return request
+
+def logging_middleware(request):
+    print(f"Processing: {request}")
+    return request
+
+def handler(request):
+    return f"Handled: {request.get('authenticated')}"
+
+# Compose middleware with handler
+process = compose(handler, logging_middleware, auth_middleware)
+process({"user": "alice"})
+```
+
+## When to Use Compose
+
+Use **compose** when:
+- Building reusable function combinations
+- Following mathematical conventions
+- Creating transformation pipelines
+- Need to pass the composed function
+
+Use **compose_left** when:
+- Want left-to-right reading order
+- Building readable pipelines
+- Need a reusable version of `pipe`
+
+## See Also
+
+- [pipe & flow](/docs/functions/pipe) - Left-to-right data flow
+- [curry](/docs/functions/curry) - Partial application
