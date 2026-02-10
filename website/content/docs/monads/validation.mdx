@@ -1,0 +1,294 @@
+---
+title: Validation Monad
+description: Accumulate validation errors with Valid and Invalid variants
+---
+
+# Validation Monad
+
+The **Validation** monad represents either a success value or a collection of errors. Unlike `Result` which short-circuits on the first error, `Validation` accumulates all errors.
+
+## Overview
+
+`Validation[E, T]` has two variants:
+- **`Valid(value)`** - Contains a success value of type `T`
+- **`Invalid(errors)`** - Contains a list of errors of type `E`
+
+## Creating Validation Values
+
+### Using the Modern API (Preferred)
+
+```python
+from better_py import Valid, Invalid
+
+# Create a Valid value
+valid = Valid(42)
+
+# Create an Invalid with errors
+single_error = Invalid("Error message")
+multiple_errors = Invalid(["Error 1", "Error 2"])
+```
+
+### Using the Legacy API (Still Supported)
+
+```python
+from better_py import Validation
+
+# Legacy factory methods
+valid = Validation.valid(42)
+single_error = Validation.invalid("Error message")
+multiple_errors = Validation.invalid(["Error 1", "Error 2"])
+```
+
+## Checking Variants
+
+```python
+from better_py import Valid, Invalid
+
+valid = Valid(42)
+invalid = Invalid(["error"])
+
+# Check if Valid
+valid.is_valid()        # True
+invalid.is_valid()      # False
+
+# Check if Invalid
+valid.is_invalid()      # False
+invalid.is_invalid()    # True
+```
+
+## Extracting Values
+
+### `unwrap()` - Get Success Value or Raise Error
+
+```python
+Valid(42).unwrap()                   # 42
+Invalid(["error"]).unwrap()          # Raises ValueError
+```
+
+### `unwrap_errors()` - Get Error List
+
+```python
+Invalid(["error1", "error2"]).unwrap_errors()  # ["error1", "error2"]
+Valid(42).unwrap_errors()                      # Raises ValueError
+```
+
+## Transforming Values
+
+### `map(f)` - Transform Success Value
+
+```python
+Valid(5).map(lambda x: x * 2)           # Valid(10)
+Invalid(["bad"]).map(lambda x: x * 2)   # Invalid(["bad"])
+```
+
+### `map_errors(f)` - Transform Errors
+
+```python
+Invalid(["error"]).map_errors(lambda es: [f"! {e}" for e in es])  # Invalid(["! error"])
+Valid(42).map_errors(lambda es: es)                             # Valid(42)
+```
+
+## Chaining Operations
+
+### `flat_map(f)` - Chain Validation-Returning Operations
+
+```python
+from better_py import Valid, Invalid
+
+def validate_positive(x: int) -> Validation[str, int]:
+    return Valid(x) if x > 0 else Invalid(["Must be positive"])
+
+Valid(5).flat_map(validate_positive)           # Valid(5)
+Invalid(["bad"]).flat_map(validate_positive)   # Invalid(["bad"])
+Valid(-1).flat_map(validate_positive)          # Invalid(["Must be positive"])
+```
+
+## Applying Functions
+
+### `ap(other)` - Apply a Validation-Containing Function
+
+For `Valid`, this applies the function to the value. For `Invalid`, it accumulates errors from both sides.
+
+```python
+from better_py import Valid, Invalid
+
+# Valid + Valid = Valid
+add = Valid(lambda x: x + 1)
+val = Valid(5)
+add.ap(val)  # Valid(6)
+
+# Invalid + Valid = Invalid (accumulates)
+Invalid(["e1"]).ap(Valid(5))  # Invalid(["e1"])
+
+# Valid + Invalid = Invalid (accumulates)
+Valid(lambda x: x + 1).ap(Invalid(["e2"]))  # Invalid(["e2"])
+
+# Invalid + Invalid = Invalid (accumulates both)
+Invalid(["e1"]).ap(Invalid(["e2"]))  # Invalid(["e1", "e2"])
+```
+
+## Folding
+
+### `fold(on_invalid, on_valid)` - Handle Both Cases
+
+```python
+from better_py import Valid, Invalid
+
+def describe(validation: Valid[str, int] | Invalid[str, int]) -> str:
+    return validation.fold(
+        on_invalid=lambda errs: f"Errors: {errs}",
+        on_valid=lambda val: f"Value: {val}"
+    )
+
+describe(Valid(42))              # "Value: 42"
+describe(Invalid(["error"]))     # "Errors: ['error']"
+```
+
+## Conversion
+
+### `to_result()` - Convert to Result
+
+```python
+from better_py import Valid, Invalid, Ok, Error
+
+Valid(42).to_result()              # Ok(42)
+Invalid(["error"]).to_result()     # Error("error")
+```
+
+## Real-World Examples
+
+### Form Validation
+
+```python
+from better_py import Valid, Invalid
+
+def validate_username(username: str) -> Valid[str, str]:
+    errors = []
+    if len(username) < 3:
+        errors.append("Username too short")
+    if len(username) > 20:
+        errors.append("Username too long")
+    if not username.isalnum():
+        errors.append("Username must be alphanumeric")
+    return Valid(username) if not errors else Invalid(errors)
+
+def validate_email(email: str) -> Valid[str, str]:
+    errors = []
+    if "@" not in email:
+        errors.append("Email must contain @")
+    if "." not in email.split("@")[-1]:
+        errors.append("Email must have domain")
+    return Valid(email) if not errors else Invalid(errors)
+
+validate_username("ab")      # Invalid(["Username too short"])
+validate_email("test")        # Invalid(["Email must contain @", "Email must have domain"])
+```
+
+### Combining Validations with `ap`
+
+The key feature of Validation is error accumulation:
+
+```python
+from better_py import Valid, Invalid
+
+def validate_form(data: dict) -> Valid[str, dict]:
+    username_validation = validate_username(data.get("username", ""))
+    email_validation = validate_email(data.get("email", ""))
+
+    # Use ap to accumulate errors
+    make_dict = Valid(lambda u, e: {"username": u, "email": e})
+    return username_validation.ap(make_dict).ap(email_validation)
+
+# All valid
+validate_form({"username": "alice", "email": "alice@example.com"})
+# Valid({"username": "alice", "email": "alice@example.com"})
+
+# Both invalid - accumulates all errors
+validate_form({"username": "a", "email": "test"})
+# Invalid(["Username too short", "Email must contain @", "Email must have domain"])
+```
+
+### Chaining Validations
+
+For sequential validations where later steps depend on earlier ones:
+
+```python
+from better_py import Valid, Invalid
+
+def validate_age(age: int) -> Valid[str, int]:
+    if age < 0:
+        return Invalid(["Age cannot be negative"])
+    if age > 150:
+        return Invalid(["Age is unrealistic"])
+    return Valid(age)
+
+def validate_voter(age: int) -> Valid[str, bool]:
+    return Valid(age >= 18)
+
+# Chain validations
+result = (validate_age(25)
+    .flat_map(validate_voter))  # Valid(True)
+
+result = (validate_age(-5)
+    .flat_map(validate_voter))  # Invalid(["Age cannot be negative"])
+```
+
+### Multi-Field Validation
+
+```python
+from better_py import Valid, Invalid
+
+def validate_registration(data: dict) -> Valid[str, dict]:
+    errors = []
+
+    # Validate username
+    username = data.get("username")
+    if not username:
+        errors.append("Username required")
+    elif len(username) < 3:
+        errors.append("Username too short")
+
+    # Validate email
+    email = data.get("email")
+    if not email:
+        errors.append("Email required")
+    elif "@" not in email:
+        errors.append("Invalid email format")
+
+    # Validate age
+    age = data.get("age")
+    if age is None:
+        errors.append("Age required")
+    elif age < 18:
+        errors.append("Must be 18 or older")
+
+    return Valid(data) if not errors else Invalid(errors)
+```
+
+## When to Use Validation
+
+Use **Validation** when:
+- You need to collect multiple errors
+- Validating forms or data with multiple fields
+- You want to show all errors at once
+- Accumulating errors is more valuable than failing fast
+
+**Don't use Validation** when:
+- You only need one error (use `Result` instead)
+- Errors are independent of each other
+- You need optional values (use `Maybe` instead)
+
+## Comparison with Result
+
+| Feature | Validation | Result |
+|---------|------------|--------|
+| **Error handling** | Accumulates errors | Short-circuits on first error |
+| **Use case** | Form validation, multi-field validation | Single error scenarios |
+| **Variants** | Valid, Invalid | Ok, Error |
+| **Error type** | List of errors | Single error |
+
+## See Also
+
+- [Result](/docs/monads/result) - For single error handling
+- [Maybe](/docs/monads/maybe) - For optional values
+- [Either](/docs/monads/either) - For two-value alternatives

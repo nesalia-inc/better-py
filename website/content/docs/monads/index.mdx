@@ -1,0 +1,161 @@
+---
+title: Monads
+description: Comprehensive guide to better-py's monads for error handling, optional values, and effect management
+---
+
+# Monads
+
+Monads are design patterns that allow you to chain operations together while handling complexity like errors, optional values, side effects, and state management. better-py provides a comprehensive set of monads that feel natural and Pythonic.
+
+## What is a Monad?
+
+A monad is a design pattern that wraps a value and provides two key operations:
+
+1. **Wrap a value** (e.g., `Some(42)`, `Ok(42)`)
+2. **Chain operations** with `map`, `flat_map`, or `and_then`
+
+The key insight is that monads let you chain operations while the monad handles the complexity:
+- **Maybe** handles missing values
+- **Result** handles errors
+- **Either** handles two-value alternatives
+- **Validation** accumulates errors
+- **IO** handles side effects
+- **State** handles state threading
+- **Writer** handles logging
+- **Reader** handles dependency injection
+- **Task** handles lazy evaluation
+- **Try** handles exceptions
+- **Unit** handles void/unit type
+- **AsyncMaybe** handles async optional values
+- **AsyncResult** handles async error handling
+
+## Quick Reference
+
+| Monad | Use Case | Variants |
+|-------|----------|----------|
+| **Maybe** | Optional values | `Some`, `Nothing` |
+| **Result** | Error handling | `Ok`, `Error` |
+| **Either** | Two alternatives | `Left`, `Right` |
+| **Validation** | Accumulating errors | `Valid`, `Invalid` |
+| **Try** | Exception handling | `Success`, `Failure` |
+| **IO** | Side effects | Single variant |
+| **Reader** | Dependency injection | Single variant |
+| **Writer** | Logging/accumulation | Single variant |
+| **State** | State threading | Single variant |
+| **Task** | Lazy evaluation | Single variant |
+| **Unit** | Unit type | Single variant |
+| **AsyncMaybe** | Async optional values | Single variant |
+| **AsyncResult** | Async error handling | Single variant |
+
+## Common Operations
+
+All monads support these core operations:
+
+### `map` - Transform Values
+Apply a function to the wrapped value:
+
+```python
+Some(5).map(lambda x: x * 2)        # Some(10)
+Ok(5).map(lambda x: x * 2)          # Ok(10)
+Right(5).map(lambda x: x * 2)       # Right(10)
+```
+
+### `flat_map` / `and_then` - Chain Operations
+Chain operations that return monads:
+
+```python
+Some(5).and_then(lambda x: Some(x * 2))     # Some(10)
+Ok(5).and_then(lambda x: Ok(x * 2))         # Ok(10)
+```
+
+### `unwrap` - Extract Values
+Extract the value (may raise an error):
+
+```python
+Some(42).unwrap()         # 42
+Ok(42).unwrap()           # 42
+Nothing().unwrap()        # Raises ValueError
+```
+
+### `unwrap_or` - Extract with Default
+Extract the value or provide a default:
+
+```python
+Some(42).unwrap_or(0)     # 42
+Nothing().unwrap_or(0)    # 0
+```
+
+## Choosing the Right Monad
+
+### Use **Maybe** when:
+- A value might be missing
+- You want to avoid `None` checks
+- You want type-safe optional handling
+
+### Use **Result** when:
+- Operations can fail
+- You need error messages
+- You want explicit error handling
+
+### Use **Either** when:
+- You have two distinct possibilities
+- Left typically means error, Right means success
+- You need to track both cases
+
+### Use **Validation** when:
+- You need to collect multiple errors
+- You're validating forms/data
+- You want all errors at once
+
+### Use **Try** when:
+- Working with exception-throwing code
+- You want to handle exceptions as values
+- You need to catch and process exceptions
+
+### Use **IO** when:
+- You need to delay side effects
+- You want pure code with explicit effects
+- You need retry/recovery logic
+
+### Use **Reader** when:
+- You need dependency injection
+- You have shared configuration/environment
+- You want implicit parameter passing
+
+### Use **Writer** when:
+- You need to log computations
+- You want to accumulate values
+- You need audit trails
+
+### Use **State** when:
+- You have mutable state
+- You want to thread state through computations
+- You need stateful operations
+
+### Use **Task** when:
+- You want lazy evaluation
+- You need memoization
+- You want to defer computation
+
+### Use **AsyncMaybe/AsyncResult** when:
+- Working with async code
+- You need awaitable operations
+- You're using asyncio
+
+## Next Steps
+
+Explore each monad in detail:
+
+- [Maybe](/docs/monads/maybe) - Handle optional values
+- [Result](/docs/monads/result) - Handle errors explicitly
+- [Either](/docs/monads/either) - Handle two alternatives
+- [Validation](/docs/monads/validation) - Accumulate validation errors
+- [Try](/docs/monads/try) - Handle exceptions as values
+- [IO](/docs/monads/io) - Manage side effects
+- [Reader](/docs/monads/reader) - Dependency injection
+- [Writer](/docs/monads/writer) - Logging and accumulation
+- [State](/docs/monads/state) - State threading
+- [Task](/docs/monads/task) - Lazy evaluation
+- [Unit](/docs/monads/unit) - Unit type
+- [AsyncMaybe](/docs/monads/async-maybe) - Async optional values
+- [AsyncResult](/docs/monads/async-result) - Async error handling

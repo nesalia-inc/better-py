@@ -1,0 +1,141 @@
+---
+title: Unit Monad
+description: Represent computations with no meaningful return value
+---
+
+# Unit Monad
+
+The **Unit** monad represents computations that produce a value but can also represent the unit type (void/void), similar to Python's `None` or other languages' `unit` type.
+
+## Overview
+
+`Unit[A]` wraps a value of type `A` (or `None`):
+- Contains a value when created with `Unit.of(value)`
+- Contains `None` when created with `Unit.unit()`
+
+## Creating Unit Values
+
+### `Unit()` - Create an Empty Unit
+
+```python
+from better_py import Unit
+
+unit = Unit()
+repr(unit)  # "Unit()"
+```
+
+### `Unit.of(value)` - Create a Unit from a Value
+
+```python
+from better_py import Unit
+
+unit = Unit.of(42)
+repr(unit)  # "Unit(42)"
+```
+
+### `Unit.unit()` - Create an Empty Unit
+
+```python
+from better_py import Unit
+
+unit = Unit.unit()
+repr(unit)  # "Unit()"
+```
+
+## Transforming Unit
+
+### `map(f)` - Apply a Function
+
+```python
+from better_py import Unit
+
+Unit.of(5).map(lambda x: x * 2)     # Unit(10)
+Unit().map(lambda x: x * 2)         # Unit()
+```
+
+## Real-World Examples
+
+### Void Operations
+
+```python
+from better_py import Unit
+
+def log_message(message: str) -> Unit[None]:
+    print(message)
+    return Unit.unit()
+
+def process() -> Unit[None]:
+    return (Unit.unit()
+        .map(lambda _: log_message("Step 1"))
+        .map(lambda _: log_message("Step 2"))
+        .map(lambda _: log_message("Step 3")))
+
+process()  # Prints all three messages
+```
+
+### Side Effect Sequencing
+
+```python
+from better_py import Unit
+
+def save_to_database(data: dict) -> Unit[bool]:
+    success = db.insert(data)
+    return Unit.of(success)
+
+def send_notification(user_id: int) -> Unit[bool]:
+    success = notify.send(user_id)
+    return Unit.of(success)
+
+def register_user(user_data: dict) -> Unit[None]:
+    return (save_to_database(user_data)
+        .map(lambda success: send_notification(user_data["id"]) if success else Unit.unit())
+        .map(lambda _: Unit.unit()))
+
+register_user({"id": 1, "name": "Alice"})
+```
+
+### Multi-Step Pipeline
+
+```python
+from better_py import Unit
+
+def validate(data: dict) -> Unit[dict]:
+    if not data.get("name"):
+        raise ValueError("Name required")
+    return Unit.of(data)
+
+def transform(data: dict) -> Unit[dict]:
+    return Unit.of({**data, "processed": True})
+
+def persist(data: dict) -> Unit[None]:
+    db.save(data)
+    return Unit.unit()
+
+def process_data(data: dict) -> Unit[None]:
+    return (Unit.of(data)
+        .map(lambda d: validate(d))
+        .map(lambda d: transform(d))
+        .map(lambda d: persist(d))
+        .map(lambda _: Unit.unit()))
+
+process_data({"name": "Alice"})
+```
+
+## When to Use Unit
+
+Use **Unit** when:
+- You have operations with no meaningful return value
+- You want to sequence side effects
+- You're building pipelines with void operations
+- You want to represent void/unit type
+
+**Don't use Unit** when:
+- You have meaningful return values (use plain types)
+- You need optional values (use `Maybe` instead)
+- You need error handling (use `Result` instead)
+
+## See Also
+
+- [Maybe](/docs/monads/maybe) - For optional values
+- [Result](/docs/monads/result) - For error handling
+- [IO](/docs/monads/io) - For side effect management

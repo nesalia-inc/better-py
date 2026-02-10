@@ -1,0 +1,229 @@
+---
+title: Reader Monad
+description: Dependency injection and environment passing
+---
+
+# Reader Monad
+
+The **Reader** monad represents computations that depend on a shared environment or context. It's commonly used for dependency injection and configuration management.
+
+## Overview
+
+`Reader[E, A]` is a function from an environment `E` to a value `A`. It allows you to:
+- Pass dependencies implicitly through a chain of operations
+- Build computations that depend on a shared environment
+- Test code by providing different environments
+
+## Creating Reader Values
+
+### `Reader(lambda env: ...)` - Wrap a Function
+
+```python
+from better_py import Reader
+
+# A Reader that accesses the environment
+get_config = Reader(lambda config: config["database_url"])
+
+# Run with an environment
+config = {"database_url": "postgresql://localhost/mydb"}
+get_config.run(config)  # "postgresql://localhost/mydb"
+```
+
+### `Reader.ask()` - Get the Environment
+
+```python
+from better_py import Reader
+
+# Get the entire environment
+env = Reader.ask()
+env.run({"key": "value"})  # {"key": "value"}
+```
+
+## Running Reader
+
+### `run(env)` - Execute with Environment
+
+```python
+from better_py import Reader
+
+reader = Reader(lambda env: env["key"])
+reader.run({"key": "value"})  # "value"
+```
+
+## Transforming Reader
+
+### `map(f)` - Transform the Result
+
+```python
+from better_py import Reader
+
+reader = Reader(lambda env: env["value"])
+mapped = reader.map(lambda x: x * 2)
+
+mapped.run({"value": 5})  # 10
+```
+
+### `flat_map(f)` - Chain Reader Operations
+
+```python
+from better_py import Reader
+
+def get_value(env):
+    return env["value"]
+
+def double(x):
+    return Reader(lambda env: x * env["multiplier"])
+
+reader = Reader(get_value).flat_map(double)
+reader.run({"value": 5, "multiplier": 3})  # 15
+```
+
+### `local(f)` - Modify Environment for This Computation
+
+```python
+from better_py import Reader
+
+reader = Reader(lambda env: env["key"])
+
+# Modify environment locally
+modified = reader.local(lambda env: {**env, "key": "new value"})
+
+modified.run({"key": "old value"})  # "new value"
+```
+
+## Real-World Examples
+
+### Configuration Management
+
+```python
+from better_py import Reader
+
+def get_database_url(config):
+    return config["database"]["url"]
+
+def get_redis_url(config):
+    return config["redis"]["url"]
+
+# Compose readers
+get_urls = (Reader(get_database_url)
+    .map(lambda db: Reader(get_redis_url)
+        .map(lambda redis: {"database": db, "redis": redis}))
+    .flat_map(lambda x: x))
+
+config = {
+    "database": {"url": "postgresql://localhost/db"},
+    "redis": {"url": "redis://localhost/0"}
+}
+
+get_urls.run(config)  # {"database": "postgresql://localhost/db", "redis": "redis://localhost/0"}
+```
+
+### Dependency Injection
+
+```python
+from better_py import Reader
+
+class Database:
+    def __init__(self, connection_string: str):
+        self.connection_string = connection_string
+
+class Logger:
+    def __init__(self, level: str):
+        self.level = level
+
+def get_user(db: Database, user_id: int) -> Reader[Database, dict]:
+    return Reader(lambda env: db.query(user_id))
+
+def log_message(logger: Logger, message: str) -> Reader[Logger, None]:
+    return Reader(lambda env: logger.log(message))
+
+# Build a computation that depends on services
+def process_user(user_id: int, env):
+    db = env["db"]
+    logger = env["logger"]
+
+    return (Reader(lambda _: get_user(db, user_id))
+        .map(lambda user: logger.log(f"Processing user {user['name']}")))
+
+# Run with dependencies
+env = {
+    "db": Database("postgresql://localhost/db"),
+    "logger": Logger("INFO")
+}
+process_user(1, env)
+```
+
+### Multi-Environment Operations
+
+```python
+from better_py import Reader
+
+def read_file(path: str, env):
+    return env["fs"].read(path)
+
+def parse_content(content: str, env):
+    return env["parser"].parse(content)
+
+# Chain operations with shared environment
+result = (Reader(lambda env: read_file("data.txt", env))
+    .flat_map(lambda content: Reader(lambda env: parse_content(content, env))))
+```
+
+### Testing with Different Environments
+
+```python
+from better_py import Reader
+
+def send_notification(user_id: int, message: str):
+    return Reader(lambda env: env["notification_service"].send(user_id, message))
+
+# Production environment
+prod_env = {"notification_service": ProductionNotificationService()}
+send_notification(1, "Hello").run(prod_env)
+
+# Test environment
+test_env = {"notification_service": MockNotificationService()}
+send_notification(1, "Hello").run(test_env)
+```
+
+### Configuration Validation
+
+```python
+from better_py import Reader
+
+def require_key(key: str):
+    return Reader(lambda env: env.get(key) or ValueError(f"Missing {key}"))
+
+def validate_config():
+    return (require_key("database_url")
+        .flat_map(lambda db_url: require_key("redis_url")
+            .map(lambda redis_url: {"database_url": db_url, "redis_url": redis_url})))
+
+valid_config = validate_config().run({
+    "database_url": "postgresql://localhost/db",
+    "redis_url": "redis://localhost/0"
+})  # {"database_url": ..., "redis_url": ...}
+
+invalid_config = validate_config().run({"database_url": "..."})
+# Raises: ValueError("Missing redis_url")
+```
+
+## When to Use Reader
+
+Use **Reader** when:
+- You need dependency injection
+- You have shared configuration/environment
+- You want implicit parameter passing
+- You need to test with different environments
+- You're building purely functional code
+
+**Don't use Reader** when:
+- The environment doesn't change (use plain parameters)
+- You only have one dependency
+- You're writing simple scripts (direct injection is fine)
+
+## See Also
+
+- [IO](/docs/monads/io) - For side effect management
+- [State](/docs/monads/state) - For state threading
+- [Writer](/docs/monads/writer) - For logging/accumulation

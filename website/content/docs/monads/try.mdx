@@ -1,0 +1,265 @@
+---
+title: Try Monad
+description: Handle exceptions as values with Success and Failure
+---
+
+# Try Monad
+
+The **Try** monad represents operations that can succeed with a value or fail with an exception. It's a way to handle exceptions as values rather than using try/except blocks.
+
+## Overview
+
+`Try[T]` wraps operations that might raise exceptions:
+- **`Success(value)`** - Contains a successful result
+- **`Failure(exception)`** - Contains an exception
+
+## Creating Try Values
+
+### `Try.of(f)` - Execute a Function and Catch Exceptions
+
+```python
+from better_py import Try
+
+# Success case
+Try.of(lambda: 42)            # Success(42)
+
+# Failure case
+Try.of(lambda: int("abc"))    # Failure(ValueError)
+
+# With exception
+Try.of(lambda: 1 / 0)         # Failure(ZeroDivisionError)
+```
+
+### `Try.success(value)` - Create a Success
+
+```python
+from better_py import Try
+
+Try.success(42)  # Success(42)
+```
+
+### `Try.failure(exception)` - Create a Failure
+
+```python
+from better_py import Try
+
+Try.failure(ValueError("Invalid"))  # Failure(ValueError('Invalid'))
+```
+
+## Checking Variants
+
+```python
+from better_py import Try
+
+success = Try.success(42)
+failure = Try.failure(ValueError("bad"))
+
+# Check if Success
+success.is_success()    # True
+failure.is_success()    # False
+
+# Check if Failure
+success.is_failure()    # False
+failure.is_failure()    # True
+```
+
+## Extracting Values
+
+### `get()` - Get Value or None
+
+```python
+from better_py import Try
+
+Try.success(42).get()                     # 42
+Try.failure(ValueError("bad")).get()      # None
+```
+
+### `get_exception()` - Get Exception or None
+
+```python
+from better_py import Try
+
+Try.failure(ValueError("bad")).get_exception()  # ValueError('bad')
+Try.success(42).get_exception()                   # None
+```
+
+### `get_or_else(default)` - Get Value or Default
+
+```python
+from better_py import Try
+
+Try.success(42).get_or_else(0)                    # 42
+Try.failure(ValueError("bad")).get_or_else(0)     # 0
+```
+
+## Transforming Values
+
+### `map(f)` - Transform Success Value (Catches Exceptions)
+
+```python
+from better_py import Try
+
+Try.success(5).map(lambda x: x * 2)             # Success(10)
+
+# Exceptions are caught
+Try.success(5).map(lambda x: int("abc"))        # Failure(ValueError)
+
+# Failure short-circuits
+Try.failure(ValueError("bad")).map(lambda x: x * 2)  # Failure(ValueError)
+```
+
+## Chaining Operations
+
+### `flat_map(f)` - Chain Try-Returning Operations
+
+```python
+from better_py import Try
+
+def divide(x: float) -> Try[float]:
+    return Try.of(lambda: 10 / x)
+
+Try.success(2).flat_map(divide)      # Success(5.0)
+
+# Exceptions are caught
+Try.success(0).flat_map(divide)      # Failure(ZeroDivisionError)
+
+# Failure short-circuits
+Try.failure(ValueError("bad")).flat_map(divide)  # Failure(ValueError)
+```
+
+## Error Recovery
+
+### `recover(f)` - Recover from Failure
+
+```python
+from better_py import Try
+
+# Recover from failure
+Try.failure(ValueError("bad")).recover(lambda e: 0)  # Success(0)
+
+# No effect on success
+Try.success(42).recover(lambda e: 0)                 # Success(42)
+
+# Recovery can also fail
+Try.failure(ValueError("bad")).recover(lambda e: int("abc"))  # Failure(ValueError)
+```
+
+## Folding
+
+### `fold(on_failure, on_success)` - Handle Both Cases
+
+```python
+from better_py import Try
+
+def describe(result: Try) -> str:
+    return result.fold(
+        on_failure=lambda e: f"Error: {e}",
+        on_success=lambda v: f"Value: {v}"
+    )
+
+describe(Try.success(42))                     # "Value: 42"
+describe(Try.failure(ValueError("bad")))      # "Error: bad"
+```
+
+## Conversion
+
+### `to_option()` - Convert to Maybe
+
+```python
+from better_py import Try, Some, Nothing
+
+Try.success(42).to_option()                   # Some(42)
+Try.failure(ValueError("bad")).to_option()    # Nothing
+```
+
+## Real-World Examples
+
+### Safe File Operations
+
+```python
+from better_py import Try
+
+def read_file(path: str) -> Try[str]:
+    return Try.of(lambda: open(path).read())
+
+def parse_json(content: str) -> Try[dict]:
+    import json
+    return Try.of(lambda: json.loads(content))
+
+# Chain operations
+result = (read_file("data.json")
+    .flat_map(parse_json))  # Success({...}) or Failure(...)
+```
+
+### Safe HTTP Requests
+
+```python
+from better_py import Try
+
+import requests
+
+def fetch_url(url: str) -> Try[str]:
+    return Try.of(lambda: requests.get(url).text)
+
+fetch_url("https://api.example.com")  # Success(...) or Failure(RequestException)
+```
+
+### Safe Mathematical Operations
+
+```python
+from better_py import Try
+
+def safe_divide(a: float, b: float) -> Try[float]:
+    return Try.of(lambda: a / b)
+
+def safe_sqrt(x: float) -> Try[float]:
+    import math
+    return Try.of(lambda: math.sqrt(x))
+
+# Chain operations
+result = (safe_divide(10, 2)
+    .flat_map(safe_sqrt))  # Success(math.sqrt(5.0))
+
+safe_divide(10, 0).flat_map(safe_sqrt)  # Failure(ZeroDivisionError)
+```
+
+### Database Operations
+
+```python
+from better_py import Try
+
+def fetch_user(conn, user_id: int) -> Try[dict]:
+    return Try.of(lambda: conn.execute(
+        "SELECT * FROM users WHERE id = ?", user_id
+    ).fetchone())
+
+fetch_user(connection, 1)  # Success({...}) or Failure(DatabaseError)
+```
+
+## When to Use Try
+
+Use **Try** when:
+- Working with exception-throwing code
+- You want to handle exceptions as values
+- You need to catch and process exceptions
+- Wrapping legacy code with exceptions
+
+**Don't use Try** when:
+- You have control over the code (use `Result` instead)
+- You want type-safe error handling (use `Result` instead)
+- Exceptions are the right choice (let them propagate)
+
+## Comparison with Result
+
+| Feature | Try | Result |
+|---------|-----|--------|
+| **Error type** | Exception | Any type |
+| **Creation** | Automatic (catches exceptions) | Manual |
+| **Type safety** | Less type-safe | More type-safe |
+| **Use case** | Wrapping exception code | New code with explicit errors |
+
+## See Also
+
+- [Result](/docs/monads/result) - For type-safe error handling
+- [Maybe](/docs/monads/maybe) - For optional values
+- [IO](/docs/monads/io) - For side effect management

@@ -1,0 +1,300 @@
+---
+title: Task Monad
+description: Lazy computations with automatic memoization
+---
+
+# Task Monad
+
+The **Task** monad represents lazy computations that can be executed later. Once executed, the result is automatically memoized (cached) for subsequent accesses.
+
+## Overview
+
+`Task[T]` wraps a computation that produces a value of type `T`:
+- **Lazy** - The computation is deferred until `run()` is called
+- **Memoized** - The result is cached after the first execution
+- **Composable** - Tasks can be chained and combined
+
+## Creating Task Values
+
+### `Task(lambda: ...)` - Wrap a Computation
+
+```python
+from better_py import Task
+
+task = Task(lambda: expensive_computation())
+result = task.run()  # Executes and caches result
+```
+
+### `Task.pure(value)` - Lift a Pure Value
+
+```python
+from better_py import Task
+
+Task.pure(42).run()  # 42
+```
+
+### `Task.delay(value)` - Create a Delayed Computation
+
+```python
+from better_py import Task
+
+# Delay a value
+Task.delay(42).run()  # 42
+
+# Delay a function
+Task.delay(lambda: expensive_computation()).run()
+```
+
+## Running Tasks
+
+### `run()` - Execute and Cache
+
+```python
+from better_py import Task
+
+task = Task(lambda: 42)
+result = task.run()  # 42
+
+# Subsequent calls return cached result
+result2 = task.run()  # 42 (from cache)
+```
+
+### `peek()` - Get Cached Value Without Executing
+
+```python
+from better_py import Task
+
+task = Task(lambda: 42)
+task.peek()  # None (not yet executed)
+
+task.run()  # 42
+task.peek()  # 42 (cached)
+```
+
+### `is_cached()` - Check if Cached
+
+```python
+from better_py import Task
+
+task = Task(lambda: 42)
+task.is_cached()  # False
+
+task.run()
+task.is_cached()  # True
+```
+
+## Transforming Tasks
+
+### `map(f)` - Transform the Result
+
+```python
+from better_py import Task
+
+Task(lambda: 5).map(lambda x: x * 2).run()  # 10
+```
+
+### `flat_map(f)` - Chain Task Computations
+
+```python
+from better_py import Task
+
+def fetch_data():
+    return Task(lambda: [1, 2, 3])
+
+def process_data(data):
+    return Task(lambda: sum(data))
+
+result = fetch_data().flat_map(process_data)
+result.run()  # 6
+```
+
+### `and_then(other)` - Sequence Tasks (Discard First Result)
+
+```python
+from better_py import Task
+
+(Task(lambda: print("First"))
+    .and_then(Task(lambda: print("Second")))
+    .run())
+# Prints:
+# First
+# Second
+```
+
+### `filter(predicate)` - Filter the Result
+
+```python
+from better_py import Task
+
+Task(lambda: 5).filter(lambda x: x > 3).run()   # 5
+Task(lambda: 2).filter(lambda x: x > 3).run()   # None
+```
+
+### `zip(other)` - Combine Two Tasks
+
+```python
+from better_py import Task
+
+result = Task(lambda: 5).zip(Task(lambda: "hello"))
+result.run()  # (5, "hello")
+```
+
+## Memoization
+
+### `memoize(max_size=None)` - Create a Memoized Task
+
+```python
+from better_py import Task
+
+# Create a memoized task with unlimited cache
+expensive_task = Task(lambda: expensive_computation()).memoize()
+
+# Or with max cache size
+task = Task(lambda: fetch_data()).memoize(max_size=100)
+```
+
+## Real-World Examples
+
+### Lazy Data Fetching
+
+```python
+from better_py import Task
+
+def fetch_user(user_id: int) -> Task[dict]:
+    return Task(lambda: database.query(f"SELECT * FROM users WHERE id = {user_id}"))
+
+user_task = fetch_user(1)
+
+# Task not executed yet
+# Use the task later
+user = user_task.run()  # Executes query
+user2 = user_task.run()  # Returns cached result
+```
+
+### Computation Caching
+
+```python
+from better_py import Task
+
+def fibonacci(n: int) -> Task[int]:
+    def compute():
+        if n <= 1:
+            return n
+        return fibonacci(n - 1).run() + fibonacci(n - 2).run()
+
+    return Task(compute).memoize()
+
+# Each value is computed only once
+fib_10 = fibonacci(10)
+fib_10.run()  # Computed once
+fib_10.run()  # From cache
+```
+
+### Chained API Calls
+
+```python
+from better_py import Task
+
+def fetch_user(user_id: int) -> Task[dict]:
+    return Task(lambda: api.get(f"/users/{user_id}"))
+
+def fetch_orders(user: dict) -> Task[list]:
+    return Task(lambda: api.get(f"/users/{user['id']}/orders"))
+
+# Chain tasks
+orders = (fetch_user(1)
+    .flat_map(lambda user: fetch_orders(user))
+    .run())
+```
+
+### Conditional Computation
+
+```python
+from better_py import Task
+
+def get_cached_data(key: str) -> Task[str | None]:
+    return Task(lambda: cache.get(key))
+
+def fetch_from_db(key: str) -> Task[str]:
+    return Task(lambda: db.query(f"SELECT value FROM data WHERE key = '{key}'"))
+
+# Try cache, then database
+data = (get_cached_data("my_key")
+    .flat_map(lambda cached: fetch_from_db("my_key") if cached is None else Task.pure(cached))
+    .run())
+```
+
+### Parallel-Style Composition
+
+```python
+from better_py import Task
+
+# Combine multiple tasks
+def fetch_all():
+    user_task = Task(lambda: fetch_user(1))
+    posts_task = Task(lambda: fetch_posts())
+    comments_task = Task(lambda: fetch_comments())
+
+    return (user_task
+        .zip(posts_task)
+        .zip(comments_task)
+        .map(lambda pair: ((user, posts), comments) pair))
+```
+
+### Retry Logic
+
+```python
+from better_py import Task
+
+def fetch_with_retry(url: str, max_retries: int) -> Task[str]:
+    def attempt():
+        try:
+            return Task.pure(requests.get(url).text)
+        except Exception:
+            if max_retries > 0:
+                return fetch_with_retry(url, max_retries - 1)
+            return Task(lambda: (_ for _ in ()).throw(Exception("Max retries exceeded")))
+
+    return attempt()
+```
+
+## Conversion
+
+### `Task.from_io(io_value)` - Create Task from IO
+
+```python
+from better_py import Task, IO
+
+io_value = IO(lambda: 42)
+task = Task.from_io(io_value)
+task.run()  # 42
+```
+
+## When to Use Task
+
+Use **Task** when:
+- You want lazy evaluation
+- You need memoization/caching
+- You want to defer expensive computations
+- You're building pipelines
+- You need automatic caching
+
+**Don't use Task** when:
+- You need immediate execution (use plain functions)
+- You don't need caching (use plain functions)
+- Side effects should happen immediately (use `IO`)
+
+## Comparison with IO
+
+| Feature | Task | IO |
+|---------|------|-----|
+| **Execution** | Lazy | Deferred but explicit |
+| **Caching** | Automatic memoization | No caching |
+| **Use case** | Expensive computations | Side effects |
+| **Multiple runs** | Returns cached value | Re-executes |
+
+## See Also
+
+- [IO](/docs/monads/io) - For side effect management
+- [Try](/docs/monads/try) - For exception handling
+- [Reader](/docs/monads/reader) - For dependency injection

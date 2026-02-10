@@ -1,0 +1,387 @@
+---
+title: Result Monad
+description: Explicit error handling with Ok and Error variants
+---
+
+# Result Monad
+
+The **Result** monad represents operations that can succeed (`Ok`) or fail (`Error`). It's a type-safe alternative to exceptions for error handling.
+
+## Overview
+
+`Result[T, E]` has two variants:
+- **`Ok(value)`** - Contains a success value of type `T`
+- **`Error(error)`** - Contains an error of type `E`
+
+## Creating Result Values
+
+### Using the Modern API (Preferred)
+
+```python
+from better_py import Ok, Error
+
+# Create a success value
+success = Ok(42)
+
+# Create an error
+failure = Error("Something went wrong")
+```
+
+### Using the Legacy API (Still Supported)
+
+```python
+from better_py import Result
+
+# Legacy factory methods
+success = Result.ok(42)
+failure = Result.error("Something went wrong")
+
+# From value with optional error
+Result.from_value(42)              # Ok(42)
+Result.from_value(42, "error")     # Error('error')
+```
+
+## Checking Variants
+
+```python
+from better_py import Ok, Error
+
+success = Ok(42)
+failure = Error("failed")
+
+# Check if Ok
+success.is_ok()        # True
+failure.is_ok()        # False
+
+# Check if Error
+success.is_error()     # False
+failure.is_error()     # True
+```
+
+## Extracting Values
+
+### `unwrap()` - Get Success Value or Raise Error
+
+```python
+Ok(42).unwrap()                    # 42
+Error("failed").unwrap()           # Raises ValueError
+```
+
+### `unwrap_or(default)` - Get Success Value or Default
+
+```python
+Ok(42).unwrap_or(0)                # 42
+Error("failed").unwrap_or(0)       # 0
+```
+
+### `unwrap_or_else(supplier)` - Get Success Value or Compute Default
+
+```python
+Ok(42).unwrap_or_else(lambda: 0)   # 42
+Error("failed").unwrap_or_else(lambda: 0)  # 0
+```
+
+### `unwrap_error()` - Get Error Value
+
+```python
+Error("failed").unwrap_error()     # "failed"
+Ok(42).unwrap_error()              # Raises ValueError
+```
+
+## Transforming Values
+
+### `map(f)` - Transform Success Value
+
+```python
+Ok(5).map(lambda x: x * 2)         # Ok(10)
+Error("bad").map(lambda x: x * 2)  # Error("bad")
+```
+
+### `map_error(f)` - Transform Error
+
+```python
+Error("bad").map_error(str.upper)  # Error("BAD")
+Ok(42).map_error(str.upper)        # Ok(42)
+```
+
+## Chaining Operations
+
+### `bind(f)` / `flat_map(f)` / `and_then(f)` - Chain Result-Returning Operations
+
+```python
+from better_py import Ok, Error
+
+def divide(a: float, b: float) -> Result[float, str]:
+    if b == 0:
+        return Error("Division by zero")
+    return Ok(a / b)
+
+# All three methods are equivalent
+Ok(10,).and_then(lambda x: divide(x, 2))  # Ok(5.0)
+
+# Errors short-circuit
+Error("bad").and_then(lambda x: divide(x, 2))  # Error("bad")
+Ok(10).and_then(lambda x: divide(x, 0))  # Error("Division by zero")
+```
+
+## Combining Results
+
+### `ap(fn)` - Apply a Result-Containing Function
+
+```python
+from better_py import Ok
+
+add_one = Ok(lambda x: x + 1)
+value = Ok(5)
+
+add_one.ap(value)  # Ok(6)
+
+# Error propagates
+Error("bad").ap(value)    # Error("bad")
+add_one.ap(Error("bad"))  # Error("bad")
+```
+
+### `zip(*results)` - Combine Multiple Results
+
+```python
+from better_py import Ok, Error, Result
+
+Result.zip(Ok(1), Ok(2), Ok(3))           # Ok((1, 2, 3))
+
+# Error short-circuits
+Result.zip(Ok(1), Error("bad"), Ok(3))   # Error("bad")
+```
+
+### `lift2`, `lift3` - Lift Functions
+
+```python
+from better_py import Result, Ok
+
+def add(x, y):
+    return x + y
+
+Result.lift2(add, Ok(5), Ok(10))  # Ok(15)
+
+# Error short-circuits
+Result.lift2(add, Ok(5), Error("bad"))  # Error("bad")
+```
+
+## Fallback Values
+
+### `or_else(default)` - Return This or Another Result
+
+```python
+from better_py import Ok, Error
+
+Ok(5).or_else(Ok(10))        # Ok(5)
+Error("bad").or_else(Ok(10)) # Ok(10)
+```
+
+## Real-World Examples
+
+### Safe Division
+
+```python
+from better_py import Ok, Error
+
+def divide(a: float, b: float) -> Result[float, str]:
+    if b == 0:
+        return Error("Cannot divide by zero")
+    return Ok(a / b)
+
+divide(10, 2)  # Ok(5.0)
+divide(10, 0)  # Error("Cannot divide by zero")
+```
+
+### Validation
+
+```python
+from better_py import Ok, Error
+
+def validate_age(age: int) -> Result[int, str]:
+    if age < 0:
+        return Error("Age cannot be negative")
+    if age > 150:
+        return Error("Age is unrealistic")
+    return Ok(age)
+
+def validate_email(email: str) -> Result[str, str]:
+    if "@" not in email:
+        return Error("Invalid email format")
+    return Ok(email)
+
+validate_age(25)           # Ok(25)
+validate_age(-5)           # Error("Age cannot be negative")
+```
+
+### Chaining Operations
+
+```python
+from better_py import Ok, Error
+
+def fetch_user(user_id: int) -> Result[dict, str]:
+    # Simulate database lookup
+    if user_id == 1:
+        return Ok({"id": 1, "name": "Alice"})
+    return Error("User not found")
+
+def get_orders(user: dict) -> Result[list, str]:
+    # Simulate fetching orders
+    return Ok([{"id": 101, "total": 50}])
+
+# Chain operations
+result = (fetch_user(1)
+    .and_then(get_orders))  # Ok([{"id": 101, "total": 50}])
+
+# Errors propagate
+result = (fetch_user(999)
+    .and_then(get_orders))  # Error("User not found")
+```
+
+### API Error Handling
+
+```python
+from better_py import Ok, Error
+
+import requests
+
+def fetch_url(url: str) -> Result[str, str]:
+    try:
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            return Ok(response.text)
+        return Error(f"HTTP {response.status_code}")
+    except requests.RequestException as e:
+        return Error(str(e))
+
+fetch_url("https://api.example.com")  # Ok(...) or Error(...)
+```
+
+### Configuration Validation
+
+```python
+from better_py import Ok, Error
+
+def validate_config(config: dict) -> Result[dict, str]:
+    # Validate required fields
+    if "host" not in config:
+        return Error("Missing 'host' field")
+    if "port" not in config:
+        return Error("Missing 'port' field")
+
+    # Validate port range
+    port = config["port"]
+    if not isinstance(port, int) or port < 1 or port > 65535:
+        return Error("Port must be between 1 and 65535")
+
+    return Ok(config)
+
+validate_config({"host": "localhost", "port": 5432})  # Ok(...)
+validate_config({"host": "localhost"})  # Error("Missing 'port' field")
+```
+
+## Pattern Matching
+
+```python
+from better_py import Ok, Error
+
+def describe(result: Ok[int] | Error[str]) -> str:
+    if result.is_ok():
+        return f"Success: {result.unwrap()}"
+    else:
+        return f"Error: {result.unwrap_error()}"
+
+describe(Ok(42))           # "Success: 42"
+describe(Error("failed"))   # "Error: failed"
+```
+
+## Error Recovery
+
+### Using `map_error`
+
+```python
+from better_py import Ok, Error
+
+def get_user(user_id: int) -> Result[dict, str]:
+    # Database lookup that returns string errors
+    pass
+
+# Transform error to more specific type
+result = get_user(1).map_error(
+    lambda e: f"Database error: {e}"
+)
+```
+
+### Chaining Fallbacks
+
+```python
+from better_py import Ok, Error
+
+# Try primary, then fallback
+result = (get_from_cache(key)
+    .or_else(get_from_database(key))
+    .or_else(get_from_api(key)))
+```
+
+## Common Patterns
+
+### Early Return Pattern
+
+```python
+from better_py import Ok, Error
+
+def process_data(data: dict) -> Result[dict, str]:
+    # Validate step 1
+    if "id" not in data:
+        return Error("Missing id")
+    data_id = data["id"]
+
+    # Validate step 2
+    if not isinstance(data_id, int):
+        return Error("Invalid id type")
+
+    # Process data
+    return Ok({"processed": True, "id": data_id})
+```
+
+### Conversion to/from Exceptions
+
+```python
+from better_py import Ok, Error
+
+def safe_divide(a: float, b: float) -> Result[float, str]:
+    try:
+        return Ok(a / b)
+    except ZeroDivisionError:
+        return Error("Division by zero")
+    except Exception as e:
+        return Error(f"Unexpected error: {e}")
+```
+
+## When to Use Result
+
+Use **Result** when:
+- Operations can fail with meaningful errors
+- You want explicit error handling
+- You need error messages/context
+- You want to avoid exceptions
+
+**Don't use Result** when:
+- A value might be missing (use `Maybe` instead)
+- You need to accumulate errors (use `Validation` instead)
+- The operation cannot fail (use plain types)
+
+## Comparison with Maybe
+
+| Feature | Maybe | Result |
+|---------|-------|--------|
+| **Purpose** | Optional values | Error handling |
+| **Error info** | None | Has error value |
+| **Use case** | Value might be missing | Operation might fail |
+| **Variants** | Some, Nothing | Ok, Error |
+
+## See Also
+
+- [Maybe](/docs/monads/maybe) - For optional values
+- [Validation](/docs/monads/validation) - For accumulating errors
+- [Either](/docs/monads/either) - For two-value alternatives

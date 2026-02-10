@@ -1,0 +1,258 @@
+---
+title: Either Monad
+description: Handle two-value alternatives with Left and Right variants
+---
+
+# Either Monad
+
+The **Either** monad represents a value that can be one of two possibilities. Conventionally, `Left` represents an error and `Right` represents a success (mnemonic: "Right" is correct).
+
+## Overview
+
+`Either[L, R]` has two variants:
+- **`Left(value)`** - Contains a value of type `L` (typically error)
+- **`Right(value)`** - Contains a value of type `R` (typically success)
+
+## Creating Either Values
+
+### Using the Modern API (Preferred)
+
+```python
+from better_py import Left, Right
+
+# Create a Left (typically error)
+error = Left("Something went wrong")
+
+# Create a Right (typically success)
+success = Right(42)
+```
+
+### Using the Legacy API (Still Supported)
+
+```python
+from better_py import Either
+
+# Legacy factory methods
+error = Either.left("Something went wrong")
+success = Either.right(42)
+```
+
+## Checking Variants
+
+```python
+from better_py import Left, Right
+
+left = Left("error")
+right = Right(42)
+
+# Check if Left
+left.is_left()       # True
+right.is_left()      # False
+
+# Check if Right
+left.is_right()      # False
+right.is_right()     # True
+```
+
+## Extracting Values
+
+### `unwrap_left()` - Get Left Value or Raise Error
+
+```python
+Left("error").unwrap_left()     # "error"
+Right(42).unwrap_left()         # Raises ValueError
+```
+
+### `unwrap_right()` - Get Right Value or Raise Error
+
+```python
+Right(42).unwrap_right()        # 42
+Left("error").unwrap_right()    # Raises ValueError
+```
+
+## Transforming Values
+
+### `map(f)` - Transform Right Value
+
+```python
+Right(5).map(lambda x: x * 2)      # Right(10)
+Left("error").map(lambda x: x * 2)  # Left("error")
+```
+
+### `map_left(f)` - Transform Left Value
+
+```python
+Left("error").map_left(str.upper)  # Left("ERROR")
+Right(42).map_left(str.upper)      # Right(42)
+```
+
+### `swap()` - Swap Left and Right
+
+```python
+Left(1).swap()     # Right(1)
+Right(2).swap()    # Left(2)
+```
+
+## Chaining Operations
+
+### `flat_map(f)` - Chain Either-Returning Operations
+
+```python
+from better_py import Left, Right
+
+def divide(x: float) -> Either[str, float]:
+    if x == 0:
+        return Left("Division by zero")
+    return Right(10 / x)
+
+Right(2).flat_map(divide)      # Right(5.0)
+Left("bad").flat_map(divide)   # Left("bad")
+Right(0).flat_map(divide)      # Left("Division by zero")
+```
+
+## Combining Eithers
+
+### `ap(fn)` - Apply an Either-Containing Function
+
+```python
+from better_py import Right
+
+add_one = Right(lambda x: x + 1)
+value = Right(5)
+
+# Note: The receiver (value) contains the value to apply
+value.ap(add_one)  # Right(6)
+
+# Left propagates
+Left("bad").ap(add_one)   # Left("bad")
+value.ap(Left("bad"))     # Left("bad")
+```
+
+### `zip(*eithers)` - Combine Multiple Eithers
+
+```python
+from better_py import Either, Left, Right
+
+Either.zip(Right(1), Right(2), Right(3))          # Right((1, 2, 3))
+
+# Left short-circuits
+Either.zip(Right(1), Left("bad"), Right(3))      # Left("bad")
+```
+
+### `lift2`, `lift3` - Lift Functions
+
+```python
+from better_py import Either, Right
+
+def add(x, y):
+    return x + y
+
+Either.lift2(add, Right(5), Right(10))   # Right(15)
+
+# Left short-circuits
+Either.lift2(add, Right(5), Left("bad")) # Left("bad")
+```
+
+## Folding
+
+### `fold(on_left, on_right)` - Handle Both Cases
+
+```python
+from better_py import Left, Right
+
+def describe(either: Left[str, int] | Right[str, int]) -> str:
+    return either.fold(
+        on_left=lambda err: f"Error: {err}",
+        on_right=lambda val: f"Value: {val}"
+    )
+
+describe(Left("error"))   # "Error: error"
+describe(Right(42))       # "Value: 42"
+```
+
+## Real-World Examples
+
+### Error Handling with Context
+
+```python
+from better_py import Left, Right
+
+def parse_int(s: str) -> Either[str, int]:
+    try:
+        return Right(int(s))
+    except ValueError:
+        return Left(f"Cannot parse '{s}' as int")
+
+parse_int("42")    # Right(42)
+parse_int("abc")   # Left("Cannot parse 'abc' as int")
+```
+
+### Chaining Validations
+
+```python
+from better_py import Left, Right
+
+def validate_positive(x: int) -> Either[str, int]:
+    return Right(x) if x > 0 else Left("Must be positive")
+
+def validate_non_zero(x: int) -> Either[str, int]:
+    return Right(x) if x != 0 else Left("Must be non-zero")
+
+def divide(a: int, b: int) -> Either[str, float]:
+    return (validate_positive(a)
+        .flat_map(lambda _: validate_non_zero(b))
+        .map(lambda _: a / b))
+
+divide(10, 2)   # Right(5.0)
+divide(10, 0)   # Left("Must be non-zero")
+```
+
+### API Responses
+
+```python
+from better_py import Left, Right
+
+class APIError:
+    def __init__(self, message: str, status_code: int):
+        self.message = message
+        self.status_code = status_code
+
+def fetch_user(user_id: int) -> Either[APIError, dict]:
+    # Simulate API call
+    if user_id == 1:
+        return Right({"id": 1, "name": "Alice"})
+    return Left(APIError("User not found", 404))
+
+fetch_user(1)   # Right({"id": 1, "name": "Alice"})
+fetch_user(99)  # Left(APIError(...))
+```
+
+## When to Use Either
+
+Use **Either** when:
+- You have two distinct possibilities
+- You need to track both success and failure cases
+- You want error values with rich context
+- Left represents error, Right represents success
+
+**Don't use Either** when:
+- You only need optional values (use `Maybe` instead)
+- You need simple error strings (use `Result` instead)
+- You need to accumulate errors (use `Validation` instead)
+
+## Comparison with Result
+
+Both `Either` and `Result` handle errors, but they have different conventions:
+
+| Feature | Either | Result |
+|---------|--------|--------|
+| **Success variant** | Right | Ok |
+| **Error variant** | Left | Error |
+| **Convention** | Generic (any two types) | Specific (success/error) |
+| **Typical use** | Two-value alternatives | Explicit error handling |
+
+## See Also
+
+- [Result](/docs/monads/result) - For explicit error handling
+- [Maybe](/docs/monads/maybe) - For optional values
+- [Validation](/docs/monads/validation) - For accumulating errors
