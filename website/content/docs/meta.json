@@ -3,5 +3,5 @@
   "description": "The docs framework",
   "icon": "Building",
   "root": true,
-  "pages": ["---Introduction---", "index", "what-is-deessejs", "comparison"]
+  "pages": ["---Introduction---", "index", "what-is-better-py", "comparisons"]
 }
