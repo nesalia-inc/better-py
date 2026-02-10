@@ -1,0 +1,218 @@
+---
+title: Comparisons
+description: Compare better-py with other functional programming libraries in Python
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Comparisons
+
+See how better-py compares to other functional programming libraries and approaches in Python.
+
+## vs Returns Library
+
+<Tabs items={['better-py', 'Returns']}>
+  <Tab value="better-py">
+    ```python
+    from better_py import Some, Nothing, Ok, Error
+
+    # Maybe for optional values
+    value = Some(42)
+    result = value.map(lambda x: x * 2)
+
+    # Result for error handling
+    result = Ok(42)
+    error = Error("something went wrong")
+    ```
+  </Tab>
+  <Tab value="Returns">
+    ```python
+    from returns.maybe import Some, Nothing
+    from returns.result import Success, Failure
+
+    # Maybe for optional values
+    value = Some(42)
+    result = value.map(lambda x: x * 2)
+
+    # Result for error handling
+    result = Success(42)
+    failure = Failure("something went wrong")
+    ```
+  </Tab>
+</Tabs>
+
+### Key Differences
+
+| Feature | better-py | Returns |
+|---------|-----------|---------|
+| **Style** | Object-oriented with methods | Functional + object mix |
+| **Type tracking** | Full generic inference | Full generic inference |
+| **Method chaining** | Native | Limited |
+| **Immutability** | Frozen dataclasses | Immutable |
+| **Learning curve** | Gentler, Pythonic | Steeper |
+| **Philosophy** | Pragmatic | Academic |
+
+<Callout type="info">
+better-py focuses on feeling like natural Python objects, while Returns follows more traditional functional programming patterns.
+</Callout>
+
+## vs PyMonad
+
+<Tabs items={['better-py', 'PyMonad']}>
+  <Tab value="better-py">
+    ```python
+    from better_py import Some, Nothing
+
+    value = Some(42)
+    result = (
+        value
+        .map(lambda x: x * 2)
+        .filter(lambda x: x > 50)
+        .or_else(0)
+    )
+    ```
+  </Tab>
+  <Tab value="PyMonad">
+    ```python
+    from pymonad.Maybe import Just, Nothing
+
+    value = Just(42)
+    result = value.amap(lambda x: x * 2)
+    # No built-in filter, or_else, etc.
+    ```
+  </Tab>
+</Tabs>
+
+### Key Differences
+
+| Feature | better-py | PyMonad |
+|---------|-----------|---------|
+| **API completeness** | Rich, practical methods | Minimal, academic |
+| **Method chaining** | Full support | Limited |
+| **Modern Python** | Dataclasses, protocols | Older patterns |
+| **Type hints** | Full support | Partial |
+| **Documentation** | Comprehensive | Basic |
+
+## vs Option/Maybe from Other Libraries
+
+<Tabs items={['better-py', 'Optional[T]', 'typing-ext']}>
+  <Tab value="better-py">
+    ```python
+    from better_py import Some, Nothing
+
+    def get_user(id: int) -> Some[User] | Nothing:
+        if user := db.find(id):
+            return Some(user)
+        return Nothing()
+
+    user = get_user(1)
+    name = user.map(lambda u: u.name).or_else("Guest")
+    ```
+  </Tab>
+  <Tab value="Optional[T]">
+    ```python
+    from typing import Optional
+
+    def get_user(id: int) -> Optional[User]:
+        return db.find(id)
+
+    user = get_user(1)
+    if user:
+        name = user.name
+    else:
+        name = "Guest"
+    ```
+  </Tab>
+  <Tab value="typing-ext">
+    ```python
+    from typing_ext import Option, Some, Nothing
+
+    def get_user(id: int) -> Option[User]:
+        if user := db.find(id):
+            return Some(user)
+        return Nothing
+
+    name = get_user(1).map_or("Guest", lambda u: u.name)
+    ```
+  </Tab>
+</Tabs>
+
+### Key Differences
+
+| Feature | better-py | Optional[T] | typing-ext |
+|---------|-----------|-------------|------------|
+| **Safety** | Compile-time + runtime | Runtime only | Runtime only |
+| **Composability** | Excellent | Poor | Good |
+| **Method chaining** | Full | None | Good |
+| **Type narrowing** | Automatic | Manual | Limited |
+| **Pattern matching** | Supported | Supported | Limited |
+
+## vs Rust's Option and Result
+
+better-py draws inspiration from Rust's excellent error handling:
+
+<Tabs items={['better-py', 'Rust']}>
+  <Tab value="better-py">
+    ```python
+    from better_py import Some, Nothing, Ok, Error
+
+    # Maybe ≈ Option
+    value = Some(42)
+    result = value.map(lambda x: x * 2).or_else(0)
+
+    # Result ≈ Result
+    result = Ok(42)
+    value = result.unwrap_or(0)
+    ```
+  </Tab>
+  <Tab value="Rust">
+    ```rust
+    // Option
+    let value = Some(42);
+    let result = value.map(|x| x * 2).unwrap_or(0);
+
+    // Result
+    let result: Result<i32, &str> = Ok(42);
+    let value = result.unwrap_or(0);
+    ```
+  </Tab>
+</Tabs>
+
+### Key Differences
+
+| Feature | better-py | Rust |
+|---------|-----------|------|
+| **Type system** | Generic type hints | Algebraic data types |
+| **Pattern matching** | if/is elif/is else | match expressions |
+| **Compile-time checks** | Mypy optional | Built-in |
+| **Performance** | Overhead of objects | Zero-cost |
+| **Ergonomics** | Pythonic idioms | Rust idioms |
+
+<Callout type="info">
+better-py aims to bring Rust-like ergonomics to Python, while accepting the limitations of Python's type system.
+</Callout>
+
+## Summary
+
+### Choose better-py if you want:
+
+- ✅ Natural Python object-oriented style
+- ✅ Excellent type safety with mypy
+- ✅ Rich, composable APIs
+- ✅ Modern Python practices (dataclasses, protocols)
+- ✅ Comprehensive documentation
+
+### Consider alternatives if you need:
+
+- ⚠️ Pure functional programming (use Returns)
+- ⚠️ Zero-cost abstractions (use Rust or C++)
+- ⚠️ Haskell-style patterns (use PyMonad)
+
+### Best Use Cases for better-py:
+
+1. **New projects** starting with modern Python (3.11+)
+2. **Teams** familiar with OOP learning FP concepts
+3. **Codebases** that value type safety
+4. **Applications** requiring robust error handling
+5. **Developers** who want practical FP without academic complexity

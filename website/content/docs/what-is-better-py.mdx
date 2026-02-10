@@ -1,0 +1,117 @@
+---
+title: What is better-py?
+description: Learn about better-py's philosophy and approach to functional programming in Python
+---
+
+# What is better-py?
+
+better-py is a **pragmatic, type-safe functional programming library for Python** that brings functional programming concepts to Python in a way that feels natural and idiomatic.
+
+## Philosophy
+
+better-py is built on the principle of **"Functional Entities as Objects"**. Instead of using standalone functions, we represent functional concepts as objects with methods. This approach:
+
+- **Feels natural to Python developers** - Works like the Python objects you already know
+- **Enables method chaining** - Write expressive code like `value.map().filter().reduce()`
+- **Provides full type safety** - Complete generic type tracking with mypy support
+- **Maintains immutability** - All operations return new instances
+
+## Core Principles
+
+### 1. Objects, Not Functions
+
+Unlike traditional functional programming libraries that use functions, better-py uses objects:
+
+```python
+# Traditional functional style (not better-py)
+map(lambda x: x * 2, filter(lambda x: x > 0, values))
+
+# better-py style
+Some(42).map(lambda x: x * 2)
+```
+
+### 2. Protocol-Based Design
+
+better-py uses Python's `typing.Protocol` for structural typing. Classes can implement functional behaviors by adhering to protocols, without rigid inheritance hierarchies.
+
+### 3. Type Safety
+
+Every operation preserves type information through generic type parameters:
+
+```python
+from better_py import Some
+
+value: Some[int] = Some(42)
+doubled: Some[int] = value.map(lambda x: x * 2)  # Type: Some[int]
+```
+
+### 4. Immutability
+
+All entities are frozen dataclasses. Operations return new instances:
+
+```python
+original = Some(42)
+modified = original.map(lambda x: x * 2)
+
+# original is still Some(42)
+# modified is Some(84)
+```
+
+## What's Included
+
+### Monads
+
+- **Maybe[T]** - Handle optional values (`Some(value)` or `Nothing`)
+- **Result[T, E]** - Explicit error handling (`Ok(value)` or `Error(error)`)
+- **Either[L, R]** - Two-value alternatives (`Left` or `Right`)
+- **Validation[T, E]** - Accumulate validation errors (`Valid` or `Invalid`)
+- **IO** - Delay side effects
+- **Reader** - Dependency injection
+- **Writer** - Logging and accumulation
+- **State** - State threading
+- **Try** - Exception handling as values
+
+### Protocols
+
+- **Mappable** - Functor-like map operations
+- **Reducible** - Fold/reduce operations
+- **Combinable** - Monoid combine operations
+- **Traversable** - Sequence operations
+- **Updatable** - Immutable updates
+
+### Collections
+
+- **PersistentList** - Immutable linked list with structural sharing
+- **PersistentMap** - Immutable dictionary
+- **PersistentSet** - Immutable set
+
+### Utilities
+
+- **pipe** - Left-to-right function composition
+- **compose** - Right-to-left function composition
+- **curry** - Partial application
+- **partial_right** - Right-side partial application
+
+## Who Should Use better-py?
+
+better-py is ideal for Python developers who want to:
+
+- **Write more robust code** with explicit error handling
+- **Eliminate null/None errors** with Maybe
+- **Compose operations** cleanly with method chaining
+- **Maintain type safety** with full mypy support
+- **Learn functional programming** in a Pythonic way
+
+## What better-py is NOT
+
+- ❌ Not a framework - It's a library you can use anywhere
+- ❌ Not academic - Avoids confusing terminology, focuses on practicality
+- ❌ Not opinionated - Use what you need, ignore what you don't
+- ❌ Not incompatible - Works well with existing Python code
+
+## Design Goals
+
+1. **Pragmatic over pure** - Real-world utility over theoretical correctness
+2. **Pythonic over academic** - Natural Python style over functional purism
+3. **Type-safe over dynamic** - Catch errors at compile time, not runtime
+4. **Simple over clever** - Clear code over clever abstractions
