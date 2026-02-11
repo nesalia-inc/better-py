@@ -1,0 +1,271 @@
+---
+title: PersistentSet
+description: Immutable set with structural sharing
+---
+
+The **PersistentSet** is an immutable set with structural sharing. Operations that would "modify" the set instead return new sets while sharing structure with the original.
+
+`PersistentSet[T]` is a functional alternative to Python's built-in set, designed for immutable data structures and safe data sharing. Elements must be hashable.
+
+## Creating Sets
+
+### Creating from Values
+
+The `PersistentSet.of` method creates a set from individual values.
+
+```python
+from better_py import PersistentSet
+
+s = PersistentSet.of(1, 2, 3)
+s  # PersistentSet({1, 2, 3})
+```
+
+Use this when you have a known set of values.
+
+### Creating from Iterables
+
+The `PersistentSet.from_iterable` method creates a set from any iterable.
+
+```python
+from better_py import PersistentSet
+
+s = PersistentSet.from_iterable([1, 2, 3])
+s  # PersistentSet({1, 2, 3})
+```
+
+Use this when converting from Python iterables.
+
+### Creating Empty Sets
+
+The `PersistentSet.empty` method creates an empty set.
+
+```python
+from better_py import PersistentSet
+
+s = PersistentSet.empty()
+s  # PersistentSet()
+```
+
+Use this as the starting point for building sets incrementally.
+
+## Modifying Sets
+
+### Adding Elements
+
+The `add` method adds an element to the set.
+
+```python
+from better_py import PersistentSet
+
+s = PersistentSet.of(1, 2)
+s = s.add(3)
+s  # PersistentSet({1, 2, 3})
+```
+
+Use this to add elements. Adding existing elements returns the set unchanged.
+
+### Removing Elements
+
+The `remove` method removes an element from the set.
+
+```python
+from better_py import PersistentSet
+
+s = PersistentSet.of(1, 2, 3)
+s = s.remove(2)
+s  # PersistentSet({1, 3})
+```
+
+Use this to remove elements. Removing non-existent elements is safe and returns the set unchanged.
+
+## Set Operations
+
+### Union
+
+The `union` method combines elements from both sets.
+
+```python
+from better_py import PersistentSet
+
+s1 = PersistentSet.of(1, 2)
+s2 = PersistentSet.of(2, 3)
+s1.union(s2)  # PersistentSet({1, 2, 3})
+```
+
+Use this to get all unique elements from both sets.
+
+### Intersection
+
+The `intersection` method returns elements in both sets.
+
+```python
+from better_py import PersistentSet
+
+s1 = PersistentSet.of(1, 2)
+s2 = PersistentSet.of(2, 3)
+s1.intersection(s2)  # PersistentSet({2})
+```
+
+Use this to get common elements between sets.
+
+### Difference
+
+The `difference` method returns elements in self but not in other.
+
+```python
+from better_py import PersistentSet
+
+s1 = PersistentSet.of(1, 2)
+s2 = PersistentSet.of(2, 3)
+s1.difference(s2)  # PersistentSet({1})
+```
+
+Use this to get elements unique to the first set.
+
+### Subset Check
+
+The `is_subset` method checks if all elements are in another set.
+
+```python
+from better_py import PersistentSet
+
+s1 = PersistentSet.of(1, 2)
+s2 = PersistentSet.of(1, 2, 3)
+s1.is_subset(s2)  # True
+```
+
+Use this to test containment relationships.
+
+### Superset Check
+
+The `is_superset` method checks if all elements of another set are included.
+
+```python
+from better_py import PersistentSet
+
+s1 = PersistentSet.of(1, 2, 3)
+s2 = PersistentSet.of(1, 2)
+s1.is_superset(s2)  # True
+```
+
+Use this to test if the set contains all elements of another.
+
+## Testing Membership
+
+### Checking for Elements
+
+The `contains` method checks if an element is in the set.
+
+```python
+from better_py import PersistentSet
+
+s = PersistentSet.of(1, 2, 3)
+s.contains(2)  # True
+s.contains(4)  # False
+```
+
+Use this for membership testing. You can also use the `in` operator: `2 in s`.
+
+## Transforming Sets
+
+### Mapping Elements
+
+The `map` method applies a function to all elements.
+
+```python
+from better_py import PersistentSet
+
+PersistentSet.of(1, 2, 3).map(lambda x: x * 2)
+# PersistentSet({2, 4, 6})
+```
+
+Use this to transform all elements in the set.
+
+### Filtering Elements
+
+The `filter` method keeps elements that match a predicate.
+
+```python
+from better_py import PersistentSet
+
+PersistentSet.of(1, 2, 3, 4).filter(lambda x: x % 2 == 0)
+# PersistentSet({2, 4})
+```
+
+Use this to keep only elements that satisfy a condition.
+
+## Reducing Sets
+
+### Folding Sets
+
+The `reduce` method combines elements into a single value.
+
+```python
+from better_py import PersistentSet
+
+PersistentSet.of(1, 2, 3).reduce(lambda acc, x: acc + x, 0)
+# 6
+```
+
+Use this to aggregate all elements into a single result.
+
+## Real-World Pattern: Permission Management
+
+```python
+from better_py import PersistentSet
+
+# Base permissions
+base_permissions = PersistentSet.of("read", "write")
+
+# Admin permissions extend base
+admin_permissions = base_permissions.add("delete").add("admin")
+
+# Guest permissions are limited
+guest_permissions = PersistentSet.of("read")
+
+# Check permissions
+user_perms = admin_permissions
+user_perms.contains("delete")  # True
+user_perms.contains("admin")   # True
+
+# Original is unchanged
+base_permissions  # Still only has "read", "write"
+```
+
+This pattern shows PersistentSet's strength for permissions: create base permission sets and derive role-specific versions without mutating the original.
+
+## When to Use
+
+Use **PersistentSet** when:
+- You need immutable unique value storage
+- You want safe data sharing without copying
+- You're doing functional programming
+- You need set operations (union, intersection, difference)
+- You're building permission systems or tag collections
+
+**Don't use PersistentSet** when:
+- You need mutable data (use Python's built-in `set`)
+- You need to preserve insertion order (use `PersistentList` or Python 3.7+ `dict`)
+- You need frequent bulk modifications (use Python's built-in `set`)
+
+## Performance Characteristics
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|----------------|------------------|
+| `add` | O(1)* | O(1)* |
+| `remove` | O(1)* | O(1)* |
+| `contains` | O(1) | O(1) |
+| `union` | O(len(s1) + len(s2)) | O(len(s1) + len(s2)) |
+| `intersection` | O(min(len(s1), len(s2))) | O(min(len(s1), len(s2))) |
+| `difference` | O(len(s1)) | O(len(s1)) |
+| `is_subset` | O(len(s1)) | O(1) |
+| `map` | O(n) | O(n) |
+| `filter` | O(n) | O(n) |
+
+*Due to structural sharing overhead. For mutable use cases, Python's built-in `set` is more efficient.
+
+## See Also
+
+- [PersistentList](/docs/collections/persistent-list) - For sequential data
+- [PersistentMap](/docs/collections/persistent-map) - For key-value pairs
+- [Reducible](/docs/protocols/reducible) - Protocol for reduction operations

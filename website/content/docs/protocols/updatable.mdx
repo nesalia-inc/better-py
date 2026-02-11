@@ -1,0 +1,223 @@
+---
+title: Updatable Protocol
+description: Immutable update operations for data structures
+---
+
+The **Updatable** protocol defines the ability to update immutable data structures in a type-safe way, returning new instances with modified values. The **DeepUpdatable** protocol extends this for nested updates.
+
+An Updatable type supports updating fields in immutable data structures, ensuring you never mutate the original data.
+
+## Understanding Updatable
+
+The Updatable protocol represents types that can be updated immutably. Instead of modifying data in place, update operations return new instances with the changes applied.
+
+```python
+from dataclasses import dataclass
+
+@dataclass
+class User:
+    name: str
+    age: int
+
+user = User("Alice", 30)
+# Instead of: user.age = 31  # Mutates!
+updated = user.update(age=31)  # Returns new instance
+```
+
+Use Updatable when you need to modify immutable data structures like configuration objects or state.
+
+## Updatable Methods
+
+### Set
+
+The `set` method updates a single field.
+
+```python
+result.set("name", "Bob")
+```
+
+Returns a new instance with the field updated.
+
+### Update
+
+The `update` method updates multiple fields at once.
+
+```python
+result.update(name="Bob", age=25)
+```
+
+Returns a new instance with all specified fields updated.
+
+### Delete
+
+The `delete` method removes a field.
+
+```python
+result.delete("temporary_field")
+```
+
+Returns a new instance with the field removed.
+
+### Merge
+
+The `merge` method combines another structure into this one.
+
+```python
+result.merge({"extra": "value"})
+```
+
+Returns a new instance with merged data.
+
+## DeepUpdatable: Nested Updates
+
+The DeepUpdatable protocol supports updating nested fields using paths.
+
+### Set In
+
+The `set_in` method sets a nested field using a path.
+
+```python
+data.set_in(["user", "preferences", "theme"], "dark")
+```
+
+Returns a new instance with the nested field updated.
+
+### Update In
+
+The `update_in` method updates multiple fields at a nested level.
+
+```python
+data.update_in(["user", "preferences"], theme="dark", notifications=True)
+```
+
+Returns a new instance with nested fields updated.
+
+### Delete In
+
+The `delete_in` method deletes a field at a nested level.
+
+```python
+data.delete_in(["user", "cache"], "temporary_data")
+```
+
+Returns a new instance with the nested field removed.
+
+## Implementing Updatable
+
+To implement Updatable for your own types, define update methods that return new instances.
+
+```python
+from dataclasses import replace
+
+@dataclass
+class Config:
+    host: str
+    port: int
+    debug: bool
+
+    def set(self, key, value):
+        return replace(self, **{key: value})
+
+    def update(self, **changes):
+        return replace(self, **changes)
+```
+
+Use Python's `dataclasses.replace()` for easy immutable updates.
+
+## Real-World Pattern: Immutable Configuration
+
+```python
+from dataclasses import dataclass, replace
+
+@dataclass
+class DatabaseConfig:
+    host: str
+    port: int
+    username: str
+    password: str
+
+# Base configuration
+base_config = DatabaseConfig(
+    host="localhost",
+    port=5432,
+    username="user",
+    password="pass"
+)
+
+# Environment-specific configurations
+dev_config = base_config.update(
+    host="dev.local",
+    password="dev_pass"
+)
+
+prod_config = base_config.update(
+    host="prod.example.com",
+    password=prod_secure_password()
+)
+
+# Original is unchanged
+base_config  # Still has host="localhost"
+```
+
+This pattern shows Updatable's strength: create base configurations and derive environment-specific versions without mutating the original.
+
+## Real-World Pattern: Nested State Updates
+
+```python
+from dataclasses import dataclass, replace
+
+@dataclass
+class AppState:
+    user: dict
+    settings: dict
+
+state = AppState(
+    user={"name": "Alice", "preferences": {"theme": "light"}},
+    settings={"version": "1.0"}
+)
+
+# Update nested preferences
+updated_state = state.set_in(
+    ["user", "preferences", "theme"],
+    "dark"
+)
+
+# Update multiple nested fields
+updated_state = state.update_in(
+    ["user", "preferences"],
+    theme="dark",
+    notifications=True
+)
+
+# Delete nested field
+updated_state = state.delete_in(
+    ["user", "cache"],
+    "temporary_data"
+)
+```
+
+This pattern shows DeepUpdatable's strength: update deeply nested data without mutation or complex restructuring.
+
+## When to Use
+
+Use **Updatable** when:
+- You need immutable data structures
+- You want to track changes over time
+- You're building state management systems
+- You need safe data sharing
+
+Use **DeepUpdatable** when:
+- You have nested data structures
+- You need to update deeply nested fields
+- You want to avoid complex data restructuring
+
+**Don't use Updatable** when:
+- You need mutable data (use regular Python objects)
+- Performance is critical (mutation is faster)
+- You're working with simple values
+
+## See Also
+
+- [PersistentMap](/docs/collections/persistent-map) - Immutable map implementation
+- [PersistentList](/docs/collections/persistent-list) - Immutable list implementation
+- [State](/docs/monads/state) - Monad for state threading

@@ -14,7 +14,8 @@
       "Bash(gh issue list:*)",
       "Bash(git checkout:*)",
       "Bash(gh pr create:*)",
-      "Bash(uv run python:*)"
+      "Bash(uv run python:*)",
+      "Bash(tree:*)"
     ]
   }
 }

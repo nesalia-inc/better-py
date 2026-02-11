@@ -1,0 +1,284 @@
+---
+title: PersistentMap
+description: Immutable dictionary with structural sharing
+---
+
+The **PersistentMap** is an immutable dictionary with structural sharing. Operations that would "modify" the map instead return new maps while sharing structure with the original.
+
+`PersistentMap[K, V]` is a functional alternative to Python's built-in dict, designed for immutable data structures and safe data sharing.
+
+## Creating Maps
+
+### Creating from Dictionaries
+
+The `PersistentMap.of` method creates a map from a Python dictionary.
+
+```python
+from better_py import PersistentMap
+
+m = PersistentMap.of({"a": 1, "b": 2})
+m  # PersistentMap({'a': 1, 'b': 2})
+```
+
+Use this when converting from Python dictionaries.
+
+### Creating from Iterables
+
+The `PersistentMap.from_iterable` method creates a map from key-value pairs.
+
+```python
+from better_py import PersistentMap
+
+m = PersistentMap.from_iterable([("a", 1), ("b", 2)])
+m  # PersistentMap({'a': 1, 'b': 2})
+```
+
+Use this when building maps from sequences of pairs.
+
+### Creating Empty Maps
+
+The `PersistentMap.empty` method creates an empty map.
+
+```python
+from better_py import PersistentMap
+
+m = PersistentMap.empty()
+m  # PersistentMap()
+```
+
+Use this as the starting point for building maps incrementally.
+
+## Accessing Values
+
+### Getting Values
+
+The `get` method returns a value by key or None if not found.
+
+```python
+from better_py import PersistentMap
+
+m = PersistentMap.of({"a": 1, "b": 2})
+m.get("a")    # 1
+m.get("c")    # None
+```
+
+Use this for safe access without exceptions.
+
+### Getting Values with Defaults
+
+The `get_or_else` method returns a value or a default if not found.
+
+```python
+from better_py import PersistentMap
+
+m = PersistentMap.of({"a": 1})
+m.get_or_else("b", 0)  # 0
+```
+
+Use this when you need a fallback value.
+
+### Checking for Keys
+
+The `contains_key` method checks if a key exists.
+
+```python
+from better_py import PersistentMap
+
+m = PersistentMap.of({"a": 1})
+m.contains_key("a")  # True
+m.contains_key("b")  # False
+```
+
+Use this to test for key presence.
+
+## Modifying Maps
+
+### Setting Key-Value Pairs
+
+The `set` method adds or updates a key-value pair.
+
+```python
+from better_py import PersistentMap
+
+m = PersistentMap.of({"a": 1})
+m = m.set("b", 2)
+m  # PersistentMap({'a': 1, 'b': 2})
+```
+
+Use this to add new keys or update existing ones. The original map is unchanged.
+
+### Deleting Keys
+
+The `delete` method removes a key from the map.
+
+```python
+from better_py import PersistentMap
+
+m = PersistentMap.of({"a": 1, "b": 2})
+m = m.delete("a")
+m  # PersistentMap({'b': 2})
+```
+
+Use this to remove keys. Deleting non-existent keys is safe and returns the map unchanged.
+
+### Merging Maps
+
+The `merge` method combines two maps.
+
+```python
+from better_py import PersistentMap
+
+m1 = PersistentMap.of({"a": 1})
+m2 = PersistentMap.of({"b": 2})
+m1.merge(m2)  # PersistentMap({'a': 1, 'b': 2})
+```
+
+Use this to combine maps. In case of key conflicts, the second map's values take precedence.
+
+## Transforming Maps
+
+### Mapping Values
+
+The `map` method transforms all values with access to keys.
+
+```python
+from better_py import PersistentMap
+
+m = PersistentMap.of({"a": 1, "b": 2})
+m.map(lambda k, v: v * 2)
+# PersistentMap({'a': 2, 'b': 4})
+```
+
+Use this when transformations need access to both keys and values.
+
+### Mapping Values Only
+
+The `map_values` method transforms values without accessing keys.
+
+```python
+from better_py import PersistentMap
+
+m = PersistentMap.of({"a": 1, "b": 2})
+m.map_values(lambda v: v * 2)
+# PersistentMap({'a': 2, 'b': 4})
+```
+
+Use this for simple value transformations.
+
+### Mapping Keys
+
+The `map_keys` method transforms keys.
+
+```python
+from better_py import PersistentMap
+
+m = PersistentMap.of({1: "a", 2: "b"})
+m.map_keys(lambda k: k * 2)
+# PersistentMap({2: 'a', 4: 'b'})
+```
+
+Use this to transform keys. Warning: if the function produces duplicate keys, only the last value is kept.
+
+### Mapping Keys with Collision Handling
+
+The `map_keys_collect` method transforms keys and collects values on collision.
+
+```python
+from better_py import PersistentMap
+
+m = PersistentMap.of({1: "a", 2: "b", 3: "c"})
+m.map_keys_collect(lambda k: k // 2)
+# PersistentMap({0: ['a', 'c'], 1: ['b']})
+```
+
+Use this when key transformations might produce collisions and you want to preserve all values.
+
+## Iterating Maps
+
+### Getting Keys
+
+The `keys` method returns a view of all keys.
+
+```python
+from better_py import PersistentMap
+
+m = PersistentMap.of({"a": 1, "b": 2})
+list(m.keys())  # ['a', 'b']
+```
+
+### Getting Values
+
+The `values` method returns a view of all values.
+
+```python
+from better_py import PersistentMap
+
+m = PersistentMap.of({"a": 1, "b": 2})
+list(m.values())  # [1, 2]
+```
+
+### Getting Entries
+
+The `items` method returns a view of all key-value pairs.
+
+```python
+from better_py import PersistentMap
+
+m = PersistentMap.of({"a": 1, "b": 2})
+list(m.items())  # [('a', 1), ('b', 2)]
+```
+
+## Real-World Pattern: Immutable Configuration
+
+```python
+from better_py import PersistentMap
+
+# Base configuration
+base_config = PersistentMap.of({
+    "database_url": "postgresql://localhost/db",
+    "timeout": 30,
+    "debug": False
+})
+
+# Environment-specific overrides
+dev_config = base_config.set("debug", True).set("timeout", 60)
+prod_config = base_config.merge({"ssl": True, "timeout": 10})
+
+# Original is unchanged
+base_config  # Still has debug=False, timeout=30
+```
+
+This pattern shows PersistentMap's strength for configuration: create base configurations and derive environment-specific versions without mutating the original.
+
+## When to Use
+
+Use **PersistentMap** when:
+- You need immutable key-value storage
+- You want safe data sharing without copying
+- You're doing functional programming
+- You need structural sharing for large maps
+- You're building configuration objects
+
+**Don't use PersistentMap** when:
+- You need mutable data (use Python's built-in `dict`)
+- You're doing frequent updates in a tight loop (use Python's built-in `dict`)
+- You need specialized map operations (use `collections.defaultdict` or `collections.Counter`)
+
+## Performance Characteristics
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|----------------|------------------|
+| `get` | O(1) | O(1) |
+| `set` | O(n)* | O(n)* |
+| `delete` | O(n)* | O(n)* |
+| `contains_key` | O(1) | O(1) |
+| `merge` | O(n+m) | O(n+m) |
+| `map` | O(n) | O(n) |
+
+*Due to structural sharing overhead. For mutable use cases, Python's built-in `dict` is more efficient.
+
+## See Also
+
+- [PersistentList](/docs/collections/persistent-list) - For sequential data
+- [PersistentSet](/docs/collections/persistent-set) - For unique values
+- [Mappable](/docs/protocols/mappable) - Protocol for mapping operations

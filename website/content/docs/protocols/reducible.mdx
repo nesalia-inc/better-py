@@ -1,0 +1,179 @@
+---
+title: Reducible Protocol
+description: Fold and reduce operations on containers
+---
+
+The **Reducible** protocol defines the ability to reduce a structure to a single value by combining its elements, similar to `fold` in Haskell or `reduce` in Python.
+
+A Reducible is a container that can be collapsed to a single value by combining its elements with a binary function.
+
+## Understanding Reducible
+
+The Reducible protocol represents types that support fold/reduce operations. The key idea is that you can combine all elements in a container into a single result.
+
+```python
+from better_py import PersistentList
+
+# Reduce a list to a sum
+result = PersistentList.of(1, 2, 3).reduce(lambda acc, x: acc + x, 0)
+# 6
+```
+
+Use Reducible when you need to aggregate values from containers like PersistentList or PersistentSet.
+
+## Implementing Reducible
+
+To implement Reducible for your own types, define `reduce` and `fold_left` methods.
+
+```python
+from better_py.protocols import Reducible
+
+class Container(Reducible):
+    def __init__(self, items):
+        self.items = items
+
+    def reduce(self, f, initial):
+        result = initial
+        for item in self.items:
+            result = f(result, item)
+        return result
+
+    def fold_left(self, f, initial):
+        return self.reduce(f, initial)
+```
+
+The `reduce` method must:
+- Accept a binary combining function
+- Accept an initial value
+- Return the combined result of all elements
+
+## Methods
+
+### Reduce
+
+The `reduce` method combines elements from left to right.
+
+```python
+from better_py import PersistentList
+
+# Sum all elements
+PersistentList.of(1, 2, 3).reduce(lambda acc, x: acc + x, 0)
+# 6
+
+# Concatenate strings
+PersistentList.of("a", "b", "c").reduce(lambda acc, x: acc + x, "")
+# "abc"
+```
+
+### Fold Left
+
+The `fold_left` method is an alias for `reduce`, emphasizing left-associative folding.
+
+```python
+from better_py import PersistentList
+
+# Left-associative subtraction
+PersistentList.of(1, 2, 3).fold_left(lambda acc, x: acc - x, 0)
+# -6 (equivalent to ((0 - 1) - 2) - 3)
+```
+
+## Built-in Implementations
+
+### PersistentList
+
+```python
+from better_py import PersistentList
+
+PersistentList.of(1, 2, 3, 4, 5).reduce(lambda acc, x: acc + x, 0)
+# 15
+```
+
+### PersistentSet
+
+```python
+from better_py import PersistentSet
+
+PersistentSet.of(1, 2, 3).reduce(lambda acc, x: acc + x, 0)
+# 6 (order may vary)
+```
+
+## Real-World Pattern: Aggregating Results
+
+```python
+from better_py import PersistentList
+
+# Calculate average
+numbers = PersistentList.of(1, 2, 3, 4, 5)
+count = numbers.reduce(lambda acc, _: acc + 1, 0)
+total = numbers.reduce(lambda acc, x: acc + x, 0)
+average = total / count if count > 0 else 0
+# 3.0
+
+# Find maximum
+numbers.reduce(lambda acc, x: acc if acc > x else x, 0)
+# 5
+
+# Build a map from pairs
+pairs = PersistentList.of(("a", 1), ("b", 2))
+pairs.reduce(lambda acc, pair: {**acc, pair[0]: pair[1]}, {})
+# {'a': 1, 'b': 2}
+```
+
+This pattern shows Reducible's strength: complex aggregations become simple, composable operations.
+
+## When to Use
+
+Use **Reducible** when:
+- You need to aggregate values in a container
+- You want to compute a single result from multiple elements
+- You're doing functional data processing
+- You need custom aggregation logic
+
+**Don't use Reducible** when:
+- You have a single value (no reduction needed)
+- You need to preserve intermediate results (use explicit iteration)
+- You're doing simple queries (use Python's built-in functions like `sum` or `max`)
+
+## Common Patterns
+
+### Sum
+
+```python
+container.reduce(lambda acc, x: acc + x, 0)
+```
+
+### Product
+
+```python
+container.reduce(lambda acc, x: acc * x, 1)
+```
+
+### Join
+
+```python
+container.reduce(lambda acc, x: f"{acc}{x}", "")
+```
+
+### Maximum
+
+```python
+container.reduce(lambda acc, x: acc if acc > x else x, initial)
+```
+
+### Minimum
+
+```python
+container.reduce(lambda acc, x: acc if acc < x else x, initial)
+```
+
+### Reverse
+
+```python
+container.reduce(lambda acc, x: [x] + acc, [])
+```
+
+## See Also
+
+- [Mappable](/docs/protocols/mappable) - Protocol for mapping operations
+- [Traversable](/docs/protocols/traversable) - Protocol for effectful traversals
+- [Combinable](/docs/protocols/combinable) - Protocol for combining values

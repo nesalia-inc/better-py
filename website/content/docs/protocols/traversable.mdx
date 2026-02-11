@@ -1,0 +1,195 @@
+---
+title: Traversable Protocol
+description: Transform structures with effectful functions
+---
+
+The **Traversable** protocol defines the ability to transform a data structure with effects, combining Functor and Foldable operations. It allows you to apply effectful functions to contents while preserving structure.
+
+A Traversable type can be traversed with an effectful function, transforming its contents while preserving the overall structure.
+
+## Understanding Traversable
+
+The Traversable protocol represents types that can be traversed with effectful functions. The key idea is that you can transform `F[A]` to `G[B]` where `G` is an applicative functor (like Maybe, Result, or List).
+
+```python
+from better_py.monads import Maybe
+
+# Traverse a list with a Maybe-returning function
+def safe_divide(x: int) -> Maybe[float]:
+    return Maybe.some(x / 2) if x != 0 else Maybe.nothing()
+
+result = traverse(safe_divide, [2, 4, 6])
+# Maybe.some([1.0, 2.0, 3.0])
+```
+
+Use Traversable when you need to apply effectful transformations to entire data structures.
+
+## Methods
+
+### Traverse
+
+The `traverse` method transforms contents with an effectful function.
+
+```python
+result.traverse(lambda x: Maybe.some(x * 2))
+```
+
+Returns an applicative containing the transformed structure.
+
+### Sequence
+
+The `sequence` method extracts effects from a traversable of applicatives.
+
+```python
+result.sequence()  # Maybe.some([1, 2, 3])
+```
+
+Transforms `F[G[A]]` into `G[F[A]]`.
+
+## Real-World Patterns
+
+### Validating Lists
+
+```python
+from better_py.monads import Validation, Valid
+
+def validate_positive(x: int) -> Validation[str, int]:
+    return Valid(x) if x > 0 else Invalid([f"{x} is not positive"])
+
+# Validate all elements
+result = traverse(validate_positive, [1, 2, 3])
+# Valid([1, 2, 3])
+
+# Fails on first error
+result = traverse(validate_positive, [1, -2, 3])
+# Invalid(["-2 is not positive"])
+```
+
+This pattern shows Traversable's strength for validation: apply validation functions to entire collections while preserving the list structure.
+
+### Async Operations
+
+```python
+from better_py.monads import AsyncMaybe
+
+async def fetch_user(id: int) -> AsyncMaybe[dict]:
+    user = await database.fetch(id)
+    return AsyncMaybe.from_value(user)
+
+# Fetch multiple users
+user_ids = [1, 2, 3]
+result = await traverse(fetch_user, user_ids)
+# AsyncMaybe.some([user1, user2, user3])
+```
+
+This pattern shows Traversable's power for async: convert a list of IDs into an async operation that produces a list of users.
+
+### Error Handling
+
+```python
+from better_py.monads import Result, Ok
+
+def safe_parse(s: str) -> Result[int, str]:
+    try:
+        return Ok(int(s))
+    except ValueError:
+        return Error(f"Cannot parse '{s}'")
+
+# Parse all strings
+result = traverse(safe_parse, ["1", "2", "3"])
+# Ok([1, 2, 3])
+
+# Fails on first error
+result = traverse(safe_parse, ["1", "abc", "3"])
+# Error("Cannot parse 'abc'")
+```
+
+This pattern shows Traversable for error handling: apply parsing to all elements, short-circuiting on the first failure.
+
+## Implementing Traversable
+
+To implement Traversable for your own types, define `traverse` and `sequence` methods.
+
+```python
+from better_py.protocols import Traversable
+from better_py.monads import Maybe
+
+class Box(Traversable):
+    def __init__(self, value):
+        self.value = value
+
+    def traverse(self, f):
+        result = f(self.value)
+        # If f returns Maybe[T], return Maybe[Box[T]]
+        return result.map(lambda v: Box(v))
+
+    def sequence(self):
+        return self.traverse(lambda x: x)
+```
+
+The `traverse` method must:
+- Accept a function that returns an applicative
+- Return an applicative containing the transformed structure
+
+## Relationship with Other Protocols
+
+Traversable combines concepts from Mappable and Reducible:
+
+```python
+# From Mappable: transform contents
+container.map(f)
+
+# From Reducible: collapse structure
+container.reduce(f, initial)
+
+# Traversable: transform with effects
+container.traverse(f)  # F[container[B]]
+```
+
+## Laws
+
+Traversable implementations should satisfy these laws:
+
+### Identity
+
+Traversing with identity is the same as sequencing.
+
+```python
+traverse(lambda x: Maybe.some(x), container) == Maybe.some(container)
+```
+
+### Composition
+
+Traversing with two composed effects is the same as composing traversals.
+
+```python
+traverse(lambda x: f(x).map(g), container) == traverse(g, traverse(f, container))
+```
+
+### Naturality
+
+Mapping then traversing is the same as traversing then mapping.
+
+```python
+traverse(f, container.map(h)) == traverse(f).map(lambda xs: [h(x) for x in xs])
+```
+
+## When to Use
+
+Use **Traversable** when:
+- You need to apply effectful functions to entire data structures
+- You want to preserve structure during transformation
+- You're working with nested applicatives
+- You need to commute two functors
+
+**Don't use Traversable** when:
+- You have simple transformations (use `map` instead)
+- You don't have nested effects (use the effect directly)
+- Your type doesn't represent a container
+
+## See Also
+
+- [Mappable](/docs/protocols/mappable) - Protocol for mapping operations
+- [Reducible](/docs/protocols/reducible) - Protocol for reducing values
+- [Maybe](/docs/monads/maybe) - Example effect type
+- [Result](/docs/monads/result) - Example effect type

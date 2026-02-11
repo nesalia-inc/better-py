@@ -1,0 +1,260 @@
+---
+title: PersistentList
+description: Immutable linked list with structural sharing
+---
+
+The **PersistentList** is an immutable linked list with structural sharing. Operations that would "modify" the list instead return new lists while sharing structure with the original, providing O(1) prepend and O(n) index access.
+
+`PersistentList[T]` is a functional alternative to Python's built-in list, designed for immutable data structures and safe data sharing.
+
+## Creating Lists
+
+### Creating from Values
+
+The `PersistentList.of` method creates a list from individual values.
+
+```python
+from better_py import PersistentList
+
+lst = PersistentList.of(1, 2, 3)
+lst  # PersistentList(1, 2, 3)
+```
+
+Use this when you have a known set of values to create a list from.
+
+### Creating from Iterables
+
+The `PersistentList.from_iterable` method creates a list from any iterable.
+
+```python
+from better_py import PersistentList
+
+lst = PersistentList.from_iterable([1, 2, 3])
+lst  # PersistentList(1, 2, 3)
+```
+
+Use this when converting from Python lists or other iterables.
+
+### Creating Empty Lists
+
+The `PersistentList.empty` method creates an empty list.
+
+```python
+from better_py import PersistentList
+
+lst = PersistentList.empty()
+lst  # PersistentList()
+```
+
+Use this as the starting point for building lists incrementally.
+
+## Adding Elements
+
+### Prepending Elements
+
+The `prepend` method adds an element to the front of the list in O(1) time.
+
+```python
+from better_py import PersistentList
+
+lst = PersistentList.of(2, 3)
+lst = lst.prepend(1)
+lst  # PersistentList(1, 2, 3)
+```
+
+Use `prepend` for efficient list building. The original list is unchanged.
+
+### Appending Elements
+
+The `append` method adds an element to the end of the list in O(n) time.
+
+```python
+from better_py import PersistentList
+
+lst = PersistentList.of(1, 2)
+lst = lst.append(3)
+lst  # PersistentList(1, 2, 3)
+```
+
+Use `append` sparingly. For building lists, prefer `prepend` followed by `reverse` for O(n) total time.
+
+## Accessing Elements
+
+### Getting First Element
+
+The `head` method returns the first element or None if empty.
+
+```python
+from better_py import PersistentList
+
+PersistentList.of(1, 2, 3).head()  # 1
+PersistentList.empty().head()      # None
+```
+
+Use this for safe access to the first element without exceptions.
+
+### Getting Rest of List
+
+The `tail` method returns all elements except the first.
+
+```python
+from better_py import PersistentList
+
+PersistentList.of(1, 2, 3).tail()  # PersistentList(2, 3)
+PersistentList.empty().tail()     # PersistentList()
+```
+
+Use this for recursive list processing patterns.
+
+### Getting by Index
+
+The `get` method returns an element at a given index or None if out of bounds.
+
+```python
+from better_py import PersistentList
+
+lst = PersistentList.of(1, 2, 3, 4, 5)
+lst.get(0)    # 1
+lst.get(-1)   # 5
+lst.get(10)   # None
+```
+
+Use this for safe indexed access without exceptions. For bracket notation that raises IndexError, use `lst[index]`.
+
+## Transforming Lists
+
+### Mapping Elements
+
+The `map` method applies a function to each element.
+
+```python
+from better_py import PersistentList
+
+PersistentList.of(1, 2, 3).map(lambda x: x * 2)
+# PersistentList(2, 4, 6)
+```
+
+Use this to transform all elements in the list.
+
+### Filtering Elements
+
+The `filter` method keeps elements that match a predicate.
+
+```python
+from better_py import PersistentList
+
+PersistentList.of(1, 2, 3, 4).filter(lambda x: x % 2 == 0)
+# PersistentList(2, 4)
+```
+
+Use this to keep only elements that satisfy a condition.
+
+### Reversing Lists
+
+The `reverse` method returns a new list with elements in reverse order.
+
+```python
+from better_py import PersistentList
+
+PersistentList.of(1, 2, 3).reverse()
+# PersistentList(3, 2, 1)
+```
+
+Use this for building lists efficiently with `prepend` then `reverse`.
+
+## Working with Subsets
+
+### Taking First N Elements
+
+The `take` method returns the first n elements.
+
+```python
+from better_py import PersistentList
+
+PersistentList.of(1, 2, 3, 4, 5).take(3)
+# PersistentList(1, 2, 3)
+```
+
+Use this to get a prefix of the list.
+
+### Dropping First N Elements
+
+The `drop` method returns all elements except the first n.
+
+```python
+from better_py import PersistentList
+
+PersistentList.of(1, 2, 3, 4, 5).drop(2)
+# PersistentList(3, 4, 5)
+```
+
+Use this to get a suffix of the list.
+
+## Reducing Lists
+
+### Folding Lists
+
+The `reduce` method combines elements into a single value.
+
+```python
+from better_py import PersistentList
+
+PersistentList.of(1, 2, 3).reduce(lambda acc, x: acc + x, 0)
+# 6
+```
+
+Use this to aggregate all elements into a single result.
+
+## Real-World Pattern: Building Lists Efficiently
+
+```python
+from better_py import PersistentList
+
+# Build list using prepend (O(1) per operation)
+def build_list(n: int) -> PersistentList[int]:
+    lst = PersistentList.empty()
+    for i in range(n):
+        lst = lst.prepend(i)
+    # Reverse to get correct order
+    return lst.reverse()
+
+result = build_list(5)
+# PersistentList(0, 1, 2, 3, 4)
+```
+
+This pattern shows efficient list building: prepend all elements (O(n) total) then reverse once (O(n)) for O(n) total time, instead of using append (O(n²) total).
+
+## When to Use
+
+Use **PersistentList** when:
+- You need immutable data structures
+- You want safe data sharing without copying
+- You're doing functional programming
+- You need efficient prepend operations
+- You want O(1) structural sharing
+
+**Don't use PersistentList** when:
+- You need frequent random access (use `PersistentMap` instead)
+- You need mutable data (use Python's built-in `list`)
+- You need O(1) append operations (use Python's built-in `list`)
+
+## Performance Characteristics
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|----------------|------------------|
+| `prepend` | O(1) | O(1) |
+| `append` | O(n) | O(n) |
+| `head` | O(1) | O(1) |
+| `tail` | O(1) | O(1) |
+| `get`/`[]` | O(n) | O(1) |
+| `map` | O(n) | O(n) |
+| `filter` | O(n) | O(n) |
+| `reverse` | O(n) | O(n) |
+| `take` | O(n) | O(n) |
+| `drop` | O(n) | O(1) |
+
+## See Also
+
+- [PersistentMap](/docs/collections/persistent-map) - For key-value pairs
+- [PersistentSet](/docs/collections/persistent-set) - For unique values
+- [Reducible](/docs/protocols/reducible) - Protocol for reduction operations

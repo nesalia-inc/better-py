@@ -1,0 +1,202 @@
+---
+title: Parseable Protocol
+description: Parse strings into values with error handling
+---
+
+The **Parseable** protocol defines the ability to parse strings into values, supporting both successful parsing and error handling.
+
+A Parseable type can parse strings into values, with error handling for invalid inputs.
+
+## Understanding Parseable
+
+The Parseable protocol represents types that can be created from string representations. It combines parsing logic with error handling, making it easy to convert strings to typed values.
+
+```python
+from better_py.protocols import Parseable
+
+# Parse a string to a value
+result = parser.parse("42")
+# Returns the value or an error
+```
+
+Use Parseable when you need to safely convert strings to typed values with proper error handling.
+
+## Methods
+
+### Parse
+
+The `parse` method converts a string to a value or error.
+
+```python
+result.parse("123")
+```
+
+Returns the parsed value, or an error if parsing fails.
+
+### From Value
+
+The `from_value` method creates a parsed value directly.
+
+```python
+Parseable.from_value(42)
+```
+
+Returns the value as-is, bypassing parsing.
+
+### Is Valid
+
+The `is_valid` method checks if this is a valid parsed value.
+
+```python
+result.is_valid()
+```
+
+Returns True if valid, False otherwise.
+
+### Map
+
+The `map` method applies a function to the parsed value.
+
+```python
+result.map(lambda x: x * 2)
+```
+
+Returns a new Parseable with the function applied.
+
+## Implementing Parseable
+
+To implement Parseable for your own types, define parsing methods.
+
+```python
+from better_py.protocols import Parseable
+
+class Email(Parseable):
+    def __init__(self, address: str):
+        self.address = address
+
+    @staticmethod
+    def parse(s: str):
+        if "@" in s and "." in s.split("@")[-1]:
+            return Email(s)
+        return Error(f"Invalid email: {s}")
+
+    def is_valid(self):
+        return True
+
+    @staticmethod
+    def from_value(value):
+        return Email(value)
+
+    def map(self, f):
+        return Email(f(self.address))
+```
+
+## Real-World Patterns
+
+### Parsing Configuration
+
+```python
+from better_py.protocols import Parseable
+
+class Port(Parseable):
+    def __init__(self, port: int):
+        self.port = port
+
+    @staticmethod
+    def parse(s: str):
+        try:
+            port = int(s)
+            if 1 <= port <= 65535:
+                return Port(port)
+            return Error(f"Port out of range: {port}")
+        except ValueError:
+            return Error(f"Invalid port: {s}")
+
+# Parse configuration values
+port = Port.parse("8080")  # Port(8080)
+port = Port.parse("70000")  # Error("Port out of range: 70000")
+```
+
+This pattern shows Parseable's strength for configuration: validate and parse in a single operation with clear error messages.
+
+### Chaining Parsers
+
+```python
+from better_py.monads import Result, Ok, Error
+
+def parse_int(s: str) -> Result[int, str]:
+    try:
+        return Ok(int(s))
+    except ValueError:
+        return Error(f"Not an integer: {s}")
+
+def parse_positive(x: int) -> Result[int, str]:
+    return Ok(x) if x > 0 else Error(f"Not positive: {x}")
+
+# Chain parsers
+result = parse_int("42").map(lambda x: x * 2)
+# Ok(84)
+
+result = parse_int("-5").flat_map(parse_positive)
+# Error("Not positive: -5")
+```
+
+This pattern shows Parseable integrated with Result: chain multiple validation steps with accumulated errors.
+
+### Type-Safe Parsing
+
+```python
+from better_py.protocols import Parseable
+from datetime import datetime
+
+class DateTime(Parseable):
+    FORMAT = "%Y-%m-%d %H:%M:%S"
+
+    def __init__(self, dt: datetime):
+        self.dt = dt
+
+    @staticmethod
+    def parse(s: str):
+        try:
+            return DateTime(datetime.strptime(s, DateTime.FORMAT))
+        except ValueError:
+            return Error(f"Invalid datetime format: {s}")
+
+    def is_valid(self):
+        return True
+
+    @staticmethod
+    def from_value(value):
+        return DateTime(value)
+
+    def map(self, f):
+        return DateTime(f(self.dt))
+
+# Parse with type safety
+dt = DateTime.parse("2024-01-15 10:30:00")
+# DateTime(datetime(2024, 1, 15, 10, 30, 0))
+
+dt = DateTime.parse("invalid")
+# Error("Invalid datetime format: invalid")
+```
+
+This pattern shows Parseable for type-safe parsing: convert strings to proper datetime objects with validation.
+
+## When to Use
+
+Use **Parseable** when:
+- You need to convert strings to typed values
+- You want validation during parsing
+- You're building configuration parsers
+- You need clear error messages for invalid inputs
+
+**Don't use Parseable** when:
+- You have simple type conversions (use Python's built-in constructors)
+- You don't need error handling (use `int()`, `float()`, etc.)
+- Parsing is complex (use a dedicated parsing library)
+
+## See Also
+
+- [Validable](/docs/protocols/validable) - Protocol for validation operations
+- [Result](/docs/monads/result) - For error handling
+- [Try](/docs/monads/try) - For exception handling during parsing

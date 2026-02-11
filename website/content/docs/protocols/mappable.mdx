@@ -1,0 +1,139 @@
+---
+title: Mappable Protocol
+description: Apply functions over values in a context
+---
+
+The **Mappable** protocol defines the ability to apply a function to values in a context, similar to `fmap` in Haskell or `map` in other functional languages. It's the foundation of functor-like operations in better-py.
+
+A Mappable is a container or context that can have a function applied to its contents, producing a new Mappable with the result.
+
+## Understanding Mappable
+
+The Mappable protocol represents types that support `map` operations. The key idea is that you can transform the contents of a container without changing its structure.
+
+```python
+from better_py import Maybe, Some
+
+# Transform the value inside a Maybe
+result = Some(5).map(lambda x: x * 2)
+# Some(10)
+```
+
+Use Mappable when you need to apply transformations to values wrapped in contexts like Maybe, Result, or PersistentList.
+
+## Implementing Mappable
+
+To implement Mappable for your own types, define a `map` method that applies a function to the contained value.
+
+```python
+from better_py.protocols import Mappable
+
+class Box(Mappable):
+    def __init__(self, value):
+        self.value = value
+
+    def map(self, f):
+        return Box(f(self.value))
+```
+
+The `map` method must:
+- Accept a function from the inner type to a new type
+- Return a new container with the function applied
+- Preserve the container structure
+
+## Laws
+
+Mappable implementations should satisfy these laws:
+
+### Identity Law
+
+Mapping the identity function returns the original container.
+
+```python
+container.map(lambda x: x) == container
+```
+
+### Composition Law
+
+Mapping two functions is the same as mapping their composition.
+
+```python
+container.map(f).map(g) == container.map(lambda x: g(f(x)))
+```
+
+## Built-in Implementations
+
+### Maybe
+
+```python
+from better_py import Some, Nothing
+
+Some(5).map(lambda x: x * 2)      # Some(10)
+Nothing.map(lambda x: x * 2)      # Nothing
+```
+
+### Result
+
+```python
+from better_py import Ok, Error
+
+Ok(5).map(lambda x: x * 2)        # Ok(10)
+Error("bad").map(lambda x: x * 2)  # Error("bad")
+```
+
+### PersistentList
+
+```python
+from better_py import PersistentList
+
+PersistentList.of(1, 2, 3).map(lambda x: x * 2)
+# PersistentList(2, 4, 6)
+```
+
+### PersistentMap
+
+```python
+from better_py import PersistentMap
+
+PersistentMap.of({"a": 1}).map(lambda k, v: v * 2)
+# PersistentMap({'a': 2})
+```
+
+## Real-World Pattern: Chaining Transformations
+
+```python
+from better_py import Some, Maybe
+
+def get_user_id() -> Maybe[int]:
+    return Some(42)
+
+def fetch_user(id: int) -> dict:
+    return {"id": id, "name": "Alice"}
+
+# Transform through the Maybe context
+user_name = (get_user_id()
+    .map(fetch_user)
+    .map(lambda user: user["name"]))
+# Some("Alice")
+```
+
+This pattern shows Mappable's power: transformations chain through the context, and if any step returns Nothing, the entire chain short-circuits.
+
+## When to Use
+
+Use **Mappable** when:
+- You need to transform values in a context
+- You want to chain transformations
+- You're working with monadic types
+- You want composable data transformations
+
+**Don't use Mappable** when:
+- You have simple values (apply functions directly)
+- You need side effects during transformation (use monadic bind instead)
+- Your type doesn't represent a context
+
+## See Also
+
+- [Reducible](/docs/protocols/reducible) - Protocol for reducing values
+- [Combinable](/docs/protocols/combinable) - Protocol for combining values
+- [Maybe](/docs/monads/maybe) - Example Mappable implementation

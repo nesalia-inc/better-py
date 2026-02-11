@@ -1,0 +1,254 @@
+---
+title: Combinable and Monoid Protocols
+description: Combine values and combine with identity
+---
+
+The **Combinable** protocol defines the ability to combine two values of the same type, similar to semigroups in abstract algebra. The **Monoid** protocol extends Combinable with an identity element.
+
+A Combinable type supports a binary `combine` operation that merges two values. A Monoid is a Combinable type that also has an identity element (empty/zero value).
+
+## Combinable: Combining Values
+
+The Combinable protocol represents types that can be combined through a binary operation.
+
+```python
+from better_py.protocols import Combinable
+
+class Money(Combinable):
+    def __init__(self, amount):
+        self.amount = amount
+
+    def combine(self, other):
+        return Money(self.amount + other.amount)
+```
+
+Use Combinable when you need to merge values of the same type.
+
+### Laws
+
+Combinable implementations should satisfy the associativity law:
+
+```python
+a.combine(b).combine(c) == a.combine(b.combine(c))
+```
+
+## Monoid: Combining with Identity
+
+The Monoid protocol extends Combinable with an `identity` method that returns the identity element.
+
+```python
+from better_py.protocols import Monoid
+
+class Sum(Monoid):
+    def __init__(self, value):
+        self.value = value
+
+    def combine(self, other):
+        return Sum(self.value + other.value)
+
+    @staticmethod
+    def identity():
+        return Sum(0)
+```
+
+The identity element satisfies:
+
+```python
+identity().combine(x) == x
+x.combine(identity()) == x
+```
+
+## Built-in Monoids
+
+### List Monoid (Concatenation)
+
+```python
+# Lists combine through concatenation
+[1, 2] + [3, 4]  # [1, 2, 3, 4]
+[] + [1, 2]      # [1, 2]  # Empty list is identity
+```
+
+### String Monoid (Concatenation)
+
+```python
+# Strings combine through concatenation
+"hello" + " " + "world"  # "hello world"
+"" + "test"              # "test"  # Empty string is identity
+```
+
+### Number Monoid (Addition)
+
+```python
+# Numbers combine through addition
+0 + 5   # 5  # 0 is identity for addition
+1 + 2   # 3
+```
+
+### Number Monoid (Multiplication)
+
+```python
+# Numbers can also combine through multiplication
+1 * 5   # 5  # 1 is identity for multiplication
+2 * 3   # 6
+```
+
+### Set Monoid (Union)
+
+```python
+# Sets combine through union
+{1, 2} | {2, 3}     # {1, 2, 3}
+set() | {1, 2}       # {1, 2}  # Empty set is identity
+```
+
+## Real-World Pattern: Accumulating Results
+
+```python
+from better_py.protocols import Monoid
+
+class Metrics(Monoid):
+    def __init__(self, count=0, total=0.0):
+        self.count = count
+        self.total = total
+
+    def combine(self, other):
+        return Metrics(
+            count=self.count + other.count,
+            total=self.total + other.total
+        )
+
+    @staticmethod
+    def identity():
+        return Metrics(0, 0.0)
+
+    def average(self):
+        return self.total / self.count if self.count > 0 else 0
+
+# Combine metrics from different sources
+m1 = Metrics(count=10, total=100.0)
+m2 = Metrics(count=5, total=75.0)
+combined = m1.combine(m2)
+# Metrics(count=15, total=175.0)
+
+# Start with identity for incremental building
+result = Metrics.identity()
+result = result.combine(Metrics(1, 10.0))
+result = result.combine(Metrics(2, 20.0))
+# Metrics(count=3, total=30.0)
+```
+
+This pattern shows Monoid's strength: you can combine values incrementally, starting from the identity, and the order of combination doesn't matter (associativity).
+
+## Implementing Monoids
+
+### Step 1: Define Combine
+
+```python
+def combine(self, other):
+    # Return a new value combining self and other
+    pass
+```
+
+### Step 2: Define Identity
+
+```python
+@staticmethod
+def identity():
+    # Return the identity element
+    pass
+```
+
+### Step 3: Verify Laws
+
+```python
+# Identity laws
+assert identity().combine(x) == x
+assert x.combine(identity()) == x
+
+# Associativity law
+assert a.combine(b).combine(c) == a.combine(b.combine(c))
+```
+
+## Common Monoids
+
+### Sum Monoid
+
+```python
+class Sum(Monoid):
+    def __init__(self, value):
+        self.value = value
+
+    def combine(self, other):
+        return Sum(self.value + other.value)
+
+    @staticmethod
+    def identity():
+        return Sum(0)
+```
+
+### Product Monoid
+
+```python
+class Product(Monoid):
+    def __init__(self, value):
+        self.value = value
+
+    def combine(self, other):
+        return Product(self.value * other.value)
+
+    @staticmethod
+    def identity():
+        return Product(1)
+```
+
+### Max Monoid
+
+```python
+class Max(Monoid):
+    def __init__(self, value):
+        self.value = value
+
+    def combine(self, other):
+        return Max(max(self.value, other.value))
+
+    @staticmethod
+    def identity():
+        return Max(float('-inf'))
+```
+
+### Min Monoid
+
+```python
+class Min(Monoid):
+    def __init__(self, value):
+        self.value = value
+
+    def combine(self, other):
+        return Min(min(self.value, other.value))
+
+    @staticmethod
+    def identity():
+        return Min(float('inf'))
+```
+
+## When to Use
+
+Use **Combinable** when:
+- You need to merge values of the same type
+- You want associative combination operations
+- You're building aggregations
+
+Use **Monoid** when:
+- You need Combinable with an identity element
+- You want to start combinations from a zero value
+- You're doing parallel or incremental aggregation
+
+**Don't use Monoid** when:
+- Combination isn't associative (use regular methods)
+- You don't need an identity element (use Combinable)
+- Your type doesn't represent a composable value
+
+## See Also
+
+- [Mappable](/docs/protocols/mappable) - Protocol for mapping operations
+- [Reducible](/docs/protocols/reducible) - Protocol for reducing values
+- [Writer](/docs/monads/writer) - Monad that uses Monoids for logging
