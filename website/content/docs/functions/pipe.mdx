@@ -3,7 +3,7 @@ title: Pipe & Flow
 description: Left-to-right function chaining
 ---
 
-## `pipe(value, *functions)`
+## Piping Values
 
 Pass a value through a sequence of functions, executing left-to-right. Each function receives the output of the previous one. Unlike `compose`, `pipe` executes immediately and returns the final value.
 
@@ -18,7 +18,7 @@ result = pipe(5,
 
 The value `5` flows through each transformation. Use `pipe` for one-off transformations where you don't need to reuse the pipeline.
 
-## `flow(*functions)`
+## Creating Reusable Pipelines
 
 Create a reusable pipeline from a sequence of functions. Returns a function that, when called, executes the pipeline on the input.
 
@@ -36,7 +36,7 @@ process(10)  # 22
 
 Like `pipe` but returns a function instead of executing immediately. Use `flow` when you need to apply the same transformation to multiple values.
 
-## `Pipeline`
+## Collection Pipeline
 
 Builder interface for collection operations. Chain methods like `map`, `filter`, and `reduce` before executing on a collection.
 
@@ -51,7 +51,7 @@ result = (Pipeline()
 
 Each method returns the `Pipeline` object for chaining. Call `execute()` with your collection to run the pipeline.
 
-## Example
+## Example: Data Processing
 
 Here's a realistic data processing pipeline:
 

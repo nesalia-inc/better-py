@@ -3,7 +3,7 @@ title: Compose
 description: Function composition utilities
 ---
 
-## `compose(*functions)`
+## Function Composition
 
 Combine multiple functions into a single function where each function's output becomes the next function's input. Functions execute right-to-left, following mathematical convention.
 
@@ -19,9 +19,9 @@ transform(5)  # 12: increment(5) → 6, then double(6) → 12
 
 Reading right-to-left: `increment` runs first, then `double`. The result is a reusable transformation pipeline.
 
-## `compose_left(*functions)`
+## Left-to-Right Composition
 
-Same as `compose` but executes left-to-right, which can be more intuitive for data pipelines.
+Same as compose but executes left-to-right, which can be more intuitive for data pipelines.
 
 ```python
 from better_py.functions import compose_left
@@ -30,9 +30,9 @@ transform = compose_left(increment, double)
 transform(5)  # 12
 ```
 
-The execution order matches the reading order. Choose between `compose` and `compose_left` based on which direction feels natural for your use case.
+The execution order matches the reading order. Choose based on which direction feels natural for your use case.
 
-## Example
+## Example: Validation Pipeline
 
 Composition is useful for validation and data processing chains where each step is a pure, single-responsibility function:
 

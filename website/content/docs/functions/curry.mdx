@@ -3,7 +3,7 @@ title: Curry
 description: Currying and partial application
 ---
 
-## `curry(func)`
+## Currying
 
 The `curry` decorator transforms a function with multiple arguments into a sequence of functions that each accept a single argument. This enables partial application—provide some arguments now, the rest later.
 
@@ -20,7 +20,7 @@ add(1, 2)(3)  # 6 - partial application
 
 Calling `add(1)` returns a function waiting for the next argument. This is useful for creating specialized versions of general functions.
 
-## `partial_right(func, *args)`
+## Partial Application from the Right
 
 Fix arguments from the right side of a function. Unlike `functools.partial` which fixes from the left, `partial_right` is useful when the data you want to process should be the first argument.
 
@@ -33,7 +33,7 @@ divide_by_2(10)  # 5
 
 The divisor is fixed to 2, creating a reusable `divide_by_2` function where the remaining argument becomes the dividend.
 
-## `flip(func)`
+## Flipping Arguments
 
 Reverse the order of the first two arguments. This is helpful when adapting functions for use with `pipe` or `flow`, where the data should come first.
 
@@ -46,7 +46,7 @@ subtract_from(10, 3)  # 7 (10 - 3)
 
 The original lambda subtracts y from x. After flipping, the first argument becomes the subtrahend and the second becomes the minuend.
 
-## Example
+## Example: API Client
 
 Currying is particularly useful for API clients where certain parameters remain constant:
 
