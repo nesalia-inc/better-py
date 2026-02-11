@@ -3,17 +3,15 @@ title: IO Monad
 description: Manage side effects with pure, deferred computations
 ---
 
-# IO Monad
+The **IO** monad represents computations with side effects. It encapsulates impure operations, allowing you to write pure code that describes effects without executing them immediately. This makes side effects explicit and composable.
 
-The **IO** monad represents computations with side effects. It encapsulates impure operations, allowing you to write pure code that describes effects without executing them immediately.
+`IO[T]` wraps a computation that produces a value of type `T` when executed. The computation is deferred until you call `unsafe_run()`.
 
-## Overview
+## Creating Computations
 
-`IO[T]` wraps a computation that produces a value of type `T` when executed. The computation is only executed when you call `unsafe_run()`.
+### Wrapping Side Effects
 
-## Creating IO Values
-
-### `IO(lambda: ...)` - Wrap a Computation
+The `IO` constructor wraps a computation that will execute when run.
 
 ```python
 from better_py import IO
@@ -25,7 +23,9 @@ io_value = IO(lambda: 42)
 io_value.unsafe_run()  # 42
 ```
 
-### `IO.pure(value)` - Lift a Pure Value
+### Lifting Pure Values
+
+The `IO.pure` method lifts a pure value into an IO context.
 
 ```python
 from better_py import IO
@@ -33,7 +33,9 @@ from better_py import IO
 IO.pure(42).unsafe_run()  # 42
 ```
 
-### `IO.delay(value)` - Create a Delayed Computation
+### Creating Delayed Computations
+
+The `IO.delay` method creates a delayed computation that executes when run.
 
 ```python
 from better_py import IO
@@ -45,9 +47,13 @@ IO.delay(42).unsafe_run()  # 42
 IO.delay(lambda: expensive_computation()).unsafe_run()
 ```
 
-## Executing IO
+Use `delay` to defer expensive operations until they're actually needed.
 
-### `unsafe_run()` - Execute the Computation
+## Executing Computations
+
+### Running Side Effects
+
+The `unsafe_run` method executes the wrapped computation. It's marked "unsafe" because it breaks purity by executing side effects.
 
 ```python
 from better_py import IO
@@ -59,9 +65,13 @@ IO(lambda: 42).unsafe_run()  # 42
 IO(lambda: print("Hello")).unsafe_run()  # Prints "Hello"
 ```
 
-## Transforming IO
+The "unsafe" prefix reminds you that this method should be called at the edges of your program (main function, request handlers), not in pure business logic.
 
-### `map(f)` - Transform the Result
+## Transforming Computations
+
+### Mapping Results
+
+The `map` method transforms the result of an IO computation.
 
 ```python
 from better_py import IO
@@ -69,7 +79,11 @@ from better_py import IO
 IO(lambda: 5).map(lambda x: x * 2).unsafe_run()  # 10
 ```
 
-### `flat_map(f)` - Chain IO Computations
+The transformation is only applied when the computation is run, not when it's created.
+
+### Chaining Operations
+
+The `flat_map` method chains IO computations sequentially.
 
 ```python
 from better_py import IO
@@ -86,7 +100,11 @@ result = (read_file()
     .unsafe_run())
 ```
 
-### `and_then(other)` - Sequence IO Computations
+Use `flat_map` when the second computation depends on the result of the first.
+
+### Sequencing Operations
+
+The `and_then` method runs two IO computations in order, discarding the first result.
 
 ```python
 from better_py import IO
@@ -100,7 +118,11 @@ from better_py import IO
 # Second
 ```
 
-### `filter(predicate)` - Filter the Result
+Use `and_then` when you need to run side effects in sequence but don't need the first result.
+
+### Filtering Results
+
+The `filter` method conditionally returns the result or None based on a predicate.
 
 ```python
 from better_py import IO
@@ -111,7 +133,9 @@ IO(lambda: 2).filter(lambda x: x > 3).unsafe_run()   # None
 
 ## Error Handling
 
-### `recover(f)` - Recover from Exceptions
+### Recovering from Exceptions
+
+The `recover` method catches exceptions and provides a fallback value.
 
 ```python
 from better_py import IO
@@ -123,7 +147,11 @@ IO(lambda: 1 / 0).recover(lambda e: 0).unsafe_run()  # 0
 IO(lambda: 42).recover(lambda e: 0).unsafe_run()     # 42
 ```
 
-### `retry(times)` - Retry on Failure
+Use `recover` to handle unexpected failures and provide safe defaults.
+
+### Retrying on Failure
+
+The `retry` method re-runs the computation up to a specified number of times if it fails.
 
 ```python
 from better_py import IO
@@ -140,45 +168,9 @@ def flaky_operation():
 IO(flaky_operation).retry(3).unsafe_run()  # "Success" after retries
 ```
 
-## Real-World Examples
+Use `retry` for operations that might fail transiently, like network requests.
 
-### Delayed File Operations
-
-```python
-from better_py import IO
-
-def read_file(path: str) -> IO[str]:
-    return IO(lambda: open(path).read())
-
-def write_file(path: str, content: str) -> IO[None]:
-    return IO(lambda: open(path, "w").write(content))
-
-# Chain file operations
-(read_file("input.txt")
-    .map(lambda content: content.upper())
-    .flat_map(lambda upper: write_file("output.txt", upper))
-    .unsafe_run())
-```
-
-### Database Operations
-
-```python
-from better_py import IO
-
-def query_database(sql: str) -> IO[list]:
-    return IO(lambda: db.execute(sql).fetchall())
-
-def update_user(user_id: int, data: dict) -> IO[None]:
-    return IO(lambda: db.execute(
-        "UPDATE users SET ? WHERE id = ?", data, user_id
-    ))
-
-(query_database("SELECT * FROM users")
-    .map(lambda users: len(users))
-    .unsafe_run())  # Number of users
-```
-
-### API Calls with Retry
+## Real-World Pattern: File Operations with Retry
 
 ```python
 from better_py import IO
@@ -192,46 +184,17 @@ def fetch_url(url: str) -> IO[str]:
 
     return IO(request).retry(3)
 
-fetch_url("https://api.example.com").unsafe_run()
+def process_url(url: str) -> IO[dict]:
+    return (fetch_url(url)
+        .map(lambda text: parse_json(text))
+        .recover(lambda e: {}))
+
+fetch_and_process = process_url("https://api.example.com").unsafe_run()
 ```
 
-### Logging Side Effects
+This pattern shows IO's power: network operations can fail, but `retry` adds resilience while `recover` provides safe defaults.
 
-```python
-from better_py import IO
-
-def log(message: str) -> IO[None]:
-    return IO(lambda: print(f"[LOG] {message}"))
-
-def process(data: str) -> IO[str]:
-    return (log(f"Processing: {data}")
-        .and_then(IO(lambda: data.upper()))
-        .map(lambda result: log(f"Result: {result}"))
-        .and_then(IO(lambda: result)))
-
-process("hello").unsafe_run()
-# [LOG] Processing: hello
-# [LOG] Result: HELLO
-```
-
-### Environment Variables
-
-```python
-from better_py import IO
-import os
-
-def get_env(key: str) -> IO[str | None]:
-    return IO(lambda: os.environ.get(key))
-
-def require_env(key: str) -> IO[str]:
-    return (get_env(key)
-        .map(lambda val: val if val is not None else ValueError(f"Missing {key}"))
-        .flat_map(lambda val: IO(lambda: val) if not isinstance(val, Exception) else IO(lambda: (_ for _ in ()).throw(val))))
-
-require_env("DATABASE_URL").unsafe_run()
-```
-
-## When to Use IO
+## When to Use
 
 Use **IO** when:
 - You need to delay side effects
