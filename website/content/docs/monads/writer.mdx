@@ -3,37 +3,37 @@ title: Writer Monad
 description: Log computations and accumulate values
 ---
 
-# Writer Monad
+The **Writer** monad represents computations that produce a value along with a log or accumulator. It's useful for logging, tracking, and accumulating values through a chain of operations without side effects.
 
-The **Writer** monad represents computations that produce a value along with a log or accumulator. It's useful for logging, tracking, and accumulating values through a chain of operations.
+`Writer[W, A]` contains a value of type `A` and a log of type `W`. The log type must be a monoid (supporting combination and identity), including built-in types like `list`, `str`, `int`, `float`, and `set`.
 
-## Overview
+## Creating Writers
 
-`Writer[W, A]` contains:
-- A **value** of type `A` (the computation result)
-- A **log** of type `W` (accumulated output)
+### Wrapping Values with Logs
 
-The log type `W` must be a monoid (support combining and identity):
-- Built-in monoids: `list`, `str`, `int`, `float`, `set`
-- Custom monoids: Implement the `Monoid` protocol
-
-## Creating Writer Values
-
-### Using the Generic Constructor
+The `Writer` constructor creates a writer with a value and an accompanying log.
 
 ```python
 from better_py import Writer
 
 # Create with list log
 writer = Writer(["log1", "log2"], 42)
-writer.tell()  # (["log1", "log2"], 42)
+log, value = writer.tell()
+log    # ["log1", "log2"]
+value  # 42
 
 # Create with string log
 writer = Writer("Step 1: ", "result")
-writer.tell()  # ("Step 1: ", "result")
+log, value = writer.tell()
+log    # "Step 1: "
+value  # "result"
 ```
 
-### Using Convenience Functions
+Use the constructor when you need to create a writer with both a value and its log.
+
+### Creating Typed Writers
+
+Convenience functions create writers for common monoid types.
 
 ```python
 from better_py import list_writer, str_writer, sum_writer
@@ -48,7 +48,11 @@ str_writer("hello ", "world").tell()  # ("hello ", "world")
 sum_writer(5, "result").tell()  # (5, "result")
 ```
 
-### `Writer.tell_log(log)` - Log Without a Value
+Use these helpers when working with specific monoid types for cleaner code.
+
+### Logging Without Values
+
+The `Writer.tell_log` method creates a writer with only a log entry and no value.
 
 ```python
 from better_py import Writer
@@ -56,9 +60,13 @@ from better_py import Writer
 Writer.tell_log(["debug message"]).tell()  # (["debug message"], None)
 ```
 
+Use this when you need to log something without producing a meaningful value.
+
 ## Extracting Values
 
-### `tell()` - Extract Log and Value
+### Getting Both Log and Value
+
+The `tell` method returns both the log and the value as a tuple.
 
 ```python
 from better_py import Writer
@@ -69,9 +77,13 @@ log    # ["log1", "log2"]
 value  # 42
 ```
 
-## Transforming Writer
+This is the primary way to extract results from a Writer computation.
 
-### `map(f)` - Transform the Value
+## Transforming Writers
+
+### Mapping Values
+
+The `map` method transforms the value while preserving the log.
 
 ```python
 from better_py import Writer
@@ -81,7 +93,11 @@ mapped = writer.map(lambda x: x * 2)
 mapped.tell()  # (["log"], 10)
 ```
 
-### `flat_map(f)` - Chain Writer Operations (Accumulates Logs)
+Use `map` when you need to transform the computation result without touching the log.
+
+### Chaining Operations
+
+The `flat_map` method chains Writer operations, automatically accumulating logs.
 
 ```python
 from better_py import Writer
@@ -97,9 +113,13 @@ result = writer.flat_map(step1).flat_map(step2)
 result.tell()  # (["init", "step1", "step2"], 12)
 ```
 
+Use `flat_map` for sequential operations where each step produces a new log entry.
+
 ## Advanced Operations
 
-### `listen()` - Extract Log and Value as Pair
+### Capturing Log and Value
+
+The `listen` method transforms a Writer returning the log alongside the value.
 
 ```python
 from better_py import Writer
@@ -109,7 +129,11 @@ listened = writer.listen()
 listened.tell()  # ((["log"], 42), ["log"])
 ```
 
-### `pass_()` - Pass the Log Through
+Use this when you need to pass both the value and its log to subsequent operations.
+
+### Passing Log Through
+
+The `pass_` method replaces the value with the log.
 
 ```python
 from better_py import Writer
@@ -119,25 +143,9 @@ passed = writer.pass_()
 passed.tell()  # (["log"], ["log"])
 ```
 
-## Real-World Examples
+Use this when you want to propagate the log as the value itself.
 
-### Function Logging
-
-```python
-from better_py import list_writer
-
-def process_user(user_id: int):
-    return (list_writer([f"Fetching user {user_id}"], None)
-        .map(lambda _: fetch_user(user_id))
-        .flat_map(lambda user: list_writer([f"User found: {user['name']}"], user)))
-
-result = process_user(1)
-log, value = result.tell()
-# log: ["Fetching user 1", "User found: Alice"]
-# value: {"id": 1, "name": "Alice"}
-```
-
-### Audit Trail
+## Real-World Pattern: Audit Trail
 
 ```python
 from better_py import str_writer
@@ -158,64 +166,11 @@ log, _ = result.tell()
 # Transfer complete
 ```
 
-### Calculation with Steps
-
-```python
-from better_py import list_writer
-
-def add(x, y):
-    return list_writer([f"Adding {x} + {y}"], x + y)
-
-def multiply(x, y):
-    return list_writer([f"Multiplying {x} * {y}"], x * y)
-
-def calculate(a, b, c):
-    return (add(a, b)
-        .flat_map(lambda sum_result: multiply(sum_result, c)))
-
-result = calculate(5, 3, 2)
-log, value = result.tell()
-# log: ["Adding 5 + 3", "Multiplying 8 * 2"]
-# value: 16
-```
-
-### String Building
-
-```python
-from better_py import str_writer
-
-def build_paragraph(name: str, age: int):
-    return (str_writer(f"Name: {name}, ", None)
-        .map(lambda _: str_writer(f"Age: {age}", None))
-        .map(lambda _: str_writer(". ", None)))
-
-result = build_paragraph("Alice", 30)
-log, _ = result.tell()
-# log: "Name: Alice, Age: 30. "
-```
-
-### Counter/Tally
-
-```python
-from better_py import sum_writer
-
-def count_items(items: list):
-    def count_rec(remaining):
-        if not remaining:
-            return sum_writer(0, 0)
-        return sum_writer(1, None).map(lambda _: count_rec(remaining[1:]).map(lambda c: c + 1))
-
-    return count_rec(items)
-
-result = count_items([1, 2, 3, 4, 5])
-log, value = result.tell()
-# log: 5 (number of items)
-# value: 5
-```
+This pattern shows Writer's strength for audit trails: every operation logs its action, creating a complete record of the computation while keeping the business logic pure.
 
 ## Custom Monoids
 
-You can use custom types as logs by implementing the `Monoid` protocol:
+You can use custom types as logs by implementing the `Monoid` protocol with `combine` and `identity` methods.
 
 ```python
 from better_py import Writer, Monoid
@@ -240,7 +195,9 @@ class LogEntry:
 writer = Writer(LogEntry("INFO", "Step 1"), "result")
 ```
 
-## When to Use Writer
+Custom monoids let you create domain-specific logging types that accumulate according to your business rules.
+
+## When to Use
 
 Use **Writer** when:
 - You need to log computations
@@ -248,14 +205,16 @@ Use **Writer** when:
 - You need audit trails
 - You're building debug/trace systems
 - You want to track computation steps
+- You need pure functional logging
 
 **Don't use Writer** when:
 - You only need the result (use plain functions)
 - Logging is handled externally
 - You need different log types per operation
+- Side effects are acceptable (use logging libraries instead)
 
 ## See Also
 
-- [IO](/docs/monads/io) - For side effect management
 - [State](/docs/monads/state) - For state threading
+- [IO](/docs/monads/io) - For side effect management
 - [Reader](/docs/monads/reader) - For dependency injection

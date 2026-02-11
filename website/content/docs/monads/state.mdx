@@ -3,19 +3,15 @@ title: State Monad
 description: Thread state through computations functionally
 ---
 
-# State Monad
+The **State** monad represents stateful computations in a pure functional way. Instead of using mutable state, you thread state through a chain of operations explicitly, making state changes visible and predictable.
 
-The **State** monad represents stateful computations in a pure functional way. Instead of using mutable state, you thread state through a chain of operations explicitly.
+`State[S, A]` is a function from state `S` to a tuple of `(value, new_state)`. The value is the computation result, and the new_state is the updated state.
 
-## Overview
+## Creating & Accessing State
 
-`State[S, A]` is a function from state `S` to a tuple of `(value, new_state)`:
-- **value** (`A`) - The result of the computation
-- **new_state** (`S`) - The updated state
+### Wrapping State Functions
 
-## Creating State Values
-
-### `State(lambda s: (value, new_state))` - Wrap a State Function
+The `State` constructor wraps a function that receives the current state and returns a value with the new state.
 
 ```python
 from better_py import State
@@ -29,7 +25,11 @@ result      # 0
 new_state   # 1
 ```
 
-### `State.get()` - Get the Current State
+Use the constructor when you need full control over how state transforms.
+
+### Getting Current State
+
+The `State.get` method returns the current state as both the value and the new state.
 
 ```python
 from better_py import State
@@ -40,7 +40,11 @@ value   # 42
 state   # 42
 ```
 
-### `State.put(value)` - Replace the State
+Use this when you need to read the state without modifying it.
+
+### Replacing State
+
+The `State.put` method replaces the state with a new value.
 
 ```python
 from better_py import State
@@ -51,7 +55,11 @@ value   # None
 state   # 100
 ```
 
-### `State.modify(f)` - Modify the State
+Use this when you need to completely replace the state.
+
+### Modifying State
+
+The `State.modify` method applies a function to transform the state.
 
 ```python
 from better_py import State
@@ -62,9 +70,13 @@ value   # None
 state   # 6
 ```
 
+Use this when you need to update the state based on its current value.
+
 ## Running State
 
-### `run(initial)` - Get Value and State
+### Getting Value and State
+
+The `run` method executes the state computation and returns both the result and final state.
 
 ```python
 from better_py import State
@@ -75,7 +87,11 @@ value       # 10
 new_state   # 6
 ```
 
-### `eval(initial)` - Get Only the Value
+This is the most common way to execute state computations when you need both results.
+
+### Getting Only the Value
+
+The `eval` method returns only the computation result, discarding the final state.
 
 ```python
 from better_py import State
@@ -84,7 +100,11 @@ state = State(lambda s: (s * 2, s + 1))
 value = state.eval(5)  # 10
 ```
 
-### `execute(initial)` - Get Only the Final State
+Use this when you care about the result but not the final state.
+
+### Getting Only the Final State
+
+The `execute` method returns only the final state, discarding the computation result.
 
 ```python
 from better_py import State
@@ -93,9 +113,13 @@ state = State(lambda s: (s * 2, s + 1))
 final_state = state.execute(5)  # 6
 ```
 
+Use this when you care about the state transformation but not the intermediate result.
+
 ## Transforming State
 
-### `map(f)` - Transform the Value
+### Mapping Values
+
+The `map` method transforms the computation result without affecting state.
 
 ```python
 from better_py import State
@@ -107,7 +131,11 @@ value       # 10
 new_state   # 6
 ```
 
-### `flat_map(f)` - Chain State Operations
+Use `map` when you need to transform the result without touching the state.
+
+### Chaining Operations
+
+The `flat_map` method chains state operations, threading state through each step.
 
 ```python
 from better_py import State
@@ -124,56 +152,9 @@ value       # 6
 new_state   # 6
 ```
 
-## Real-World Examples
+Use `flat_map` for sequential operations where later steps depend on earlier results.
 
-### Counter
-
-```python
-from better_py import State
-
-def increment():
-    return State.modify(lambda n: n + 1)
-
-def get_count():
-    return State.get()
-
-# Chain operations
-counter = (increment()
-    .flat_map(lambda _: increment())
-    .flat_map(lambda _: get_count()))
-
-value, state = counter.run(0)
-value   # 2
-state   # 2
-```
-
-### Stack Operations
-
-```python
-from better_py import State
-
-def push(item):
-    return State.modify(lambda stack: [item] + stack)
-
-def pop():
-    return State.get().flat_map(lambda stack: State.put(stack[1:]).map(lambda _: stack[0]))
-
-def peek():
-    return State.get().map(lambda stack: stack[0] if stack else None)
-
-# Stack operations
-stack_ops = (push("a")
-    .flat_map(lambda _: push("b"))
-    .flat_map(lambda _: pop())
-    .flat_map(lambda _: push("c"))
-    .flat_map(lambda _: peek()))
-
-value, state = stack_ops.run([])
-value   # "c"
-state   # ["a", "c"]
-```
-
-### Key-Value Store
+## Real-World Pattern: Key-Value Store
 
 ```python
 from better_py import State
@@ -199,52 +180,9 @@ value   # "Hello, Alice"
 state   # {"name": "Alice", "age": 30, "greeting": "Hello, Alice"}
 ```
 
-### Random Number Generator (Pure)
+This pattern shows State's strength for managing complex state transitions: each operation modifies the store functionally, and the state is threaded through automatically without mutable variables.
 
-```python
-from better_py import State
-
-def next_random():
-    return State.get().map(lambda seed: (seed, (seed * 1103515245 + 12345) % 2**31))
-
-def random_int(max_val):
-    return (next_random()
-        .map(lambda r: r % max_val))
-
-# Generate random numbers
-randoms = (random_int(100)
-    .flat_map(lambda x1: random_int(100)
-        .map(lambda x2: (x1, x2))))
-
-value, state = randoms.run(42)
-value   # (42, 1277...)
-state   # New seed
-```
-
-### Transaction Log
-
-```python
-from better_py import State
-
-def add_entry(message):
-    return State.modify(lambda log: log + [message])
-
-def get_log():
-    return State.get()
-
-# Build transaction log
-transaction = (add_entry("Started")
-    .flat_map(lambda _: add_entry("Step 1 complete"))
-    .flat_map(lambda _: add_entry("Step 2 complete"))
-    .flat_map(lambda _: add_entry("Finished"))
-    .flat_map(lambda _: get_log()))
-
-value, state = transaction.run([])
-value   # ["Started", "Step 1 complete", "Step 2 complete", "Finished"]
-state   # Same list
-```
-
-## When to Use State
+## When to Use
 
 Use **State** when:
 - You need to manage state functionally
@@ -252,11 +190,13 @@ Use **State** when:
 - You're building pure functional code
 - You need to thread state through operations
 - You want explicit state management
+- You're implementing algorithms with state
 
 **Don't use State** when:
 - Mutable state is acceptable (use plain variables)
 - State doesn't change between operations
 - You're writing simple scripts
+- The state complexity doesn't warrant the abstraction
 
 ## See Also
 
