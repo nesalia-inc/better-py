@@ -61,6 +61,29 @@ Mapping two functions is the same as mapping their composition.
 container.map(f).map(g) == container.map(lambda x: g(f(x)))
 ```
 
+## Protocol Variants
+
+### Mappable1
+
+**Mappable1** is a simpler variant of the Mappable protocol that only requires the `map` method without enforcing return type constraints as strictly. This is useful for:
+
+- Legacy code that doesn't use strict typing
+- Situations where you need more flexibility
+- Duck-typing scenarios
+
+```python
+from better_py.protocols import Mappable1
+
+class SimpleContainer(Mappable1):
+    def __init__(self, value):
+        self.value = value
+
+    def map(self, f):  # No type annotations required
+        return SimpleContainer(f(self.value))
+```
+
+Use Mappable1 when you need a more permissive protocol or when working with untyped code.
+
 ## Built-in Implementations
 
 ### Maybe

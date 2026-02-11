@@ -27,6 +27,7 @@
     "functions/compose",
     "functions/curry",
     "---Protocols---",
+    "protocols/types",
     "protocols/mappable",
     "protocols/reducible",
     "protocols/updatable",

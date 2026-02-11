@@ -47,6 +47,32 @@ The `reduce` method must:
 - Accept an initial value
 - Return the combined result of all elements
 
+## Protocol Variants
+
+### Reducible1
+
+**Reducible1** is a simplified variant of the Reducible protocol that only requires the basic `reduce` method without `fold_left`. This is useful for:
+
+- Minimal implementations that only need basic reduction
+- Legacy code that doesn't use strict typing
+- Situations where you need more flexibility
+
+```python
+from better_py.protocols import Reducible1
+
+class SimpleContainer(Reducible1):
+    def __init__(self, items):
+        self.items = items
+
+    def reduce(self, f, initial):  # No type annotations required
+        result = initial
+        for item in self.items:
+            result = f(result, item)
+        return result
+```
+
+Use Reducible1 when you need a minimal, permissive protocol for basic reduction operations.
+
 ## Methods
 
 ### Reduce

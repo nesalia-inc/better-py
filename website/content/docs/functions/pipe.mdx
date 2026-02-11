@@ -36,6 +36,26 @@ process(10)  # 22
 
 Like `pipe` but returns a function instead of executing immediately. Use `flow` when you need to apply the same transformation to multiple values.
 
+## Making Functions Pipeable
+
+Mark a function as usable in pipe operations. The `pipeable` decorator adds a marker that indicates the function is designed to work with pipes.
+
+```python
+from better_py.functions import pipe, pipeable
+
+@pipeable
+def add_one(x):
+    return x + 1
+
+@pipeable
+def double(x):
+    return x * 2
+
+pipe(5, add_one, double)  # 12
+```
+
+The decorator makes your intent clear and enables tooling to recognize pipeable functions.
+
 ## Collection Pipeline
 
 Builder interface for collection operations. Chain methods like `map`, `filter`, and `reduce` before executing on a collection.
@@ -50,6 +70,16 @@ result = (Pipeline()
 ```
 
 Each method returns the `Pipeline` object for chaining. Call `execute()` with your collection to run the pipeline.
+
+The Pipeline also supports the pipe operator (`|`) syntax:
+
+```python
+from better_py.functions import Pipeline
+
+pipeline = Pipeline().map(lambda x: x * 2)
+result = pipeline | (lambda x: [i for i in x if i > 0])
+# Execute with: result.execute([1, -2, 3])
+```
 
 ## Example: Data Processing
 
@@ -78,6 +108,7 @@ The input is parsed, validated, then formatted. Each step is isolated and testab
 |----------|---------|---------|
 | `pipe` | One-off transformation | Value |
 | `flow` | Reusable pipeline | Function |
+| `pipeable` | Mark function as pipeable | Decorator |
 | `Pipeline` | Collection operations | Builder |
 
-Use `pipe` for single transformations, `flow` for reusable transformations, and `Pipeline` for working with collections.
+Use `pipe` for single transformations, `flow` for reusable transformations, `pipeable` to mark functions designed for piping, and `Pipeline` for working with collections.

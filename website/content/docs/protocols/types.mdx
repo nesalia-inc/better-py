@@ -1,0 +1,202 @@
+---
+title: Protocol Types
+description: Core type definitions for better-py
+---
+
+The **Protocol Types** module provides the fundamental TypeVar definitions used throughout better-py for generic type annotations. These type variables enable precise, type-safe generic programming across the library.
+
+## Understanding Protocol Types
+
+Type variables are placeholders for types that allow functions and classes to work with different types while maintaining type safety. better-py uses semantically named type variables to make code more readable and self-documenting.
+
+```python
+from better_py.protocols.types import T, E, R
+
+def process(value: T) -> Result[T, E]:
+    ...
+```
+
+Using semantic type variables like `E` for error types or `R` for reader/reader environment types makes code intent clearer than generic placeholders.
+
+## Available Type Variables
+
+### Generic Type Variables
+
+#### `T`, `U`, `V`
+
+Generic type variables for arbitrary types. Use these when you need simple generic parameters.
+
+```python
+from better_py.protocols.types import T, U, V
+
+def first(items: list[T]) -> Maybe[T]:
+    return Maybe.some(items[0]) if items else Maybe.nothing()
+
+def pair(x: T, y: U) -> tuple[T, U]:
+    return (x, y)
+```
+
+#### `K`
+
+Key type variable, typically used for dictionary/map keys.
+
+```python
+from better_py.protocols.types import K, T
+
+def get_key(data: dict[K, T], key: K) -> Maybe[T]:
+    return Maybe.some(data[key]) if key in data else Maybe.nothing()
+```
+
+### Specialized Type Variables
+
+#### `E`
+
+Error type variable, used for error values in Result, Either, and similar types.
+
+```python
+from better_py.protocols.types import T, E
+
+def parse_int(s: str) -> Result[int, E]:
+    try:
+        return Ok(int(s))
+    except ValueError as e:
+        return Error(str(e))
+```
+
+#### `W`
+
+Writer/Accumulator type variable, used for the log/accumulator in the Writer monad.
+
+```python
+from better_py.protocols.types import W, T
+
+def log_action[W, T](log: W, value: T) -> Writer[W, T]:
+    return Writer(log, value)
+```
+
+#### `S`
+
+State type variable, used for state in the State monad.
+
+```python
+from better_py.protocols.types import S, T
+
+def get_state() -> State[S, S]:
+    return State(lambda s: (s, s))
+```
+
+#### `R`
+
+Reader/Environment type variable, used for the environment in the Reader monad.
+
+```python
+from better_py.protocols.types import R, T
+
+def ask_env() -> Reader[R, R]:
+    return Reader(lambda env: env)
+```
+
+### Variance Type Variables
+
+#### `T_co`, `U_co`
+
+Covariant type variables used for container outputs. Covariant means the type can only be returned, not accepted as input.
+
+```python
+from better_py.protocols.types import T_co, U
+
+class Box(Mappable[T_co]):
+    def map(self, f: Callable[[T_co], U]) -> "Mappable[U]":
+        ...
+```
+
+Covariance is appropriate for read-only containers where the type is only produced, never consumed.
+
+#### `T_contra`
+
+Contravariant type variable used for function inputs. Contravariant means the type can only be accepted as input, not returned.
+
+```python
+from better_py.protocols.types import T_contra
+
+class Consumer(Protocol[T_contra]):
+    def consume(self, value: T_contra) -> None:
+        ...
+```
+
+Contravariance is appropriate for types that only accept values of a given type.
+
+## Real-World Examples
+
+### Generic Result Processing
+
+```python
+from better_py.protocols.types import T, E
+from better_py import Result, Ok, Error
+
+def process_results[T, E](
+    results: list[Result[T, E]]
+) -> tuple[list[T], list[E]]:
+    """Separate successes from errors."""
+    successes = [r.value for r in results if isinstance(r, Ok)]
+    errors = [r.error for r in results if isinstance(r, Error)]
+    return (successes, errors)
+```
+
+### Environment Configuration
+
+```python
+from better_py.protocols.types import R
+from better_py import Reader
+
+def get_config[R](key: str) -> Reader[R, str]:
+    """Read a configuration key from the environment."""
+    return Reader(lambda env: env.get(key, ""))
+```
+
+### Stateful Counter
+
+```python
+from better_py.protocols.types import S
+from better_py import State
+
+def increment[S: int](step: int = 1) -> State[S, S]:
+    """Increment a stateful counter."""
+    return State(lambda count: (count + step, count + step))
+```
+
+## Naming Convention
+
+When writing generic code, follow these conventions:
+
+| Type Variable | Usage | Example |
+|---------------|-------|---------|
+| `T` | Generic primary type | `Box[T]` |
+| `U`, `V` | Additional generic types | `pair(x: T, y: U)` |
+| `K` | Key type | `Map[K, V]` |
+| `E` | Error type | `Result[T, E]` |
+| `W` | Writer/Accumulator | `Writer[W, A]` |
+| `S` | State | `State[S, A]` |
+| `R` | Reader/Environment | `Reader[R, A]` |
+| `T_co` | Covariant (output only) | `Mappable[T_co]` |
+| `T_contra` | Contravariant (input only) | `Consumer[T_contra]` |
+
+## When to Use
+
+**Use semantic type variables** when:
+- Writing generic library code
+- Creating reusable abstractions
+- The type has a specific semantic meaning (error, state, environment, etc.)
+- You want self-documenting type signatures
+
+**Use generic `T`, `U`, `V`** when:
+- The type has no special meaning
+- Writing simple generic functions
+- The type appears in multiple unrelated contexts
+
+## See Also
+
+- [Mappable](/docs/protocols/mappable) - Uses `T_co` for covariance
+- [Result](/docs/monads/result) - Uses `T` and `E` type variables
+- [State](/docs/monads/state) - Uses `S` for state type
+- [Reader](/docs/monads/reader) - Uses `R` for environment type
