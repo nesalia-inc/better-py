@@ -3,9 +3,9 @@ title: Curry
 description: Currying and partial application
 ---
 
-## `curry(func)` - Transform to Curried Function
+## `curry(func)`
 
-Currying transforms a function with multiple arguments into a sequence of functions that each take a single argument. This enables partial application and function composition.
+Transform a function to accept arguments one at a time. Enables partial application and composition.
 
 ```python
 from better_py.functions import curry
@@ -18,9 +18,9 @@ add(1)(2)(3)  # 6
 add(1, 2)(3)  # 6 - partial application
 ```
 
-## `partial_right(func, *args)` - Fix Right Arguments
+## `partial_right(func, *args)`
 
-Fix arguments from the right side, useful when you want to preset the last parameters of a function.
+Fix the rightmost arguments of a function.
 
 ```python
 from better_py.functions import partial_right
@@ -29,13 +29,24 @@ divide_by_2 = partial_right(lambda x, y: x / y, 2)
 divide_by_2(10)  # 5
 ```
 
-## `flip(func)` - Swap First Two Arguments
+## `flip(func)`
 
-Reverse the order of the first two arguments, helpful for piping data through functions.
+Swap the first two arguments.
 
 ```python
 from better_py.functions import flip
 
 subtract_from = flip(lambda x, y: x - y)
 subtract_from(10, 3)  # 7 (10 - 3)
+```
+
+## Example: API Client
+
+```python
+@curry
+def fetch(base_url, endpoint, params):
+    return requests.get(f"{base_url}/{endpoint}", params=params)
+
+api = fetch("https://api.example.com")  # Pre-fill base URL
+users = api("users", {"limit": 10})
 ```

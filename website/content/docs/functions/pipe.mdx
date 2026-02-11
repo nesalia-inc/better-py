@@ -3,9 +3,9 @@ title: Pipe & Flow
 description: Left-to-right function chaining
 ---
 
-## `pipe(value, *functions)` - Chain Functions Left-to-Right
+## `pipe(value, *functions)`
 
-Pipe passes a value through a sequence of functions, reading naturally from left to right. Each function receives the output of the previous one.
+Pass a value through a sequence of functions.
 
 ```python
 from better_py.functions import pipe
@@ -13,11 +13,9 @@ from better_py.functions import pipe
 pipe(5, lambda x: x + 1, lambda x: x * 2)  # 12
 ```
 
-Equivalent to: `third(second(first(value)))`.
+## `flow(*functions)`
 
-## `flow(*functions)` - Create Reusable Function
-
-Creates a reusable function from a chain of transformations. Like `pipe` but returns a function instead of executing immediately.
+Create a reusable function from a chain.
 
 ```python
 from better_py.functions import flow
@@ -26,18 +24,35 @@ process = flow(lambda x: x + 1, lambda x: x * 2)
 process(5)  # 12
 ```
 
-## `Pipeline` - Fluent Collection API
+## `Pipeline`
 
-Builder pattern for collection operations. Chain map, filter, and other operations before executing on a collection.
+Builder for collection operations.
 
 ```python
 from better_py.functions import Pipeline
 
-Pipeline().map(lambda x: x * 2).filter(lambda x: x > 0).execute([1, -2, 3])  # [2, 6]
+result = (Pipeline()
+    .map(lambda x: x * 2)
+    .filter(lambda x: x > 0)
+    .execute([1, -2, 3]))  # [2, 6]
 ```
 
-## When to Use
+## Example: Data Processing
 
-- **pipe**: One-off transformations
-- **flow**: Reusable pipelines
-- **Pipeline**: Collection operations
+```python
+from better_py.functions import pipe
+
+def parse(text): return int(text)
+def validate(n): return n if n > 0 else None
+def format(n): return f"Value: {n}"
+
+result = pipe("42", parse, validate, format)
+```
+
+## Reference
+
+| Function | Purpose |
+|----------|---------|
+| `pipe` | One-off transformation |
+| `flow` | Reusable pipeline |
+| `Pipeline` | Collection operations |
