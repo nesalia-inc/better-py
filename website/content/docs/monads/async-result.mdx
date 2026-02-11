@@ -3,20 +3,15 @@ title: AsyncResult Monad
 description: Async error handling with Ok and Error variants
 ---
 
-# AsyncResult Monad
+The **AsyncResult** monad extends `Result` with async operations, supporting awaitable computations with error handling. It combines the benefits of async/await with explicit error handling.
 
-The **AsyncResult** monad extends `Result` with async operations, supporting awaitable computations with error handling.
+`AsyncResult[T, E]` wraps a `Result[T, E]` and provides async operations. All operations that might be async are awaitable, and it converts to/from regular `Result`.
 
-## Overview
+## Creating AsyncResults
 
-`AsyncResult[T, E]` wraps a `Result[T, E]` and provides async operations:
-- Contains `Ok(value)` or `Error(error)`
-- All operations that might be async are awaitable
-- Converts to/from regular `Result`
+### Creating Success Values
 
-## Creating AsyncResult Values
-
-### `AsyncResult.ok(value)` - Create Success Value
+The `AsyncResult.ok` method creates an AsyncResult containing a success value.
 
 ```python
 from better_py import AsyncResult
@@ -24,7 +19,11 @@ from better_py import AsyncResult
 success = AsyncResult.ok(42)
 ```
 
-### `AsyncResult.error(error)` - Create Error
+Use this when you have a successful result to wrap.
+
+### Creating Error Values
+
+The `AsyncResult.error` method creates an AsyncResult containing an error.
 
 ```python
 from better_py import AsyncResult
@@ -32,7 +31,11 @@ from better_py import AsyncResult
 failure = AsyncResult.error("Something went wrong")
 ```
 
-### `AsyncResult.from_value(value, error=None)` - Create from Value
+Use this when you need to represent a failed computation.
+
+### Creating from Values
+
+The `AsyncResult.from_value` method creates an AsyncResult from a value, treating None as an error.
 
 ```python
 from better_py import AsyncResult
@@ -41,9 +44,13 @@ AsyncResult.from_value(42)              # Ok(42)
 AsyncResult.from_value(None, "error")  # Error('error')
 ```
 
-## Checking Variants (Async)
+Use this to convert existing values into AsyncResult with custom error handling.
 
-### `is_ok_async()` - Check if Ok (Async)
+## Checking Variants
+
+### Checking for Success
+
+The `is_ok_async` method checks if the AsyncResult contains a success value.
 
 ```python
 from better_py import AsyncResult
@@ -52,7 +59,11 @@ await AsyncResult.ok(42).is_ok_async()      # True
 await AsyncResult.error("bad").is_ok_async()  # False
 ```
 
-### `is_error_async()` - Check if Error (Async)
+Use this to check for successful computations.
+
+### Checking for Errors
+
+The `is_error_async` method checks if the AsyncResult contains an error.
 
 ```python
 from better_py import AsyncResult
@@ -61,9 +72,13 @@ await AsyncResult.ok(42).is_error_async()     # False
 await AsyncResult.error("bad").is_error_async()  # True
 ```
 
-## Extracting Values (Async)
+Use this to check for failed computations.
 
-### `await unwrap()` - Get Value or Raise Error
+## Extracting Values
+
+### Getting Values or Errors
+
+The `unwrap` method returns the success value or raises an error if failed.
 
 ```python
 from better_py import AsyncResult
@@ -72,7 +87,11 @@ await AsyncResult.ok(42).unwrap()          # 42
 await AsyncResult.error("bad").unwrap()    # Raises ValueError
 ```
 
-### `await unwrap_or_else(supplier)` - Get Value or Compute Default
+Use this only when you're certain the AsyncResult contains a success value.
+
+### Getting Values or Defaults
+
+The `unwrap_or_else` method returns the success value or computes a default.
 
 ```python
 from better_py import AsyncResult
@@ -81,7 +100,11 @@ await AsyncResult.ok(42).unwrap_or_else(lambda: 0)      # 42
 await AsyncResult.error("bad").unwrap_or_else(lambda: 0)  # 0
 ```
 
-### `await unwrap_error()` - Get Error Value
+Use this when you need safe access to the value with a fallback.
+
+### Getting Error Values
+
+The `unwrap_error` method returns the error value or raises an error if successful.
 
 ```python
 from better_py import AsyncResult
@@ -90,9 +113,13 @@ await AsyncResult.error("bad").unwrap_error()  # "bad"
 await AsyncResult.ok(42).unwrap_error()        # Raises ValueError
 ```
 
+Use this when you need to access the error value for logging or handling.
+
 ## Transforming Values
 
-### `map(f)` - Transform Success Value (Non-Async)
+### Mapping Success Values
+
+The `map` method transforms the success value, preserving errors.
 
 ```python
 from better_py import AsyncResult
@@ -101,7 +128,11 @@ AsyncResult.ok(5).map(lambda x: x * 2)           # Ok(10)
 AsyncResult.error("bad").map(lambda x: x * 2)  # Error("bad")
 ```
 
-### `await map_async(f)` - Apply Async Function
+When `map` is called on Error, it returns the Error unchanged.
+
+### Mapping Async Functions
+
+The `map_async` method applies an async function to the success value.
 
 ```python
 from better_py import AsyncResult
@@ -113,7 +144,11 @@ await AsyncResult.ok(5).map_async(fetch)      # Ok(result)
 await AsyncResult.error("bad").map_async(fetch)  # Error("bad")
 ```
 
-### `map_error(f)` - Transform Error
+Use this when the transformation function is async.
+
+### Transforming Errors
+
+The `map_error` method transforms the error value, preserving successes.
 
 ```python
 from better_py import AsyncResult
@@ -122,9 +157,13 @@ AsyncResult.error("bad").map_error(str.upper)  # Error("BAD")
 AsyncResult.ok(42).map_error(str.upper)       # Ok(42)
 ```
 
+Use this to format, enrich, or normalize errors.
+
 ## Chaining Operations
 
-### `await bind(f)` - Chain AsyncResult-Returning Operations
+### Binding Async Operations
+
+The `bind` method chains AsyncResult-returning operations, short-circuiting on errors.
 
 ```python
 from better_py import AsyncResult
@@ -140,10 +179,14 @@ async def get_orders(user: dict) -> AsyncResult[list, str]:
     return AsyncResult.ok(orders)
 
 # Chain operations
-orders = await (await fetch_user(1).bind(get_orders))  # Ok([...]) or Error(...)
+orders = await fetch_user(1).bind(get_orders)  # Ok([...]) or Error(...)
 ```
 
-### `await recover(f)` - Recover from Error
+Use `bind` for sequential operations where each step depends on the previous one.
+
+### Recovering from Errors
+
+The `recover` method transforms errors into successes using a recovery function.
 
 ```python
 from better_py import AsyncResult
@@ -152,9 +195,13 @@ await AsyncResult.error("bad").recover(lambda e: 0)  # Ok(0)
 await AsyncResult.ok(42).recover(lambda e: 0)       # Ok(42)
 ```
 
-## Conversion
+Use `recover` to provide default values or fallback logic when operations fail.
 
-### `to_result()` - Convert to Result
+## Converting to Result
+
+### Sync Conversion
+
+The `to_result` method converts AsyncResult to a regular Result.
 
 ```python
 from better_py import AsyncResult, Ok, Error
@@ -163,9 +210,9 @@ AsyncResult.ok(42).to_result()            # Ok(42)
 AsyncResult.error("bad").to_result()     # Error("bad")
 ```
 
-## Real-World Examples
+Use this when you need to integrate with non-async code that uses Result.
 
-### Async Database Operations
+## Real-World Pattern: Async API Pipeline
 
 ```python
 from better_py import AsyncResult
@@ -179,120 +226,44 @@ async def fetch_user(user_id: int) -> AsyncResult[dict, str]:
     except DatabaseError as e:
         return AsyncResult.error(str(e))
 
-async def get_user_email(user_id: int) -> AsyncResult[str, str]:
+async def validate_user(user: dict) -> AsyncResult[dict, str]:
+    if not user.get("email"):
+        return AsyncResult.error("Email required")
+    return AsyncResult.ok(user)
+
+async def send_notification(user: dict) -> AsyncResult[bool, str]:
+    try:
+        await notify.send(user["email"])
+        return AsyncResult.ok(True)
+    except NotificationError as e:
+        return AsyncResult.error(str(e))
+
+async def onboard_user(user_id: int) -> AsyncResult[dict, str]:
     return (await fetch_user(user_id)
-        .bind(async lambda user: AsyncResult.from_value(user.get("email"), "No email")))
+        .bind(validate_user)
+        .bind(send_notification)
+        .map(lambda _: {"status": "onboarded"}))
 
-email = await get_user_email(1)  # Ok("alice@example.com") or Error(...)
+result = await onboard_user(1)
+# Ok({"status": "onboarded"}) or Error("...")
 ```
 
-### Async API Calls
+This pattern shows AsyncResult's power: async operations that can fail are handled gracefully, errors are propagated through the chain, and the pipeline is readable without nested try/except blocks.
 
-```python
-from better_py import AsyncResult
-
-async def fetch_api(url: str) -> AsyncResult[dict, str]:
-    try:
-        response = await http_get(url)
-        if response.status_code == 200:
-            return AsyncResult.ok(await response.json())
-        return AsyncResult.error(f"HTTP {response.status_code}")
-    except Exception as e:
-        return AsyncResult.error(str(e))
-
-async def process_data(url: str) -> AsyncResult[dict, str]:
-    return (await fetch_api(url)
-        .bind(async lambda data: validate_data(data))
-        .bind(async lambda valid: transform_data(valid)))
-
-result = await process_data("https://api.example.com/data")
-```
-
-### Async File Processing
-
-```python
-from better_py import AsyncResult
-
-async def read_file(path: str) -> AsyncResult[str, str]:
-    try:
-        content = await aiofiles.open(path).read()
-        return AsyncResult.ok(content)
-    except FileNotFoundError:
-        return AsyncResult.error("File not found")
-    except IOError as e:
-        return AsyncResult.error(str(e))
-
-async def parse_json_file(path: str) -> AsyncResult[dict, str]:
-    return (await read_file(path)
-        .bind(async lambda content: parse_json(content)))
-
-config = await parse_json_file("config.json")  # Ok({...}) or Error(...)
-```
-
-### Async Validation
-
-```python
-from better_py import AsyncResult
-
-async def validate_username(username: str) -> AsyncResult[str, str]:
-    if len(username) < 3:
-        return AsyncResult.error("Username too short")
-    if await is_username_taken(username):
-        return AsyncResult.error("Username already taken")
-    return AsyncResult.ok(username)
-
-async def validate_email(email: str) -> AsyncResult[str, str]:
-    if "@" not in email:
-        return AsyncResult.error("Invalid email format")
-    if await is_email_registered(email):
-        return AsyncResult.error("Email already registered")
-    return AsyncResult.ok(email)
-
-async def register_user(username: str, email: str) -> AsyncResult[dict, str]:
-    return (await validate_username(username)
-        .bind(async lambda valid_username: validate_email(email)
-            .bind(async lambda valid_email: create_user(valid_username, valid_email))))
-
-result = await register_user("alice", "alice@example.com")
-```
-
-### Async Chaining with Recovery
-
-```python
-from better_py import AsyncResult
-
-async def get_from_cache(key: str) -> AsyncResult[str, str]:
-    value = await cache.get(key)
-    return AsyncResult.from_value(value, "Not in cache")
-
-async def get_from_db(key: str) -> AsyncResult[str, str]:
-    value = await database.get(key)
-    return AsyncResult.from_value(value, "Not in database")
-
-async def get_with_fallbacks(key: str) -> AsyncResult[str, str]:
-    # Try cache first, then database with recovery
-    cache_result = await get_from_cache(key)
-    if cache_result.is_ok():
-        return cache_result
-
-    return (await get_from_db(key)
-        .recover(async lambda err: AsyncResult.error(f"All sources failed: {err}")))
-
-value = await get_with_fallbacks("my_key")
-```
-
-## When to Use AsyncResult
+## When to Use
 
 Use **AsyncResult** when:
 - Working with async code that can fail
 - You need awaitable error handling
 - You're using asyncio
 - You want to chain async operations with errors
+- You need explicit error types instead of exceptions
 
 **Don't use AsyncResult** when:
 - You're not using async (use `Result` instead)
 - Operations always succeed (use plain types)
 - You only need optional values (use `AsyncMaybe` instead)
+- You're doing simple async operations (plain async/await is fine)
 
 ## See Also
 

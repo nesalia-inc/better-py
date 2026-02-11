@@ -3,20 +3,15 @@ title: Task Monad
 description: Lazy computations with automatic memoization
 ---
 
-# Task Monad
+The **Task** monad represents lazy computations that can be executed later. Once executed, the result is automatically memoized (cached) for subsequent accesses, making it ideal for expensive operations.
 
-The **Task** monad represents lazy computations that can be executed later. Once executed, the result is automatically memoized (cached) for subsequent accesses.
+`Task[T]` wraps a computation that produces a value of type `T`. The computation is deferred until `run()` is called, and the result is cached after the first execution.
 
-## Overview
+## Creating Tasks
 
-`Task[T]` wraps a computation that produces a value of type `T`:
-- **Lazy** - The computation is deferred until `run()` is called
-- **Memoized** - The result is cached after the first execution
-- **Composable** - Tasks can be chained and combined
+### Wrapping Computations
 
-## Creating Task Values
-
-### `Task(lambda: ...)` - Wrap a Computation
+The `Task` constructor wraps a function that will execute lazily when run.
 
 ```python
 from better_py import Task
@@ -25,7 +20,11 @@ task = Task(lambda: expensive_computation())
 result = task.run()  # Executes and caches result
 ```
 
-### `Task.pure(value)` - Lift a Pure Value
+Use the constructor when you need to defer expensive operations.
+
+### Lifting Pure Values
+
+The `Task.pure` method lifts a pure value into a Task context.
 
 ```python
 from better_py import Task
@@ -33,7 +32,11 @@ from better_py import Task
 Task.pure(42).run()  # 42
 ```
 
-### `Task.delay(value)` - Create a Delayed Computation
+Use this when you need to create a Task from an already-computed value.
+
+### Creating Delayed Computations
+
+The `Task.delay` method creates a delayed computation that executes when run.
 
 ```python
 from better_py import Task
@@ -45,9 +48,13 @@ Task.delay(42).run()  # 42
 Task.delay(lambda: expensive_computation()).run()
 ```
 
+Use `delay` to defer expensive operations until they're actually needed.
+
 ## Running Tasks
 
-### `run()` - Execute and Cache
+### Executing and Caching
+
+The `run` method executes the Task and caches the result for subsequent calls.
 
 ```python
 from better_py import Task
@@ -59,19 +66,11 @@ result = task.run()  # 42
 result2 = task.run()  # 42 (from cache)
 ```
 
-### `peek()` - Get Cached Value Without Executing
+This is the primary way to execute Task computations.
 
-```python
-from better_py import Task
+### Checking Cache Status
 
-task = Task(lambda: 42)
-task.peek()  # None (not yet executed)
-
-task.run()  # 42
-task.peek()  # 42 (cached)
-```
-
-### `is_cached()` - Check if Cached
+The `is_cached` method checks whether the Task has been executed.
 
 ```python
 from better_py import Task
@@ -83,9 +82,29 @@ task.run()
 task.is_cached()  # True
 ```
 
+Use this to check if a Task has already been computed.
+
+### Peeking at Cached Values
+
+The `peek` method returns the cached value without executing if not yet run.
+
+```python
+from better_py import Task
+
+task = Task(lambda: 42)
+task.peek()  # None (not yet executed)
+
+task.run()  # 42
+task.peek()  # 42 (cached)
+```
+
+Use `peek` to access cached values when you're not sure if the Task has been run.
+
 ## Transforming Tasks
 
-### `map(f)` - Transform the Result
+### Mapping Results
+
+The `map` method transforms the result of a Task computation.
 
 ```python
 from better_py import Task
@@ -93,7 +112,11 @@ from better_py import Task
 Task(lambda: 5).map(lambda x: x * 2).run()  # 10
 ```
 
-### `flat_map(f)` - Chain Task Computations
+The transformation is only applied when the Task is run, not when it's created.
+
+### Chaining Operations
+
+The `flat_map` method chains Task operations sequentially.
 
 ```python
 from better_py import Task
@@ -108,7 +131,37 @@ result = fetch_data().flat_map(process_data)
 result.run()  # 6
 ```
 
-### `and_then(other)` - Sequence Tasks (Discard First Result)
+Use `flat_map` when the second computation depends on the result of the first.
+
+### Combining Tasks
+
+The `zip` method combines two Tasks into a tuple of their results.
+
+```python
+from better_py import Task
+
+result = Task(lambda: 5).zip(Task(lambda: "hello"))
+result.run()  # (5, "hello")
+```
+
+Use `zip` when you need to run multiple independent Tasks together.
+
+### Filtering Results
+
+The `filter` method conditionally returns the result or None based on a predicate.
+
+```python
+from better_py import Task
+
+Task(lambda: 5).filter(lambda x: x > 3).run()   # 5
+Task(lambda: 2).filter(lambda x: x > 3).run()   # None
+```
+
+Use `filter` to conditionally keep or discard results.
+
+### Sequencing Operations
+
+The `and_then` method runs two Tasks in order, discarding the first result.
 
 ```python
 from better_py import Task
@@ -121,41 +174,9 @@ from better_py import Task
 # Second
 ```
 
-### `filter(predicate)` - Filter the Result
+Use `and_then` when you need to run side effects in sequence but don't need the first result.
 
-```python
-from better_py import Task
-
-Task(lambda: 5).filter(lambda x: x > 3).run()   # 5
-Task(lambda: 2).filter(lambda x: x > 3).run()   # None
-```
-
-### `zip(other)` - Combine Two Tasks
-
-```python
-from better_py import Task
-
-result = Task(lambda: 5).zip(Task(lambda: "hello"))
-result.run()  # (5, "hello")
-```
-
-## Memoization
-
-### `memoize(max_size=None)` - Create a Memoized Task
-
-```python
-from better_py import Task
-
-# Create a memoized task with unlimited cache
-expensive_task = Task(lambda: expensive_computation()).memoize()
-
-# Or with max cache size
-task = Task(lambda: fetch_data()).memoize(max_size=100)
-```
-
-## Real-World Examples
-
-### Lazy Data Fetching
+## Real-World Pattern: Lazy Data Fetching
 
 ```python
 from better_py import Task
@@ -163,114 +184,26 @@ from better_py import Task
 def fetch_user(user_id: int) -> Task[dict]:
     return Task(lambda: database.query(f"SELECT * FROM users WHERE id = {user_id}"))
 
-user_task = fetch_user(1)
-
-# Task not executed yet
-# Use the task later
-user = user_task.run()  # Executes query
-user2 = user_task.run()  # Returns cached result
-```
-
-### Computation Caching
-
-```python
-from better_py import Task
-
-def fibonacci(n: int) -> Task[int]:
-    def compute():
-        if n <= 1:
-            return n
-        return fibonacci(n - 1).run() + fibonacci(n - 2).run()
-
-    return Task(compute).memoize()
-
-# Each value is computed only once
-fib_10 = fibonacci(10)
-fib_10.run()  # Computed once
-fib_10.run()  # From cache
-```
-
-### Chained API Calls
-
-```python
-from better_py import Task
-
-def fetch_user(user_id: int) -> Task[dict]:
-    return Task(lambda: api.get(f"/users/{user_id}"))
-
 def fetch_orders(user: dict) -> Task[list]:
     return Task(lambda: api.get(f"/users/{user['id']}/orders"))
 
 # Chain tasks
-orders = (fetch_user(1)
+user_task = fetch_user(1)
+# Task not executed yet
+
+# Use the task later
+orders = (user_task
     .flat_map(lambda user: fetch_orders(user))
     .run())
+# Executes both queries, results are cached
+
+# Use the same user_task again
+user2 = user_task.run()  # Returns cached result
 ```
 
-### Conditional Computation
+This pattern shows Task's power: expensive operations are deferred until needed, and results are automatically cached for subsequent accesses.
 
-```python
-from better_py import Task
-
-def get_cached_data(key: str) -> Task[str | None]:
-    return Task(lambda: cache.get(key))
-
-def fetch_from_db(key: str) -> Task[str]:
-    return Task(lambda: db.query(f"SELECT value FROM data WHERE key = '{key}'"))
-
-# Try cache, then database
-data = (get_cached_data("my_key")
-    .flat_map(lambda cached: fetch_from_db("my_key") if cached is None else Task.pure(cached))
-    .run())
-```
-
-### Parallel-Style Composition
-
-```python
-from better_py import Task
-
-# Combine multiple tasks
-def fetch_all():
-    user_task = Task(lambda: fetch_user(1))
-    posts_task = Task(lambda: fetch_posts())
-    comments_task = Task(lambda: fetch_comments())
-
-    return (user_task
-        .zip(posts_task)
-        .zip(comments_task)
-        .map(lambda pair: ((user, posts), comments) pair))
-```
-
-### Retry Logic
-
-```python
-from better_py import Task
-
-def fetch_with_retry(url: str, max_retries: int) -> Task[str]:
-    def attempt():
-        try:
-            return Task.pure(requests.get(url).text)
-        except Exception:
-            if max_retries > 0:
-                return fetch_with_retry(url, max_retries - 1)
-            return Task(lambda: (_ for _ in ()).throw(Exception("Max retries exceeded")))
-
-    return attempt()
-```
-
-## Conversion
-
-### `Task.from_io(io_value)` - Create Task from IO
-
-```python
-from better_py import Task, IO
-
-io_value = IO(lambda: 42)
-task = Task.from_io(io_value)
-task.run()  # 42
-```
-
-## When to Use Task
+## When to Use
 
 Use **Task** when:
 - You want lazy evaluation
@@ -278,11 +211,13 @@ Use **Task** when:
 - You want to defer expensive computations
 - You're building pipelines
 - You need automatic caching
+- You want to avoid redundant computations
 
 **Don't use Task** when:
 - You need immediate execution (use plain functions)
 - You don't need caching (use plain functions)
 - Side effects should happen immediately (use `IO`)
+- The computation is trivial
 
 ## Comparison with IO
 
@@ -292,6 +227,8 @@ Use **Task** when:
 | **Caching** | Automatic memoization | No caching |
 | **Use case** | Expensive computations | Side effects |
 | **Multiple runs** | Returns cached value | Re-executes |
+
+**Rule of thumb**: Use `Task` for expensive pure computations that benefit from caching. Use `IO` for side effects that should execute each time.
 
 ## See Also
 

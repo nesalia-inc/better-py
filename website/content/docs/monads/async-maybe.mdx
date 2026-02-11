@@ -3,20 +3,15 @@ title: AsyncMaybe Monad
 description: Async optional values with awaitable operations
 ---
 
-# AsyncMaybe Monad
+The **AsyncMaybe** monad extends `Maybe` with async operations, supporting awaitable computations for optional values. It combines the benefits of async/await with the safety of optional value handling.
 
-The **AsyncMaybe** monad extends `Maybe` with async operations, supporting awaitable computations for optional values.
+`AsyncMaybe[T]` wraps a `Maybe[T]` and provides async operations. All operations that might be async are awaitable, and it converts to/from regular `Maybe`.
 
-## Overview
+## Creating AsyncMaybes
 
-`AsyncMaybe[T]` wraps a `Maybe[T]` and provides async operations:
-- Contains `Some(value)` or `Nothing`
-- All operations that might be async are awaitable
-- Converts to/from regular `Maybe`
+### Creating with Values
 
-## Creating AsyncMaybe Values
-
-### `AsyncMaybe.some(value)` - Create with Value
+The `AsyncMaybe.some` method creates an AsyncMaybe containing a value.
 
 ```python
 from better_py import AsyncMaybe
@@ -24,7 +19,11 @@ from better_py import AsyncMaybe
 async_maybe = AsyncMaybe.some(42)
 ```
 
-### `AsyncMaybe.nothing()` - Create Empty
+Use this when you have a value to wrap in an AsyncMaybe context.
+
+### Creating Empty Values
+
+The `AsyncMaybe.nothing` method creates an empty AsyncMaybe.
 
 ```python
 from better_py import AsyncMaybe
@@ -32,7 +31,11 @@ from better_py import AsyncMaybe
 empty = AsyncMaybe.nothing()
 ```
 
-### `AsyncMaybe.from_value(value)` - Create from Optional Value
+Use this when you need to represent the absence of a value.
+
+### Creating from Optional Values
+
+The `AsyncMaybe.from_value` method creates an AsyncMaybe from an optional value.
 
 ```python
 from better_py import AsyncMaybe
@@ -41,9 +44,13 @@ AsyncMaybe.from_value(42)      # Some(42)
 AsyncMaybe.from_value(None)    # Nothing
 ```
 
-## Checking Variants (Async)
+Use this to convert existing optional values into AsyncMaybe.
 
-### `is_some_async()` - Check if Some (Async)
+## Checking Variants
+
+### Checking for Values
+
+The `is_some_async` method checks if the AsyncMaybe contains a value.
 
 ```python
 from better_py import AsyncMaybe
@@ -52,7 +59,11 @@ await AsyncMaybe.some(42).is_some_async()     # True
 await AsyncMaybe.nothing().is_some_async()    # False
 ```
 
-### `is_nothing_async()` - Check if Nothing (Async)
+Use this to check for the presence of a value.
+
+### Checking for Empty
+
+The `is_nothing_async` method checks if the AsyncMaybe is empty.
 
 ```python
 from better_py import AsyncMaybe
@@ -61,9 +72,13 @@ await AsyncMaybe.some(42).is_nothing_async()    # False
 await AsyncMaybe.nothing().is_nothing_async()  # True
 ```
 
-## Extracting Values (Async)
+Use this to check for the absence of a value.
 
-### `await unwrap()` - Get Value or Raise Error
+## Extracting Values
+
+### Getting Values or Errors
+
+The `unwrap` method returns the value or raises an error if empty.
 
 ```python
 from better_py import AsyncMaybe
@@ -72,7 +87,11 @@ await AsyncMaybe.some(42).unwrap()         # 42
 await AsyncMaybe.nothing().unwrap()       # Raises ValueError
 ```
 
-### `await unwrap_or_else(default)` - Get Value or Compute Default
+Use this only when you're certain the AsyncMaybe contains a value.
+
+### Getting Values or Defaults
+
+The `unwrap_or_else` method returns the value or computes a default.
 
 ```python
 from better_py import AsyncMaybe
@@ -85,9 +104,13 @@ await AsyncMaybe.nothing().unwrap_or_else(0)       # 0
 await AsyncMaybe.nothing().unwrap_or_else(lambda: expensive())  # expensive()
 ```
 
+Use this when you need safe access to the value with a fallback.
+
 ## Transforming Values
 
-### `map(f)` - Apply Function (Non-Async)
+### Mapping Values
+
+The `map` method applies a function to the contained value.
 
 ```python
 from better_py import AsyncMaybe
@@ -96,7 +119,11 @@ AsyncMaybe.some(5).map(lambda x: x * 2)         # Some(10)
 AsyncMaybe.nothing().map(lambda x: x * 2)       # Nothing
 ```
 
-### `await map_async(f)` - Apply Async Function
+When `map` is called on Nothing, it returns Nothing unchanged.
+
+### Mapping Async Functions
+
+The `map_async` method applies an async function to the contained value.
 
 ```python
 from better_py import AsyncMaybe
@@ -108,9 +135,13 @@ await AsyncMaybe.some(5).map_async(fetch)       # Some(result)
 await AsyncMaybe.nothing().map_async(fetch)     # Nothing
 ```
 
+Use this when the transformation function is async.
+
 ## Chaining Operations
 
-### `await bind(f)` - Chain AsyncMaybe-Returning Operations
+### Binding Async Operations
+
+The `bind` method chains AsyncMaybe-returning operations.
 
 ```python
 from better_py import AsyncMaybe
@@ -124,12 +155,16 @@ async def get_orders(user: dict) -> AsyncMaybe[list]:
     return AsyncMaybe.from_value(orders)
 
 # Chain operations
-orders = await (await get_user(1).bind(get_orders))  # Some([...]) or Nothing
+orders = await get_user(1).bind(get_orders)  # Some([...]) or Nothing
 ```
 
-## Conversion
+Use `bind` for sequential operations where each step depends on the previous one.
 
-### `to_maybe()` - Convert to Maybe
+## Converting to Maybe
+
+### Sync Conversion
+
+The `to_maybe` method converts AsyncMaybe to a regular Maybe.
 
 ```python
 from better_py import AsyncMaybe, Some, Nothing
@@ -138,9 +173,9 @@ AsyncMaybe.some(42).to_maybe()          # Some(42)
 AsyncMaybe.nothing().to_maybe()         # Nothing
 ```
 
-## Real-World Examples
+Use this when you need to integrate with non-async code that uses Maybe.
 
-### Async Database Queries
+## Real-World Pattern: Async Database Queries
 
 ```python
 from better_py import AsyncMaybe
@@ -149,81 +184,35 @@ async def find_user(user_id: int) -> AsyncMaybe[dict]:
     user = await database.query(f"SELECT * FROM users WHERE id = {user_id}")
     return AsyncMaybe.from_value(user)
 
-async def get_user_name(user_id: int) -> AsyncMaybe[str]:
-    return (await find_user(user_id)
-        .bind(async lambda user: AsyncMaybe.from_value(user.get("name"))))
-
-name = await get_user_name(1)  # Some("Alice") or Nothing
-```
-
-### Async API Calls
-
-```python
-from better_py import AsyncMaybe
-
-async def fetch_resource(url: str) -> AsyncMaybe[dict]:
-    try:
-        response = await http_get(url)
-        return AsyncMaybe.some(response.json())
-    except Exception:
-        return AsyncMaybe.nothing()
-
-async def process_resource(url: str) -> AsyncMaybe[str]:
-    return (await fetch_resource(url)
-        .map_async(async lambda data: process_data(data)))
-
-result = await process_resource("https://api.example.com/data")
-```
-
-### Async Validation
-
-```python
-from better_py import AsyncMaybe
-
-async def validate_user(user_id: int) -> AsyncMaybe[dict]:
-    user = await fetch_user(user_id)
-    if not user:
-        return AsyncMaybe.nothing()
-    if not user.get("email"):
-        return AsyncMaybe.nothing()
-    return AsyncMaybe.some(user)
-
 async def get_user_email(user_id: int) -> AsyncMaybe[str]:
-    return (await validate_user(user_id)
-        .map(async lambda user: user["email"]))
+    return (await find_user(user_id)
+        .bind(async lambda user: AsyncMaybe.from_value(user.get("email"))))
+
+async def get_user_orders(user_id: int) -> AsyncMaybe[list]:
+    return (await find_user(user_id)
+        .bind(async lambda user: fetch_orders(user["id"])))
+
+# Use the chained operations
+email = await get_user_email(1)  # Some("alice@example.com") or Nothing
+orders = await get_user_orders(1)  # Some([...]) or Nothing
 ```
 
-### Async File Operations
+This pattern shows AsyncMaybe's power: async database operations that might not find data are handled gracefully, and operations can be chained without nested if statements.
 
-```python
-from better_py import AsyncMaybe
-
-async def read_file_safe(path: str) -> AsyncMaybe[str]:
-    try:
-        content = await aiofiles.open(path).read()
-        return AsyncMaybe.some(content)
-    except FileNotFoundError:
-        return AsyncMaybe.nothing()
-
-async def parse_config(path: str) -> AsyncMaybe[dict]:
-    return (await read_file_safe(path)
-        .map_async(async lambda content: json.loads(content)))
-
-config = await parse_config("config.json")  # Some({...}) or Nothing
-```
-
-## When to Use AsyncMaybe
+## When to Use
 
 Use **AsyncMaybe** when:
 - Working with async code that returns optional values
 - You need awaitable operations
 - You're using asyncio
 - You want to chain async operations that might not return values
+- You need safe handling of missing async values
 
 **Don't use AsyncMaybe** when:
 - You're not using async (use `Maybe` instead)
 - You need error messages (use `AsyncResult` instead)
 - Values should always be present (use plain types)
+- You're doing simple async operations (plain async/await is fine)
 
 ## See Also
 

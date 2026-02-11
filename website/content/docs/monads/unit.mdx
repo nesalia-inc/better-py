@@ -3,19 +3,15 @@ title: Unit Monad
 description: Represent computations with no meaningful return value
 ---
 
-# Unit Monad
+The **Unit** monad represents computations that produce a value but can also represent the unit type (void), similar to Python's `None` or other languages' `unit` type. It's useful for sequencing operations where the return value is not meaningful.
 
-The **Unit** monad represents computations that produce a value but can also represent the unit type (void/void), similar to Python's `None` or other languages' `unit` type.
+`Unit[A]` wraps a value of type `A` or `None`, providing a way to represent void operations in a functional style.
 
-## Overview
+## Creating Units
 
-`Unit[A]` wraps a value of type `A` (or `None`):
-- Contains a value when created with `Unit.of(value)`
-- Contains `None` when created with `Unit.unit()`
+### Creating Empty Units
 
-## Creating Unit Values
-
-### `Unit()` - Create an Empty Unit
+The `Unit` constructor creates an empty Unit value.
 
 ```python
 from better_py import Unit
@@ -24,7 +20,11 @@ unit = Unit()
 repr(unit)  # "Unit()"
 ```
 
-### `Unit.of(value)` - Create a Unit from a Value
+Use this for operations that don't produce meaningful values.
+
+### Wrapping Values
+
+The `Unit.of` method creates a Unit from a value.
 
 ```python
 from better_py import Unit
@@ -33,7 +33,11 @@ unit = Unit.of(42)
 repr(unit)  # "Unit(42)"
 ```
 
-### `Unit.unit()` - Create an Empty Unit
+Use this when you need to wrap a value in a Unit context.
+
+### Creating Unit Type
+
+The `Unit.unit` method creates an empty Unit value.
 
 ```python
 from better_py import Unit
@@ -42,9 +46,13 @@ unit = Unit.unit()
 repr(unit)  # "Unit()"
 ```
 
-## Transforming Unit
+This is a named way to create an empty Unit for clarity in your code.
 
-### `map(f)` - Apply a Function
+## Transforming Units
+
+### Mapping Values
+
+The `map` method applies a function to the Unit value.
 
 ```python
 from better_py import Unit
@@ -53,48 +61,9 @@ Unit.of(5).map(lambda x: x * 2)     # Unit(10)
 Unit().map(lambda x: x * 2)         # Unit()
 ```
 
-## Real-World Examples
+When `map` is called on an empty Unit, it returns the Unit unchanged.
 
-### Void Operations
-
-```python
-from better_py import Unit
-
-def log_message(message: str) -> Unit[None]:
-    print(message)
-    return Unit.unit()
-
-def process() -> Unit[None]:
-    return (Unit.unit()
-        .map(lambda _: log_message("Step 1"))
-        .map(lambda _: log_message("Step 2"))
-        .map(lambda _: log_message("Step 3")))
-
-process()  # Prints all three messages
-```
-
-### Side Effect Sequencing
-
-```python
-from better_py import Unit
-
-def save_to_database(data: dict) -> Unit[bool]:
-    success = db.insert(data)
-    return Unit.of(success)
-
-def send_notification(user_id: int) -> Unit[bool]:
-    success = notify.send(user_id)
-    return Unit.of(success)
-
-def register_user(user_data: dict) -> Unit[None]:
-    return (save_to_database(user_data)
-        .map(lambda success: send_notification(user_data["id"]) if success else Unit.unit())
-        .map(lambda _: Unit.unit()))
-
-register_user({"id": 1, "name": "Alice"})
-```
-
-### Multi-Step Pipeline
+## Real-World Pattern: Multi-Step Pipeline
 
 ```python
 from better_py import Unit
@@ -121,18 +90,22 @@ def process_data(data: dict) -> Unit[None]:
 process_data({"name": "Alice"})
 ```
 
-## When to Use Unit
+This pattern shows Unit's strength for sequencing operations: each step transforms or processes data, and the final Unit.unit() represents the completion of the pipeline without a meaningful return value.
+
+## When to Use
 
 Use **Unit** when:
 - You have operations with no meaningful return value
 - You want to sequence side effects
 - You're building pipelines with void operations
 - You want to represent void/unit type
+- You need functional style for void operations
 
 **Don't use Unit** when:
 - You have meaningful return values (use plain types)
 - You need optional values (use `Maybe` instead)
 - You need error handling (use `Result` instead)
+- You need side effect management (use `IO` instead)
 
 ## See Also
 
