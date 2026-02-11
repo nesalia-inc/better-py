@@ -25,6 +25,17 @@
     "---Functions---",
     "functions/pipe",
     "functions/compose",
-    "functions/curry"
+    "functions/curry",
+    "---Protocols---",
+    "protocols/mappable",
+    "protocols/reducible",
+    "protocols/updatable",
+    "protocols/combinable",
+    "protocols/traversable",
+    "protocols/parseable",
+    "---Collections---",
+    "collections/persistent-list",
+    "collections/persistent-map",
+    "collections/persistent-set"
   ]
 }
