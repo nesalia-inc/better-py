@@ -373,12 +373,17 @@ Use **Result** when:
 
 ## Comparison with Maybe
 
-| Feature | Maybe | Result |
-|---------|-------|--------|
-| **Purpose** | Optional values | Error handling |
-| **Error info** | None | Has error value |
-| **Use case** | Value might be missing | Operation might fail |
-| **Variants** | Some, Nothing | Ok, Error |
+Both `Result` and `Maybe` handle operations that might not produce a value, but they serve different purposes:
+
+| Feature | Result | Maybe |
+|---------|--------|-------|
+| **Purpose** | Error handling | Optional values |
+| **Has error info** | ✅ Yes | ❌ No |
+| **When value is missing** | `Error(error)` (with context) | `Nothing` (no explanation) |
+| **Use case** | Operation might fail | Value might not exist |
+| **Example** | `divide(a, b)` → `Ok(result)` or `Error("div by zero")` | `find_user(id)` → `Some(user)` or `Nothing` |
+
+**Rule of thumb**: Use `Result` when something goes wrong (like validation failing or an operation error). Use `Maybe` when the absence of a value is normal behavior (like searching a database).
 
 ## See Also
 

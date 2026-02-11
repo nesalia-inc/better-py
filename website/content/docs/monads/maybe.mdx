@@ -317,6 +317,20 @@ Use **Maybe** when:
 - You need to accumulate errors (use `Validation` instead)
 - The value should never be missing (use plain types)
 
+## Comparison with Result
+
+Both `Maybe` and `Result` handle operations that might not produce a value, but they serve different purposes:
+
+| Feature | Maybe | Result |
+|---------|-------|--------|
+| **Purpose** | Optional values | Error handling |
+| **Has error info** | ❌ No | ✅ Yes |
+| **When value is missing** | `Nothing` (no explanation) | `Error(error)` (with context) |
+| **Use case** | Value might not exist | Operation might fail |
+| **Example** | `find_user(id)` → `Some(user)` or `Nothing` | `divide(a, b)` → `Ok(result)` or `Error("div by zero")` |
+
+**Rule of thumb**: Use `Maybe` when the absence of a value is normal behavior (like searching a database). Use `Result` when something goes wrong (like validation failing or an operation error).
+
 ## See Also
 
 - [Result](/docs/monads/result) - For error handling with messages
