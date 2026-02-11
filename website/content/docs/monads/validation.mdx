@@ -3,7 +3,7 @@ title: Validation Monad
 description: Accumulate validation errors with Valid and Invalid variants
 ---
 
-The **Validation** monad represents either a success value or a collection of errors. Unlike `Result` which short-circuits on the first error, `Validation` accumulates all errors—essential for form validation where users need to see all validation problems at once.
+The **Validation** monad represents either a success value or a collection of errors. Unlike `Result` which short-circuits on the first error, `Validation` accumulates all errors. This is essential for form validation where users need to see all validation problems at once.
 
 `Validation[E, T]` has two variants:
 - **`Valid(value)`** - Contains a success value of type `T`
@@ -50,7 +50,7 @@ Invalid(["error1", "error2"]).unwrap_errors()  # ["error1", "error2"]
 Valid(42).unwrap_errors()                      # Raises ValueError
 ```
 
-Unlike `Result` which has a single error value, `Validation` always has a list—this is what enables accumulation.
+Unlike `Result` which has a single error value, `Validation` always has a list. This is what enables accumulation.
 
 ## Transforming Success Values
 
@@ -61,7 +61,7 @@ Valid(5).map(lambda x: x * 2)           # Valid(10)
 Invalid(["bad"]).map(lambda x: x * 2)   # Invalid(["bad"])
 ```
 
-When `map` is called on Invalid, it returns the Invalid unchanged—all errors are preserved for later reporting.
+When `map` is called on Invalid, it returns the Invalid unchanged. All errors are preserved for later reporting.
 
 ## Transforming Errors
 
@@ -113,7 +113,7 @@ Valid(lambda x: x + 1).ap(Invalid(["e2"]))  # Invalid(["e2"])
 Invalid(["e1"]).ap(Invalid(["e2"]))  # Invalid(["e1", "e2"])
 ```
 
-This enables parallel validation of multiple fields while collecting all errors together—perfect for forms where users should see all validation problems at once.
+This enables parallel validation of multiple fields while collecting all errors together. This is perfect for forms where users should see all validation problems at once.
 
 ## Handling Both Cases
 
@@ -132,7 +132,7 @@ describe(Valid(42))              # "Value: 42"
 describe(Invalid(["error"]))     # "Errors: ['error']"
 ```
 
-Fold is the ultimate pattern match for Validation—it's the only operation that lets you handle both cases in one expression and return a non-Validation result.
+Fold is the ultimate pattern match for Validation. It's the only operation that lets you handle both cases in one expression and return a non-Validation result.
 
 ## Converting to Result
 
