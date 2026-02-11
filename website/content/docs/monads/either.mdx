@@ -11,6 +11,8 @@ The **Either** monad represents a value that can be one of two possibilities. Co
 
 ## Creating & Checking
 
+Create Either values using `Left()` and `Right()` constructors. Use `is_left()` and `is_right()` to check which variant you have.
+
 ```python
 from better_py import Left, Right
 
@@ -24,6 +26,8 @@ error.is_right()   # False
 success.is_left()   # False
 success.is_right()  # True
 ```
+
+Checking variants is safe and doesn't require exception handling. Use these methods when you need to branch logic based on success or error.
 
 ## Transforming Values
 
