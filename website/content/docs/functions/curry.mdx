@@ -5,7 +5,7 @@ description: Currying and partial application
 
 ## `curry(func)`
 
-The `curry` decorator transforms a function with multiple arguments into a series of functions that each accept a single argument. This technique, called currying, enables partial application - you can provide some arguments now and the rest later.
+The `curry` decorator transforms a function with multiple arguments into a sequence of functions that each accept a single argument. This enables partial application—provide some arguments now, the rest later.
 
 ```python
 from better_py.functions import curry
@@ -15,14 +15,14 @@ def add(x, y, z):
     return x + y + z
 
 add(1)(2)(3)  # 6 - one argument at a time
-add(1, 2)(3)  # 6 - partial application with multiple args
+add(1, 2)(3)  # 6 - partial application
 ```
 
-In the example above, `add(1)` returns a function waiting for the next argument. This is useful for creating specialized versions of general functions.
+Calling `add(1)` returns a function waiting for the next argument. This is useful for creating specialized versions of general functions.
 
 ## `partial_right(func, *args)`
 
-Unlike `functools.partial` which fixes arguments from the left, `partial_right` fixes arguments from the right side. This is particularly useful when the data you want to process should be the first argument.
+Fix arguments from the right side of a function. Unlike `functools.partial` which fixes from the left, `partial_right` is useful when the data you want to process should be the first argument.
 
 ```python
 from better_py.functions import partial_right
@@ -31,11 +31,11 @@ divide_by_2 = partial_right(lambda x, y: x / y, 2)
 divide_by_2(10)  # 5
 ```
 
-Here we create a `divide_by_2` function by fixing the divisor to 2. The remaining argument becomes the dividend, making the function readable and reusable.
+The divisor is fixed to 2, creating a reusable `divide_by_2` function where the remaining argument becomes the dividend.
 
 ## `flip(func)`
 
-The `flip` function reverses the order of the first two arguments. This is helpful when adapting functions for use with `pipe` or `flow`, where the data should come first.
+Reverse the order of the first two arguments. This is helpful when adapting functions for use with `pipe` or `flow`, where the data should come first.
 
 ```python
 from better_py.functions import flip
@@ -44,20 +44,20 @@ subtract_from = flip(lambda x, y: x - y)
 subtract_from(10, 3)  # 7 (10 - 3)
 ```
 
-The original `lambda x, y: x - y` subtracts y from x. After flipping, `subtract_from(10, 3)` becomes `lambda y, x: x - y`, giving us `10 - 3 = 7`.
+The original lambda subtracts y from x. After flipping, the first argument becomes the subtrahend and the second becomes the minuend.
 
-## Example: API Client
+## Example
 
-Currying shines when building APIs where certain parameters remain constant across multiple calls:
+Currying is particularly useful for API clients where certain parameters remain constant:
 
 ```python
 @curry
 def fetch(base_url, endpoint, params):
     return requests.get(f"{base_url}/{endpoint}", params=params)
 
-api = fetch("https://api.example.com")  # Pre-fill base URL
+api = fetch("https://api.example.com")
 users = api("users", {"limit": 10})
 posts = api("posts", {"author": 123})
 ```
 
-By currying `fetch`, we create an `api` function with the base URL already filled in. Subsequent calls only need the endpoint and parameters, making the code cleaner and avoiding repetition.
+The base URL is pre-filled, creating an `api` function that only needs the endpoint and parameters.
