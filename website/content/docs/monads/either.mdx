@@ -29,32 +29,38 @@ success.is_right()  # True
 
 Checking variants is safe and doesn't require exception handling. Use these methods when you need to branch logic based on success or error.
 
-## Transforming Values
+## Transforming Right Values
 
-### Transforming Right Values
-
-Apply a function to the Right value. Left passes through unchanged.
+The `map` method applies a function only to the Right value, leaving Left unchanged. This is useful for transforming successful results while preserving errors.
 
 ```python
 Right(5).map(lambda x: x * 2)      # Right(10)
 Left("error").map(lambda x: x * 2)  # Left("error")
 ```
 
-### Transforming Left Values
+When `map` is called on Left, it returns the Left value unchanged—this short-circuiting behavior is key to Either's utility in error handling.
 
-Apply a function to the Left value. Right passes through unchanged.
+## Transforming Left Values
+
+The `map_left` method applies a function only to the Left value, leaving Right unchanged. Use this to transform, enrich, or normalize error values.
 
 ```python
 Left("error").map_left(str.upper)  # Left("ERROR")
 Right(42).map_left(str.upper)      # Right(42)
 ```
 
-### Swapping Left and Right
+Common use cases include adding timestamps to errors, converting error types, or formatting error messages for display.
+
+## Swapping Left and Right
+
+The `swap` method exchanges Left and Right. This is useful when you want to reverse your error/success convention or when working with APIs that have different conventions.
 
 ```python
 Left(1).swap()   # Right(1)
 Right(2).swap()  # Left(2)
 ```
+
+Swapping can also be used to convert between Either and other monads with different conventions.
 
 ## Chaining Operations
 
@@ -79,13 +85,11 @@ divide(10, 0)  # Left("Must be non-zero")
 divide(-5, 2)  # Left("Must be positive")
 ```
 
-This replaces nested if/else chains with a flat, readable pipeline.
+This replaces nested if/else chains with a flat, readable pipeline. Each step receives the previous Right value, or short-circuits on the first Left.
 
-## Combining Eithers
+## Combining Multiple Eithers
 
-### Combining Multiple Eithers
-
-Combine multiple Either values into a tuple. Returns the first Left if any.
+The `zip` method combines multiple Either values into a tuple. If any value is Left, zip returns that Left immediately.
 
 ```python
 from better_py import Either, Left, Right
@@ -94,9 +98,11 @@ Either.zip(Right(1), Right(2), Right(3))          # Right((1, 2, 3))
 Either.zip(Right(1), Left("bad"), Right(3))      # Left("bad")
 ```
 
-### Applying Wrapped Functions
+Use zip when you need all values to proceed—like validating multiple form fields where any failure should reject the entire form.
 
-Apply a function wrapped in an Either to a value wrapped in an Either.
+## Applying Wrapped Functions
+
+The `ap` method applies a function wrapped in an Either to a value wrapped in an Either. Both must be Right for the operation to succeed.
 
 ```python
 from better_py import Right
@@ -110,9 +116,11 @@ Left("bad").ap(add)   # Left("bad")
 value.ap(Left("bad")) # Left("bad")
 ```
 
-### Lifting Regular Functions
+This enables function composition within the Either context. The receiver contains the value, while the argument contains the function—the reverse of what you might expect.
 
-Lift regular functions to work with Either values.
+## Lifting Regular Functions
+
+The `lift2` and `lift3` methods transform regular functions into functions that work with Either values.
 
 ```python
 from better_py import Either, Right
@@ -124,11 +132,11 @@ Either.lift2(add, Right(5), Right(10))   # Right(15)
 Either.lift2(add, Right(5), Left("bad")) # Left("bad")
 ```
 
-## Pattern Matching
+Use these when you have existing functions that don't know about Either, and you want to use them with Either values without rewriting the functions.
 
-### Handling Both Cases
+## Handling Both Cases
 
-Transform both Left and Right into a common result type.
+The `fold` method transforms both Left and Right into a common result type. You provide two functions—one for each case—and fold applies the appropriate one.
 
 ```python
 from better_py import Left, Right
@@ -142,6 +150,8 @@ def describe(either):
 describe(Left("error"))  # "Error: error"
 describe(Right(42))      # "Value: 42"
 ```
+
+Fold is the ultimate pattern match for Either—it's the only operation that lets you handle both cases in one expression and return a non-Either result.
 
 ## Real-World Pattern: API Response Handling
 
@@ -189,6 +199,8 @@ display = result.fold(
     on_right=lambda formatted: formatted
 )
 ```
+
+This pattern shows the complete Either workflow: fetch, validate, transform, and finally fold to produce a user-facing message. Errors propagate automatically through each step.
 
 ## When to Use
 
