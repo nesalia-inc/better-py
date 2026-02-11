@@ -1,16 +1,11 @@
 """Either monad for error handling with two variants.
 
 The Either monad represents either a Left value (typically an error) or
-a Right value (typically a success), providing a type-safe alternative
-to exceptions for error handling.
+a Right value (typically a success).
 
-New API (preferred):
+Usage:
     >>> left = Left("Error occurred")
     >>> right = Right(42)
-
-Legacy API (still supported):
-    >>> left = Either.left("Error occurred")
-    >>> right = Either.right(42)
 """
 
 from __future__ import annotations
@@ -30,35 +25,21 @@ U = TypeVar("U")
 class Either(Mappable[R], Generic[L, R]):
     """Base class for Either monad.
 
-    This class provides factory methods for creating Either values.
-    For new code, prefer using Left() and Right() directly.
-
     Type Parameters:
         L: The Left type (typically error)
         R: The Right type (typically success)
 
-    Example (new API - preferred):
+    Usage:
         >>> left = Left("Error occurred")
         >>> right = Right(42)
-
-    Example (legacy API - still supported):
-        >>> left = Either.left("Error occurred")
-        >>> right = Either.right(42)
     """
 
     @staticmethod
     def left(value: L) -> Either[L, R]:
         """Create a Left Either containing an error/value.
 
-        Args:
-            value: The Left value
-
-        Returns:
-            A Left variant containing the value
-
-        Example:
-            >>> Either.left("Error occurred")
-            Left('Error occurred')
+        >>> Either.left("Error occurred")
+        Left('Error occurred')
         """
         return Left(value)
 
@@ -66,15 +47,8 @@ class Either(Mappable[R], Generic[L, R]):
     def right(value: R) -> Either[L, R]:
         """Create a Right Either containing a success value.
 
-        Args:
-            value: The success value
-
-        Returns:
-            A Right variant containing the value
-
-        Example:
-            >>> Either.right(42)
-            Right(42)
+        >>> Either.right(42)
+        Right(42)
         """
         return Right(value)
 
@@ -146,14 +120,11 @@ class Either(Mappable[R], Generic[L, R]):
 class Left(Either[L, R], Generic[L, R]):
     """Left variant of Either, typically containing an error value.
 
-    Type Parameters:
-        L: The Left type (typically error)
-        R: The Right type (for type compatibility)
-
-    Example:
-        >>> left = Left("Error occurred")
-        >>> left.is_left()  # True
-        >>> left.unwrap_left()  # "Error occurred"
+    >>> left = Left("Error occurred")
+    >>> left.is_left()
+    True
+    >>> left.unwrap_left()
+    'Error occurred'
     """
 
     _value: L
@@ -162,11 +133,8 @@ class Left(Either[L, R], Generic[L, R]):
     def is_left(self) -> bool:
         """Check if this is Left variant.
 
-        Returns:
-            True - this is Left
-
-        Example:
-            >>> Left("error").is_left()  # True
+        >>> Left("error").is_left()
+        True
         """
         return True
 
@@ -174,11 +142,8 @@ class Left(Either[L, R], Generic[L, R]):
     def is_right(self) -> bool:
         """Check if this is Right variant.
 
-        Returns:
-            False - this is Left
-
-        Example:
-            >>> Left("error").is_right()  # False
+        >>> Left("error").is_right()
+        False
         """
         return False
 
@@ -186,35 +151,22 @@ class Left(Either[L, R], Generic[L, R]):
     def unwrap_left(self) -> L:
         """Get the Left value.
 
-        Returns:
-            The Left value
-
-        Example:
-            >>> Left("error").unwrap_left()  # "error"
+        >>> Left("error").unwrap_left()
+        'error'
         """
         return self._value
 
     @override
     def unwrap_right(self) -> R:
-        """Get the Right value, raising an error.
-
-        Raises:
-            ValueError: Always, since Left has no Right value
-
-        Example:
-            >>> Left("error").unwrap_right()  # Raises ValueError
-        """
+        """Get the Right value, raising an error."""
         raise ValueError(f"Cannot unwrap_right Left: {self._value}")
 
     @override
     def swap(self) -> Either[R, L]:
         """Swap Left and Right.
 
-        Returns:
-            Right containing the Left value
-
-        Example:
-            >>> Left(1).swap()  # Right(1)
+        >>> Left(1).swap()
+        Right(1)
         """
         return Right(self._value)
 
@@ -222,14 +174,8 @@ class Left(Either[L, R], Generic[L, R]):
     def map(self, f: Callable[[R], U]) -> Either[L, U]:
         """Apply a function to the Right value (no-op for Left).
 
-        Args:
-            f: Function to apply (ignored for Left)
-
-        Returns:
-            This Left
-
-        Example:
-            >>> Left("error").map(lambda x: x * 2)  # Left('error')
+        >>> Left("error").map(lambda x: x * 2)
+        Left('error')
         """
         return self
 
@@ -237,63 +183,27 @@ class Left(Either[L, R], Generic[L, R]):
     def map_left(self, f: Callable[[L], L]) -> Either[L, R]:
         """Apply a function to the Left value.
 
-        Args:
-            f: Function to apply
-
-        Returns:
-            Left(f(value))
-
-        Example:
-            >>> Left("error").map_left(str.upper)  # Left('ERROR')
+        >>> Left("error").map_left(str.upper)
+        Left('ERROR')
         """
         return Left(f(self._value))
 
     @override
     def flat_map(self, f: Callable[[R], Either[L, U]]) -> Either[L, U]:
-        """Chain operations that return Either (short-circuits for Left).
-
-        Args:
-            f: Function (ignored for Left)
-
-        Returns:
-            This Left
-
-        Example:
-            >>> def divide(x): return Right(10 / x) if x != 0 else Left("Div by zero")
-            >>> Left("bad").flat_map(divide)  # Left('bad')
-        """
+        """Chain operations that return Either (short-circuits for Left)."""
         return self
 
     @override
     def ap(self, fn: Either[L, Callable[[R], U]]) -> Either[L, U]:
-        """Apply an Either containing a function to this Either.
-
-        Args:
-            fn: An Either containing a function
-
-        Returns:
-            This Left
-
-        Example:
-            >>> add = Right(lambda x: x + 1)
-            >>> Left("bad").ap(add)  # Left('bad')
-        """
+        """Apply an Either containing a function to this Either."""
         return self
 
     @override
     def fold(self, on_left: Callable[[L], U], on_right: Callable[[R], U]) -> U:
         """Fold both cases into a single value.
 
-        Args:
-            on_left: Function to apply
-            on_right: Function (ignored for Left)
-
-        Returns:
-            Result of applying on_left
-
-        Example:
-            >>> result = Left("error").fold(lambda e: f"Error: {e}", lambda v: f"Value: {v}")
-            >>> "Error: error"
+        >>> Left("error").fold(lambda e: f"Error: {e}", lambda v: f"Value: {v}")
+        'Error: error'
         """
         return on_left(self._value)
 
@@ -312,14 +222,11 @@ class Left(Either[L, R], Generic[L, R]):
 class Right(Either[L, R], Generic[L, R]):
     """Right variant of Either, typically containing a success value.
 
-    Type Parameters:
-        L: The Left type (for type compatibility)
-        R: The Right type (typically success)
-
-    Example:
-        >>> right = Right(42)
-        >>> right.is_right()  # True
-        >>> right.unwrap_right()  # 42
+    >>> right = Right(42)
+    >>> right.is_right()
+    True
+    >>> right.unwrap_right()
+    42
     """
 
     _value: R
@@ -328,11 +235,8 @@ class Right(Either[L, R], Generic[L, R]):
     def is_left(self) -> bool:
         """Check if this is Left variant.
 
-        Returns:
-            False - this is Right
-
-        Example:
-            >>> Right(42).is_left()  # False
+        >>> Right(42).is_left()
+        False
         """
         return False
 
@@ -340,35 +244,22 @@ class Right(Either[L, R], Generic[L, R]):
     def is_right(self) -> bool:
         """Check if this is Right variant.
 
-        Returns:
-            True - this is Right
-
-        Example:
-            >>> Right(42).is_right()  # True
+        >>> Right(42).is_right()
+        True
         """
         return True
 
     @override
     def unwrap_left(self) -> L:
-        """Get the Left value, raising an error.
-
-        Raises:
-            ValueError: Always, since Right has no Left value
-
-        Example:
-            >>> Right(42).unwrap_left()  # Raises ValueError
-        """
+        """Get the Left value, raising an error."""
         raise ValueError("Cannot unwrap_left Right")
 
     @override
     def unwrap_right(self) -> R:
         """Get the Right value.
 
-        Returns:
-            The Right value
-
-        Example:
-            >>> Right(42).unwrap_right()  # 42
+        >>> Right(42).unwrap_right()
+        42
         """
         return self._value
 
@@ -376,11 +267,8 @@ class Right(Either[L, R], Generic[L, R]):
     def swap(self) -> Either[R, L]:
         """Swap Left and Right.
 
-        Returns:
-            Left containing the Right value
-
-        Example:
-            >>> Right(2).swap()  # Left(2)
+        >>> Right(2).swap()
+        Left(2)
         """
         return Left(self._value)
 
@@ -388,14 +276,8 @@ class Right(Either[L, R], Generic[L, R]):
     def map(self, f: Callable[[R], U]) -> Either[L, U]:
         """Apply a function to the Right value.
 
-        Args:
-            f: Function to apply
-
-        Returns:
-            Right(f(value))
-
-        Example:
-            >>> Right(5).map(lambda x: x * 2)  # Right(10)
+        >>> Right(5).map(lambda x: x * 2)
+        Right(10)
         """
         return Right(f(self._value))
 
@@ -403,14 +285,8 @@ class Right(Either[L, R], Generic[L, R]):
     def map_left(self, f: Callable[[L], L]) -> Either[L, R]:
         """Apply a function to the Left value (no-op for Right).
 
-        Args:
-            f: Function to apply (ignored for Right)
-
-        Returns:
-            This Right
-
-        Example:
-            >>> Right(42).map_left(str.upper)  # Right(42)
+        >>> Right(42).map_left(str.upper)
+        Right(42)
         """
         return self
 
@@ -418,16 +294,11 @@ class Right(Either[L, R], Generic[L, R]):
     def flat_map(self, f: Callable[[R], Either[L, U]]) -> Either[L, U]:
         """Chain operations that return Either.
 
-        Args:
-            f: Function that takes a value and returns an Either
-
-        Returns:
-            The result of applying f
-
-        Example:
-            >>> def divide(x): return Right(10 / x) if x != 0 else Left("Div by zero")
-            >>> Right(2).flat_map(divide)  # Right(5.0)
-            >>> Right(0).flat_map(divide)  # Left('Div by zero')
+        >>> def divide(x): return Right(10 / x) if x != 0 else Left("Div by zero")
+        >>> Right(2).flat_map(divide)
+        Right(5.0)
+        >>> Right(0).flat_map(divide)
+        Left('Div by zero')
         """
         return f(self._value)
 
@@ -435,25 +306,17 @@ class Right(Either[L, R], Generic[L, R]):
     def ap(self, fn: Either[L, Callable[[R], U]]) -> Either[L, U]:
         """Apply this Either's value to the function contained in fn.
 
-        This is the applicative operation: apply a value to a function
-        wrapped in an Either context.
-
-        Args:
-            fn: An Either containing a function
-
-        Returns:
-            Right(fn(value)) if both are Right, otherwise Left
-
-        Example:
-            >>> add = Right(lambda x: x + 1)
-            >>> value = Right(5)
-            >>> value.ap(add)  # Right(6) - applies value (5) to function (lambda x: x + 1)
-            >>> Left("bad").ap(add)  # Left('bad')
-            >>> value.ap(Left("bad"))  # Left('bad')
+        >>> add = Right(lambda x: x + 1)
+        >>> value = Right(5)
+        >>> value.ap(add)
+        Right(6)
+        >>> Left("bad").ap(add)
+        Left('bad')
+        >>> value.ap(Left("bad"))
+        Left('bad')
 
         Note:
             The receiver (self) contains the value, fn contains the function.
-            This is the reverse of what you might expect from the method name.
         """
         if fn.is_left():
             return Left(fn.unwrap_left())
@@ -463,16 +326,8 @@ class Right(Either[L, R], Generic[L, R]):
     def fold(self, on_left: Callable[[L], U], on_right: Callable[[R], U]) -> U:
         """Fold both cases into a single value.
 
-        Args:
-            on_left: Function (ignored for Right)
-            on_right: Function to apply
-
-        Returns:
-            Result of applying on_right
-
-        Example:
-            >>> result = Right(42).fold(lambda e: f"Error: {e}", lambda v: f"Value: {v}")
-            >>> "Value: 42"
+        >>> Right(42).fold(lambda e: f"Error: {e}", lambda v: f"Value: {v}")
+        'Value: 42'
         """
         return on_right(self._value)
 
