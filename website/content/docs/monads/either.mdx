@@ -221,16 +221,16 @@ All three monads handle operations that might not produce a value, but they serv
 # Either: Two possibilities with rich error context
 Either[APIError, User]  # Left(APIError) or Right(User)
 
-# Result: Success or error with message
-Result[User, str]  # Ok(User) or Error("User not found")
+# Result: Success or error with context
+Result[User, APIError]  # Ok(User) or Error(APIError("User not found", 404))
 
 # Maybe: Value exists or not
 Maybe[User]  # Some(User) or Nothing
 ```
 
 **Rule of thumb**:
-- Use **Either** when you need two distinct types (not just success/error) or custom error objects
-- Use **Result** when you have simple success/error cases with error messages
+- Use **Either** when Left/right are two distinct possibilities (beyond success/error)
+- Use **Result** when you have explicit success/error cases
 - Use **Maybe** when a value might simply not exist (no error involved)
 
 ## See Also
