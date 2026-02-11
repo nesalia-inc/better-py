@@ -192,13 +192,6 @@ display = result.fold(
 
 ## When to Use
 
-| Monad | Use Case |
-|-------|----------|
-| **Either** | Two distinct possibilities with rich error context |
-| **Result** | Success/error with simple error messages |
-| **Maybe** | Optional values (no error context) |
-| **Validation** | Accumulate multiple errors |
-
 Use **Either** when:
 - You need error values with rich context (custom error types)
 - Left/right distinction is meaningful beyond success/error
@@ -208,6 +201,37 @@ Use **Either** when:
 - You only need optional values (use `Maybe`)
 - You need simple error strings (use `Result`)
 - You need to accumulate multiple errors (use `Validation`)
+
+## Comparison with Result and Maybe
+
+All three monads handle operations that might not produce a value, but they serve different purposes:
+
+| Feature | Either | Result | Maybe |
+|---------|--------|--------|-------|
+| **Purpose** | Two distinct possibilities | Error handling | Optional values |
+| **Generic types** | `Either[L, R]` (any two types) | `Result[T, E]` (success/error) | `Maybe[T]` (value/none) |
+| **Variants** | `Left(value)`, `Right(value)` | `Ok(value)`, `Error(error)` | `Some(value)`, `Nothing` |
+| **Error context** | ✅ Any type | ✅ Error type only | ❌ None |
+| **Convention** | Generic (flexible) | Success/error specific | Presence/absence |
+| **Use case** | Two-value alternatives | Operations that fail | Values that might be missing |
+
+**Examples**:
+
+```python
+# Either: Two possibilities with rich error context
+Either[APIError, User]  # Left(APIError) or Right(User)
+
+# Result: Success or error with message
+Result[User, str]  # Ok(User) or Error("User not found")
+
+# Maybe: Value exists or not
+Maybe[User]  # Some(User) or Nothing
+```
+
+**Rule of thumb**:
+- Use **Either** when you need two distinct types (not just success/error) or custom error objects
+- Use **Result** when you have simple success/error cases with error messages
+- Use **Maybe** when a value might simply not exist (no error involved)
 
 ## See Also
 
