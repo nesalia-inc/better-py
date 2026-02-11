@@ -13,26 +13,11 @@ The **Either** monad represents a value that can be one of two possibilities. Co
 
 ## Creating Either Values
 
-### Using the Modern API (Preferred)
-
 ```python
 from better_py import Left, Right
 
-# Create a Left (typically error)
 error = Left("Something went wrong")
-
-# Create a Right (typically success)
 success = Right(42)
-```
-
-### Using the Legacy API (Still Supported)
-
-```python
-from better_py import Either
-
-# Legacy factory methods
-error = Either.left("Something went wrong")
-success = Either.right(42)
 ```
 
 ## Checking Variants
