@@ -5,28 +5,41 @@ description: Left-to-right function chaining
 
 ## `pipe(value, *functions)`
 
-Pass a value through a sequence of functions.
+The `pipe` function passes a value through a sequence of functions, executing left-to-right. Each function receives the output of the previous one as its input. Unlike `compose`, `pipe` executes immediately and returns the final value.
 
 ```python
 from better_py.functions import pipe
 
-pipe(5, lambda x: x + 1, lambda x: x * 2)  # 12
+result = pipe(5,
+    lambda x: x + 1,  # 6
+    lambda x: x * 2   # 12
+)
+# result = 12
 ```
+
+The value `5` flows through each transformation: first incremented to `6`, then doubled to `12`. This is ideal for one-off transformations where you don't need to reuse the pipeline.
 
 ## `flow(*functions)`
 
-Create a reusable function from a chain.
+The `flow` function creates a reusable pipeline from a sequence of functions. It returns a new function that, when called, executes the pipeline on the input.
 
 ```python
 from better_py.functions import flow
 
-process = flow(lambda x: x + 1, lambda x: x * 2)
-process(5)  # 12
+process = flow(
+    lambda x: x + 1,
+    lambda x: x * 2
+)
+
+process(5)   # 12
+process(10)  # 22
 ```
+
+Use `flow` when you have a transformation pipeline you want to apply to multiple values. It's like `pipe` but returns a function instead of executing immediately.
 
 ## `Pipeline`
 
-Builder for collection operations.
+The `Pipeline` class provides a fluent builder interface for collection operations. Chain methods like `map`, `filter`, and `reduce` before executing on a collection.
 
 ```python
 from better_py.functions import Pipeline
@@ -34,25 +47,40 @@ from better_py.functions import Pipeline
 result = (Pipeline()
     .map(lambda x: x * 2)
     .filter(lambda x: x > 0)
-    .execute([1, -2, 3]))  # [2, 6]
+    .execute([1, -2, 3]))
+# result = [2, 6]
 ```
 
-## Example: Data Processing
+The builder pattern makes complex collection operations readable. Each method returns the `Pipeline` object, allowing chaining. Call `execute()` with your collection to run the pipeline.
+
+## Example: Data Processing Pipeline
+
+Here's a realistic example combining multiple transformations:
 
 ```python
 from better_py.functions import pipe
 
-def parse(text): return int(text)
-def validate(n): return n if n > 0 else None
-def format(n): return f"Value: {n}"
+def parse(text):
+    return int(text)
+
+def validate(n):
+    return n if n > 0 else None
+
+def format(n):
+    return f"Value: {n}"
 
 result = pipe("42", parse, validate, format)
+# result = "Value: 42"
 ```
+
+The input `"42"` is parsed to an integer, validated to ensure it's positive, then formatted into a string. Each step is isolated and testable, making the pipeline maintainable.
 
 ## Reference
 
-| Function | Purpose |
-|----------|---------|
-| `pipe` | One-off transformation |
-| `flow` | Reusable pipeline |
-| `Pipeline` | Collection operations |
+| Function | Purpose | Returns |
+|----------|---------|---------|
+| `pipe` | One-off transformation | Value |
+| `flow` | Reusable pipeline | Function |
+| `Pipeline` | Collection operations | Builder |
+
+Choose `pipe` for single transformations, `flow` for reusable transformations, and `Pipeline` for working with collections.

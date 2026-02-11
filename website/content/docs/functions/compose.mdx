@@ -5,7 +5,7 @@ description: Function composition utilities
 
 ## `compose(*functions)`
 
-Combine functions right-to-left. Returns a new function.
+Function composition combines multiple functions into a single function where the output of each function becomes the input of the next. The `compose` function executes right-to-left, following mathematical convention.
 
 ```python
 from better_py.functions import compose
@@ -14,12 +14,14 @@ double = lambda x: x * 2
 increment = lambda x: x + 1
 
 transform = compose(double, increment)
-transform(5)  # 12: increment runs first, then double
+transform(5)  # 12: increment(5) → 6, then double(6) → 12
 ```
+
+Reading from right to left: `increment` runs first on the input, then `double` runs on the result. This creates a reusable transformation pipeline.
 
 ## `compose_left(*functions)`
 
-Combine functions left-to-right.
+The `compose_left` function works identically to `compose` but executes left-to-right, which can be more intuitive when reading code as a data pipeline.
 
 ```python
 from better_py.functions import compose_left
@@ -28,16 +30,27 @@ transform = compose_left(increment, double)
 transform(5)  # 12
 ```
 
+Here the execution order matches the reading order: `increment` then `double`. Choose between `compose` and `compose_left` based on which direction feels more natural for your use case.
+
 ## Example: Validation Pipeline
 
+Composition is particularly useful for validation and data processing chains:
+
 ```python
-def get_user(id): ...
-def check_perms(user): ...
-def check_auth(user): ...
+def get_user(id):
+    return {"id": id, "role": "admin"}
+
+def check_perms(user):
+    return user if user["role"] == "admin" else None
+
+def check_auth(user):
+    return user if user else None
 
 validate = compose(check_auth, check_perms, get_user)
-validate(123)  # Flows: get_user → check_perms → check_auth
+result = validate(123)  # Returns user object
 ```
+
+The data flows through each function: `get_user(123)` fetches the user, `check_perms` verifies admin role, and `check_auth` handles the final validation. Each function is pure and single-responsibility, making the pipeline easy to test and maintain.
 
 ## Reference
 
@@ -46,3 +59,5 @@ validate(123)  # Flows: get_user → check_perms → check_auth
 | `compose` | Right-to-left | Function |
 | `compose_left` | Left-to-right | Function |
 | `pipe` | Left-to-right | Value |
+
+Use `compose` when you need a reusable function. Use `pipe` when you want to execute a chain immediately on a value.
