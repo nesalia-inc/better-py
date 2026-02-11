@@ -3,135 +3,127 @@ title: Maybe Monad
 description: Handle optional values safely with Some and Nothing variants
 ---
 
-# Maybe Monad
-
 The **Maybe** monad represents optional values - either a value (`Some`) or no value (`Nothing`). It's a type-safe alternative to using `None` in Python.
-
-## Overview
 
 `Maybe[T]` has two variants:
 - **`Some(value)`** - Contains a value of type `T`
 - **`Nothing`** - Represents absence of a value
 
-## Creating Maybe Values
+## Creating & Checking
 
-### Using the Modern API (Preferred)
+Create Maybe values using `Some()` and `Nothing()` constructors. Use `is_some()` and `is_nothing()` to check which variant you have.
 
 ```python
 from better_py import Some, Nothing
 
-# Create a Some with a value
+# Create values
 some_value = Some(42)
-explicit_none = Some(None)  # Some containing None explicitly
-
-# Create Nothing
 empty = Nothing()
+
+# Check variants
+some_value.is_some()     # True
+some_value.is_nothing()  # False
+empty.is_some()          # False
+empty.is_nothing()       # True
 ```
 
-### Using the Legacy API (Still Supported)
+You can also use the `Maybe` class methods for creating values:
 
 ```python
 from better_py import Maybe
 
-# Legacy factory methods
-some_value = Maybe.some(42)
-empty = Maybe.nothing()
-explicit_none = Maybe.some_none()
-```
-
-### From Optional Values
-
-```python
-from better_py import Maybe
-
-# Convert Optional values to Maybe
+Maybe.some(42)           # Some(42)
+Maybe.nothing()          # Nothing
 Maybe.from_value(42)     # Some(42)
 Maybe.from_value(None)   # Nothing
-
-# Note: Use some_none() to explicitly wrap None as a value
-Maybe.some_none()        # Some(None)
 ```
 
-## Checking Variants
+Use `some_none()` to explicitly wrap `None` as a value instead of treating it as absence:
 
 ```python
-from better_py import Some, Nothing
-
-some = Some(42)
-nothing = Nothing()
-
-# Check if Some
-some.is_some()        # True
-nothing.is_some()     # False
-
-# Check if Nothing
-some.is_nothing()     # False
-nothing.is_nothing()  # True
+Maybe.some_none()        # Some(None) - None is the value
 ```
 
 ## Extracting Values
 
-### `unwrap()` - Get Value or Raise Error
-
-```python
-Some(42).unwrap()         # 42
-Some(None).unwrap()       # None (explicit None value)
-
-Nothing().unwrap()        # Raises ValueError
-```
-
-### `unwrap_or(default)` - Get Value or Default
-
-```python
-Some(42).unwrap_or(0)     # 42
-Nothing().unwrap_or(0)    # 0
-```
-
-### `unwrap_or_else(supplier)` - Get Value or Compute Default
-
-```python
-Some(42).unwrap_or_else(lambda: 0)     # 42
-Nothing().unwrap_or_else(lambda: 0)    # 0
-Nothing().unwrap_or_else(expensive)    # Only calls expensive if Nothing
-```
-
-## Transforming Values
-
-### `map(f)` - Apply a Function
-
-```python
-Some(5).map(lambda x: x * 2)         # Some(10)
-Nothing().map(lambda x: x * 2)       # Nothing
-
-# Chaining maps
-Some(5).map(lambda x: x * 2).map(lambda x: x + 1)  # Some(11)
-```
-
-## Chaining Operations
-
-### `bind(f)` / `flat_map(f)` / `and_then(f)` - Chain Maybe-Returning Operations
+The `unwrap` method returns the value for `Some` or raises an error for `Nothing`. Use `unwrap_or` and `unwrap_or_else` to provide defaults.
 
 ```python
 from better_py import Some, Nothing
 
-def divide(x: float) -> Maybe[float]:
-    if x == 0:
-        return Nothing()
-    return Some(10 / x)
+Some(42).unwrap()              # 42
+Nothing().unwrap()             # Raises ValueError
 
-# All three methods are equivalent
-Some(2).bind(divide)           # Some(5.0)
-Some(2).flat_map(divide)       # Some(5.0)
-Some(2).and_then(divide)       # Some(5.0)
+Some(42).unwrap_or(0)          # 42
+Nothing().unwrap_or(0)         # 0
 
-# Short-circuits on Nothing
-Nothing().and_then(divide)     # Nothing
-Some(0).and_then(divide)       # Nothing
+Some(42).unwrap_or_else(lambda: expensive_computation())  # 42
+Nothing().unwrap_or_else(lambda: expensive_computation()) # Computation called
 ```
+
+Use `unwrap` when you're certain a value exists. Use `unwrap_or` for simple defaults. Use `unwrap_or_else` for expensive default computation that should only run if needed.
+
+## Transforming Values
+
+The `map` method applies a function only to `Some`, leaving `Nothing` unchanged. This is useful for transforming optional values while preserving absence.
+
+```python
+from better_py import Some, Nothing
+
+Some(5).map(lambda x: x * 2)      # Some(10)
+Nothing().map(lambda x: x * 2)    # Nothing
+
+# Chain maps
+Some(5).map(lambda x: x * 2).map(lambda x: x + 1)  # Some(11)
+```
+
+When `map` is called on `Nothing`, it returns `Nothing` unchanged—this short-circuiting behavior is key to Maybe's utility in optional value handling.
+
+## Chaining Operations
+
+The `flat_map` method chains operations that return Maybe. If any step returns `Nothing`, the rest of the chain is skipped—absence propagates automatically.
+
+```python
+from better_py import Some, Nothing
+
+def find_user(user_id: int):
+    return Some({"id": user_id, "name": "Alice"}) if user_id == 1 else Nothing()
+
+def get_address(user: dict):
+    return Some(user.get("address"))
+
+def get_zipcode(address: dict):
+    return Maybe.from_value(address.get("zipcode") if address else None)
+
+# Chain operations
+result = (find_user(1)
+    .flat_map(get_address)
+    .flat_map(get_zipcode))  # Some("12345") or Nothing
+
+# Nothing short-circuits
+result = (find_user(99)
+    .flat_map(get_address)
+    .flat_map(get_zipcode))  # Nothing
+```
+
+This replaces nested `if x is not None` checks with a flat, readable pipeline. Each step receives the previous `Some` value, or short-circuits on the first `Nothing`.
+
+The methods `bind` and `and_then` are aliases for `flat_map`—use whichever reads best in your code.
 
 ## Combining Maybes
 
-### `ap(fn)` - Apply a Maybe-Containing Function
+The `zip` method combines multiple Maybe values into a tuple. If any value is `Nothing`, `zip` returns `Nothing` immediately.
+
+```python
+from better_py import Maybe, Some, Nothing
+
+Maybe.zip(Some(1), Some(2), Some(3))          # Some((1, 2, 3))
+Maybe.zip(Some(1), Nothing(), Some(3))        # Nothing
+```
+
+Use `zip` when you need all values to proceed—like validating multiple optional fields where any absence should result in no result.
+
+The `ap` method applies a function wrapped in a Maybe to a value wrapped in a Maybe. Both must be `Some` for the operation to succeed.
 
 ```python
 from better_py import Some
@@ -139,25 +131,13 @@ from better_py import Some
 add_one = Some(lambda x: x + 1)
 value = Some(5)
 
-add_one.ap(value)  # Some(6)
+add_one.ap(value)      # Some(6)
 
-# Nothing propagates
-Nothing().ap(value)        # Nothing
-add_one.ap(Nothing())      # Nothing
+Nothing().ap(value)    # Nothing
+add_one.ap(Nothing())  # Nothing
 ```
 
-### `zip(*monads)` - Combine Multiple Maybes
-
-```python
-from better_py import Some, Nothing, Maybe
-
-Maybe.zip(Some(1), Some(2), Some(3))     # Some((1, 2, 3))
-
-# Nothing short-circuits
-Maybe.zip(Some(1), Nothing(), Some(3))  # Nothing
-```
-
-### `lift2`, `lift3` - Lift Functions
+The `lift2` and `lift3` methods transform regular functions into functions that work with Maybe values.
 
 ```python
 from better_py import Maybe, Some
@@ -165,171 +145,145 @@ from better_py import Maybe, Some
 def add(x, y):
     return x + y
 
-Maybe.lift2(add, Some(5), Some(10))  # Some(15)
-
-# Nothing short-circuits
+Maybe.lift2(add, Some(5), Some(10))    # Some(15)
 Maybe.lift2(add, Some(5), Nothing())  # Nothing
 ```
 
+Use these when you have existing functions that don't know about Maybe, and you want to use them with Maybe values without rewriting the functions.
+
 ## Fallback Values
 
-### `or_else(default)` - Return This or Another Maybe
+The `or_else` method returns this Maybe if it's `Some`, or another Maybe if this one is `Nothing`. This is useful for chaining fallback values.
 
 ```python
 from better_py import Some, Nothing
 
-Some(5).or_else(Some(10))   # Some(5)
-Nothing().or_else(Some(10)) # Some(10)
-```
+Some(5).or_else(Some(10))       # Some(5)
+Nothing().or_else(Some(10))     # Some(10)
 
-## Real-World Examples
-
-### Safe Dictionary Access
-
-```python
-from better_py import Some, Nothing
-
-def get_user(users: dict, user_id: int) -> Some[dict] | Nothing:
-    return Maybe.from_value(users.get(user_id))
-
-users = {1: {"name": "Alice"}}
-
-# Safe access
-user = get_user(users, 1)          # Some({"name": "Alice"})
-user = get_user(users, 99)         # Nothing
-
-# Extract with default
-username = get_user(users, 1).map(lambda u: u.get("name")).unwrap_or("Guest")  # "Alice"
-username = get_user(users, 99).map(lambda u: u.get("name")).unwrap_or("Guest") # "Guest"
-```
-
-### Chaining Operations
-
-```python
-from better_py import Some, Nothing
-
-def find_user(user_id: int) -> Some[dict] | Nothing:
-    # Database lookup
-    pass
-
-def get_address(user: dict) -> Some[dict] | Nothing:
-    return Maybe.from_value(user.get("address"))
-
-def get_zipcode(address: dict) -> Some[str] | Nothing:
-    return Maybe.from_value(address.get("zipcode"))
-
-# Chain operations safely
-zipcode = (find_user(1)
-    .and_then(get_address)
-    .and_then(get_zipcode))  # Some("12345") or Nothing
-
-# Without Maybe, you'd need nested None checks
-```
-
-### Configuration Values
-
-```python
-from better_py import Some, Nothing, Maybe
-
-config = {
-    "database": {
-        "host": "localhost",
-        "port": 5432
-    }
-}
-
-def get_config(config: dict, *keys: str) -> Maybe[str]:
-    """Safely get nested config value."""
-    result = Maybe.from_value(config.get(keys[0] if keys else ""))
-    for key in keys[1:]:
-        result = result.and_then(lambda d: Maybe.from_value(d.get(key) if isinstance(d, dict) else None))
-    return result
-
-get_config(config, "database", "host")  # Some("localhost")
-get_config(config, "database", "user")  # Nothing
-```
-
-## Pattern Matching
-
-```python
-from better_py import Some, Nothing
-
-def describe(maybe: Some[int] | Nothing) -> str:
-    if maybe.is_some():
-        return f"Has value: {maybe.unwrap()}"
-    else:
-        return "No value"
-
-describe(Some(42))    # "Has value: 42"
-describe(Nothing())   # "No value"
-```
-
-## Common Patterns
-
-### Default Values
-
-```python
-from better_py import Some, Nothing
-
-# Provide defaults
-user = get_user(user_id).unwrap_or({"name": "Guest"})
-```
-
-### Chaining Fallbacks
-
-```python
-from better_py import Some, Nothing
-
-# Try primary, then fallback
+# Chain fallbacks
 result = (get_from_cache(key)
     .or_else(get_from_database(key))
     .or_else(get_from_api(key)))
 ```
 
-### Validation
+Use `or_else` when you want to try multiple sources in order, falling back to the next if the previous returns `Nothing`.
+
+## Pattern Matching
+
+The `fold` method handles both cases and returns a non-Maybe result. You provide two functions—one for each case—and `fold` applies the appropriate one.
 
 ```python
 from better_py import Some, Nothing
 
-def validate_positive(x: int) -> Some[int] | Nothing:
-    return Some(x) if x > 0 else Nothing()
+def describe(maybe):
+    return maybe.fold(
+        on_some=lambda value: f"Has value: {value}",
+        on_nothing=lambda: "No value"
+    )
 
-def validate_non_zero(x: int) -> Some[int] | Nothing:
-    return Some(x) if x != 0 else Nothing()
-
-# Compose validations
-def divide(a: int, b: int) -> Some[float] | Nothing:
-    return (validate_positive(a)
-        .and_then(lambda _: validate_non_zero(b))
-        .map(lambda _: a / b))
+describe(Some(42))   # "Has value: 42"
+describe(Nothing())  # "No value"
 ```
 
-## When to Use Maybe
+`fold` is the ultimate pattern match for Maybe—it's the only operation that lets you handle both cases in one expression and return a non-Maybe result.
+
+## Real-World Pattern: Safe Dictionary Access
+
+```python
+from better_py import Some, Nothing
+
+users = {
+    1: {"name": "Alice", "email": "alice@example.com"},
+    2: {"name": "Bob"}
+}
+
+def get_user(users: dict, user_id: int):
+    return Maybe.from_value(users.get(user_id))
+
+def get_email(user: dict):
+    return Maybe.from_value(user.get("email"))
+
+# Safe nested access
+email = (get_user(users, 1)
+    .flat_map(get_email))  # Some("alice@example.com")
+
+# Missing user returns Nothing
+email = (get_user(users, 99)
+    .flat_map(get_email))  # Nothing
+
+# User exists but email is missing
+email = (get_user(users, 2)
+    .flat_map(get_email))  # Nothing
+```
+
+This pattern shows Maybe's strength: deeply nested optional access becomes a flat pipeline. If any step returns `Nothing`, the entire result is `Nothing`—no nested `if` checks or `None` coalescing needed.
+
+## Real-World Pattern: Validation Pipeline
+
+```python
+from better_py import Some, Nothing
+
+def validate_positive(x: int):
+    return Some(x) if x > 0 else Nothing()
+
+def validate_non_zero(x: int):
+    return Some(x) if x != 0 else Nothing()
+
+def safe_divide(a: int, b: int):
+    return (validate_positive(a)
+        .flat_map(lambda _: validate_non_zero(b))
+        .map(lambda _: a / b))
+
+safe_divide(10, 2)   # Some(5.0)
+safe_divide(10, 0)   # Nothing
+safe_divide(-5, 2)   # Nothing
+```
+
+This pattern shows Maybe's use in validation: each validation step can return `Nothing` if it fails, and the entire pipeline short-circuits. No intermediate variables or nested conditionals needed.
+
+## When to Use
 
 Use **Maybe** when:
 - A value might be missing
 - You want to avoid `None` checks
 - You want type-safe optional handling
-- You're working with optional data
+- Absence of a value is normal behavior
 
 **Don't use Maybe** when:
 - You need error messages (use `Result` instead)
 - You need to accumulate errors (use `Validation` instead)
 - The value should never be missing (use plain types)
 
-## Comparison with Result
+## Comparison with Result and Either
 
-Both `Maybe` and `Result` handle operations that might not produce a value, but they serve different purposes:
+All three monads handle operations that might not produce a value, but they serve different purposes:
 
-| Feature | Maybe | Result |
-|---------|-------|--------|
-| **Purpose** | Optional values | Error handling |
-| **Has error info** | ❌ No | ✅ Yes |
-| **When value is missing** | `Nothing` (no explanation) | `Error(error)` (with context) |
-| **Use case** | Value might not exist | Operation might fail |
-| **Example** | `find_user(id)` → `Some(user)` or `Nothing` | `divide(a, b)` → `Ok(result)` or `Error("div by zero")` |
+| Feature | Maybe | Result | Either |
+|---------|-------|--------|--------|
+| **Purpose** | Optional values | Error handling | Two distinct possibilities |
+| **Generic types** | `Maybe[T]` (value/none) | `Result[T, E]` (success/error) | `Either[L, R]` (any two types) |
+| **Variants** | `Some(value)`, `Nothing` | `Ok(value)`, `Error(error)` | `Left(value)`, `Right(value)` |
+| **Error context** | ❌ None | ✅ Error type only | ✅ Any type |
+| **Use case** | Values that might be missing | Operations that fail | Two-value alternatives |
 
-**Rule of thumb**: Use `Maybe` when the absence of a value is normal behavior (like searching a database). Use `Result` when something goes wrong (like validation failing or an operation error).
+**Examples**:
+
+```python
+# Maybe: Value exists or not
+Maybe[User]  # Some(User) or Nothing
+
+# Result: Success or error with context
+Result[User, str]  # Ok(User) or Error("User not found")
+
+# Either: Two possibilities with rich context
+Either[APIError, User]  # Left(APIError) or Right(User)
+```
+
+**Rule of thumb**:
+- Use **Maybe** when a value might simply not exist (no error involved)
+- Use **Result** when you have explicit success/error cases
+- Use **Either** when Left/right are two distinct possibilities (beyond success/error)
 
 ## See Also
 

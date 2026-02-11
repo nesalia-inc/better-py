@@ -3,130 +3,119 @@ title: Result Monad
 description: Explicit error handling with Ok and Error variants
 ---
 
-# Result Monad
-
 The **Result** monad represents operations that can succeed (`Ok`) or fail (`Error`). It's a type-safe alternative to exceptions for error handling.
-
-## Overview
 
 `Result[T, E]` has two variants:
 - **`Ok(value)`** - Contains a success value of type `T`
 - **`Error(error)`** - Contains an error of type `E`
 
-## Creating Result Values
+## Creating & Checking
 
-### Using the Modern API (Preferred)
+Create Result values using `Ok()` and `Error()` constructors. Use `is_ok()` and `is_error()` to check which variant you have.
 
 ```python
 from better_py import Ok, Error
 
-# Create a success value
+# Create values
 success = Ok(42)
-
-# Create an error
 failure = Error("Something went wrong")
+
+# Check variants
+success.is_ok()      # True
+success.is_error()   # False
+failure.is_ok()      # False
+failure.is_error()   # True
 ```
 
-### Using the Legacy API (Still Supported)
+You can also use the `Result` class methods for creating values:
 
 ```python
 from better_py import Result
 
-# Legacy factory methods
-success = Result.ok(42)
-failure = Result.error("Something went wrong")
-
-# From value with optional error
-Result.from_value(42)              # Ok(42)
-Result.from_value(42, "error")     # Error('error')
-```
-
-## Checking Variants
-
-```python
-from better_py import Ok, Error
-
-success = Ok(42)
-failure = Error("failed")
-
-# Check if Ok
-success.is_ok()        # True
-failure.is_ok()        # False
-
-# Check if Error
-success.is_error()     # False
-failure.is_error()     # True
+Result.ok(42)                    # Ok(42)
+Result.error("Something failed")  # Error("Something failed")
+Result.from_value(42)            # Ok(42)
 ```
 
 ## Extracting Values
 
-### `unwrap()` - Get Success Value or Raise Error
-
-```python
-Ok(42).unwrap()                    # 42
-Error("failed").unwrap()           # Raises ValueError
-```
-
-### `unwrap_or(default)` - Get Success Value or Default
-
-```python
-Ok(42).unwrap_or(0)                # 42
-Error("failed").unwrap_or(0)       # 0
-```
-
-### `unwrap_or_else(supplier)` - Get Success Value or Compute Default
-
-```python
-Ok(42).unwrap_or_else(lambda: 0)   # 42
-Error("failed").unwrap_or_else(lambda: 0)  # 0
-```
-
-### `unwrap_error()` - Get Error Value
-
-```python
-Error("failed").unwrap_error()     # "failed"
-Ok(42).unwrap_error()              # Raises ValueError
-```
-
-## Transforming Values
-
-### `map(f)` - Transform Success Value
-
-```python
-Ok(5).map(lambda x: x * 2)         # Ok(10)
-Error("bad").map(lambda x: x * 2)  # Error("bad")
-```
-
-### `map_error(f)` - Transform Error
-
-```python
-Error("bad").map_error(str.upper)  # Error("BAD")
-Ok(42).map_error(str.upper)        # Ok(42)
-```
-
-## Chaining Operations
-
-### `bind(f)` / `flat_map(f)` / `and_then(f)` - Chain Result-Returning Operations
+The `unwrap` method returns the success value for `Ok` or raises an error for `Error`. Use `unwrap_or` and `unwrap_or_else` to provide defaults. Use `unwrap_error` to extract the error value.
 
 ```python
 from better_py import Ok, Error
 
-def divide(a: float, b: float) -> Result[float, str]:
-    if b == 0:
-        return Error("Division by zero")
-    return Ok(a / b)
+Ok(42).unwrap()                    # 42
+Error("failed").unwrap()           # Raises ValueError
 
-# All three methods are equivalent
-Ok(10,).and_then(lambda x: divide(x, 2))  # Ok(5.0)
+Ok(42).unwrap_or(0)                # 42
+Error("failed").unwrap_or(0)       # 0
 
-# Errors short-circuit
-Error("bad").and_then(lambda x: divide(x, 2))  # Error("bad")
-Ok(10).and_then(lambda x: divide(x, 0))  # Error("Division by zero")
+Ok(42).unwrap_or_else(lambda: expensive_computation())  # 42
+Error("failed").unwrap_or_else(lambda: expensive_computation())  # Computation called
+
+Error("failed").unwrap_error()     # "failed"
+Ok(42).unwrap_error()              # Raises ValueError
 ```
+
+Use `unwrap` when you're certain the result is successful. Use `unwrap_or` for simple defaults. Use `unwrap_or_else` for expensive default computation. Use `unwrap_error` to access error information.
+
+## Transforming Values
+
+The `map` method applies a function only to `Ok`, leaving `Error` unchanged. The `map_error` method applies a function only to `Error`, leaving `Ok` unchanged.
+
+```python
+from better_py import Ok, Error
+
+Ok(5).map(lambda x: x * 2)           # Ok(10)
+Error("bad").map(lambda x: x * 2)    # Error("bad")
+
+Error("bad").map_error(str.upper)    # Error("BAD")
+Ok(42).map_error(str.upper)          # Ok(42)
+```
+
+When transforming, the opposite variant passes through unchanged. This short-circuiting behavior is key to Result's utility in error handling.
+
+## Chaining Operations
+
+The `flat_map` method chains operations that return Result. If any step returns `Error`, the rest of the chain is skipped—errors propagate automatically.
+
+```python
+from better_py import Ok, Error
+
+def validate_positive(x: int):
+    return Ok(x) if x > 0 else Error("Must be positive")
+
+def validate_non_zero(x: int):
+    return Ok(x) if x != 0 else Error("Must be non-zero")
+
+def divide(a: int, b: int):
+    return (validate_positive(a)
+        .flat_map(lambda _: validate_non_zero(b))
+        .map(lambda _: a / b))
+
+divide(10, 2)   # Ok(5.0)
+divide(10, 0)   # Error("Must be non-zero")
+divide(-5, 2)   # Error("Must be positive")
+```
+
+This replaces nested if/else chains with a flat, readable pipeline. Each step receives the previous `Ok` value, or short-circuits on the first `Error`.
+
+The methods `bind` and `and_then` are aliases for `flat_map`—use whichever reads best in your code.
 
 ## Combining Results
 
-### `ap(fn)` - Apply a Result-Containing Function
+The `zip` method combines multiple Result values into a tuple. If any value is `Error`, `zip` returns that `Error` immediately.
+
+```python
+from better_py import Result, Ok, Error
+
+Result.zip(Ok(1), Ok(2), Ok(3))           # Ok((1, 2, 3))
+Result.zip(Ok(1), Error("bad"), Ok(3))    # Error("bad")
+```
+
+Use `zip` when you need all values to proceed—like validating multiple fields where any failure should reject the entire operation.
+
+The `ap` method applies a function wrapped in a Result to a value wrapped in a Result. Both must be `Ok` for the operation to succeed.
 
 ```python
 from better_py import Ok
@@ -134,25 +123,13 @@ from better_py import Ok
 add_one = Ok(lambda x: x + 1)
 value = Ok(5)
 
-add_one.ap(value)  # Ok(6)
+add_one.ap(value)      # Ok(6)
 
-# Error propagates
 Error("bad").ap(value)    # Error("bad")
 add_one.ap(Error("bad"))  # Error("bad")
 ```
 
-### `zip(*results)` - Combine Multiple Results
-
-```python
-from better_py import Ok, Error, Result
-
-Result.zip(Ok(1), Ok(2), Ok(3))           # Ok((1, 2, 3))
-
-# Error short-circuits
-Result.zip(Ok(1), Error("bad"), Ok(3))   # Error("bad")
-```
-
-### `lift2`, `lift3` - Lift Functions
+The `lift2` and `lift3` methods transform regular functions into functions that work with Result values.
 
 ```python
 from better_py import Result, Ok
@@ -160,205 +137,120 @@ from better_py import Result, Ok
 def add(x, y):
     return x + y
 
-Result.lift2(add, Ok(5), Ok(10))  # Ok(15)
-
-# Error short-circuits
+Result.lift2(add, Ok(5), Ok(10))    # Ok(15)
 Result.lift2(add, Ok(5), Error("bad"))  # Error("bad")
 ```
 
+Use these when you have existing functions that don't know about Result, and you want to use them with Result values without rewriting the functions.
+
 ## Fallback Values
 
-### `or_else(default)` - Return This or Another Result
+The `or_else` method returns this Result if it's `Ok`, or another Result if this one is `Error`. This is useful for chaining fallback operations.
 
 ```python
 from better_py import Ok, Error
 
-Ok(5).or_else(Ok(10))        # Ok(5)
-Error("bad").or_else(Ok(10)) # Ok(10)
+Ok(5).or_else(Ok(10))         # Ok(5)
+Error("bad").or_else(Ok(10))  # Ok(10)
+
+# Chain fallbacks
+result = (get_from_cache(key)
+    .or_else(get_from_database(key))
+    .or_else(get_from_api(key)))
 ```
 
-## Real-World Examples
+Use `or_else` when you want to try multiple sources in order, falling back to the next if the previous returns `Error`.
 
-### Safe Division
+## Pattern Matching
+
+The `fold` method handles both cases and returns a non-Result result. You provide two functions—one for each case—and `fold` applies the appropriate one.
 
 ```python
 from better_py import Ok, Error
 
-def divide(a: float, b: float) -> Result[float, str]:
-    if b == 0:
-        return Error("Cannot divide by zero")
-    return Ok(a / b)
+def describe(result):
+    return result.fold(
+        on_ok=lambda value: f"Success: {value}",
+        on_error=lambda err: f"Error: {err}"
+    )
 
-divide(10, 2)  # Ok(5.0)
-divide(10, 0)  # Error("Cannot divide by zero")
+describe(Ok(42))           # "Success: 42"
+describe(Error("failed"))  # "Error: failed"
 ```
 
-### Validation
+`fold` is the ultimate pattern match for Result—it's the only operation that lets you handle both cases in one expression and return a non-Result result.
+
+## Real-World Pattern: Validation Chain
 
 ```python
 from better_py import Ok, Error
 
-def validate_age(age: int) -> Result[int, str]:
+def validate_age(age: int):
     if age < 0:
         return Error("Age cannot be negative")
     if age > 150:
         return Error("Age is unrealistic")
     return Ok(age)
 
-def validate_email(email: str) -> Result[str, str]:
+def validate_email(email: str):
     if "@" not in email:
         return Error("Invalid email format")
     return Ok(email)
 
-validate_age(25)           # Ok(25)
-validate_age(-5)           # Error("Age cannot be negative")
+def create_user(age: int, email: str):
+    return (validate_age(age)
+        .flat_map(lambda _: validate_email(email))
+        .map(lambda _: {"age": age, "email": email}))
+
+create_user(25, "user@example.com")  # Ok({"age": 25, "email": "user@example.com"})
+create_user(-5, "user@example.com")  # Error("Age cannot be negative")
+create_user(25, "invalid")            # Error("Invalid email format")
 ```
 
-### Chaining Operations
+This pattern shows Result's strength: each validation step can return `Error` with a message, and the entire pipeline short-circuits on the first failure. No intermediate variables or nested conditionals needed.
 
-```python
-from better_py import Ok, Error
-
-def fetch_user(user_id: int) -> Result[dict, str]:
-    # Simulate database lookup
-    if user_id == 1:
-        return Ok({"id": 1, "name": "Alice"})
-    return Error("User not found")
-
-def get_orders(user: dict) -> Result[list, str]:
-    # Simulate fetching orders
-    return Ok([{"id": 101, "total": 50}])
-
-# Chain operations
-result = (fetch_user(1)
-    .and_then(get_orders))  # Ok([{"id": 101, "total": 50}])
-
-# Errors propagate
-result = (fetch_user(999)
-    .and_then(get_orders))  # Error("User not found")
-```
-
-### API Error Handling
+## Real-World Pattern: API Error Handling
 
 ```python
 from better_py import Ok, Error
 
 import requests
 
-def fetch_url(url: str) -> Result[str, str]:
+class APIError:
+    def __init__(self, message: str, status_code: int):
+        self.message = message
+        self.status_code = status_code
+
+def fetch_url(url: str):
+    """Fetch URL and return Result[str, APIError]."""
     try:
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
             return Ok(response.text)
-        return Error(f"HTTP {response.status_code}")
+        return Error(APIError(f"HTTP {response.status_code}", response.status_code))
     except requests.RequestException as e:
-        return Error(str(e))
+        return Error(APIError(str(e), 0))
 
-fetch_url("https://api.example.com")  # Ok(...) or Error(...)
-```
-
-### Configuration Validation
-
-```python
-from better_py import Ok, Error
-
-def validate_config(config: dict) -> Result[dict, str]:
-    # Validate required fields
-    if "host" not in config:
-        return Error("Missing 'host' field")
-    if "port" not in config:
-        return Error("Missing 'port' field")
-
-    # Validate port range
-    port = config["port"]
-    if not isinstance(port, int) or port < 1 or port > 65535:
-        return Error("Port must be between 1 and 65535")
-
-    return Ok(config)
-
-validate_config({"host": "localhost", "port": 5432})  # Ok(...)
-validate_config({"host": "localhost"})  # Error("Missing 'port' field")
-```
-
-## Pattern Matching
-
-```python
-from better_py import Ok, Error
-
-def describe(result: Ok[int] | Error[str]) -> str:
-    if result.is_ok():
-        return f"Success: {result.unwrap()}"
-    else:
-        return f"Error: {result.unwrap_error()}"
-
-describe(Ok(42))           # "Success: 42"
-describe(Error("failed"))   # "Error: failed"
-```
-
-## Error Recovery
-
-### Using `map_error`
-
-```python
-from better_py import Ok, Error
-
-def get_user(user_id: int) -> Result[dict, str]:
-    # Database lookup that returns string errors
-    pass
-
-# Transform error to more specific type
-result = get_user(1).map_error(
-    lambda e: f"Database error: {e}"
-)
-```
-
-### Chaining Fallbacks
-
-```python
-from better_py import Ok, Error
-
-# Try primary, then fallback
-result = (get_from_cache(key)
-    .or_else(get_from_database(key))
-    .or_else(get_from_api(key)))
-```
-
-## Common Patterns
-
-### Early Return Pattern
-
-```python
-from better_py import Ok, Error
-
-def process_data(data: dict) -> Result[dict, str]:
-    # Validate step 1
-    if "id" not in data:
-        return Error("Missing id")
-    data_id = data["id"]
-
-    # Validate step 2
-    if not isinstance(data_id, int):
-        return Error("Invalid id type")
-
-    # Process data
-    return Ok({"processed": True, "id": data_id})
-```
-
-### Conversion to/from Exceptions
-
-```python
-from better_py import Ok, Error
-
-def safe_divide(a: float, b: float) -> Result[float, str]:
+def parse_json(text: str):
+    """Parse JSON and return Result[dict, APIError]."""
     try:
-        return Ok(a / b)
-    except ZeroDivisionError:
-        return Error("Division by zero")
-    except Exception as e:
-        return Error(f"Unexpected error: {e}")
+        return Ok(json.loads(text))
+    except json.JSONDecodeError as e:
+        return Error(APIError(f"Invalid JSON: {e}", 0))
+
+def get_user_id(url: str):
+    """Fetch URL, parse JSON, extract user_id."""
+    return (fetch_url(url)
+        .flat_map(parse_json)
+        .map(lambda data: data.get("user_id")))
+
+get_user_id("https://api.example.com/user/1")
+# Ok(123) or Error(APIError(...))
 ```
 
-## When to Use Result
+This pattern shows Result's use in API operations: each step can fail with a descriptive error, and errors automatically propagate through the chain. The caller gets either the final value or the first error that occurred.
+
+## When to Use
 
 Use **Result** when:
 - Operations can fail with meaningful errors
@@ -371,19 +263,35 @@ Use **Result** when:
 - You need to accumulate errors (use `Validation` instead)
 - The operation cannot fail (use plain types)
 
-## Comparison with Maybe
+## Comparison with Maybe and Either
 
-Both `Result` and `Maybe` handle operations that might not produce a value, but they serve different purposes:
+All three monads handle operations that might not produce a value, but they serve different purposes:
 
-| Feature | Result | Maybe |
-|---------|--------|-------|
-| **Purpose** | Error handling | Optional values |
-| **Has error info** | ✅ Yes | ❌ No |
-| **When value is missing** | `Error(error)` (with context) | `Nothing` (no explanation) |
-| **Use case** | Operation might fail | Value might not exist |
-| **Example** | `divide(a, b)` → `Ok(result)` or `Error("div by zero")` | `find_user(id)` → `Some(user)` or `Nothing` |
+| Feature | Result | Maybe | Either |
+|---------|--------|-------|--------|
+| **Purpose** | Error handling | Optional values | Two distinct possibilities |
+| **Generic types** | `Result[T, E]` (success/error) | `Maybe[T]` (value/none) | `Either[L, R]` (any two types) |
+| **Variants** | `Ok(value)`, `Error(error)` | `Some(value)`, `Nothing` | `Left(value)`, `Right(value)` |
+| **Error context** | ✅ Error type only | ❌ None | ✅ Any type |
+| **Use case** | Operations that fail | Values that might be missing | Two-value alternatives |
 
-**Rule of thumb**: Use `Result` when something goes wrong (like validation failing or an operation error). Use `Maybe` when the absence of a value is normal behavior (like searching a database).
+**Examples**:
+
+```python
+# Result: Success or error with context
+Result[User, str]  # Ok(User) or Error("User not found")
+
+# Maybe: Value exists or not
+Maybe[User]  # Some(User) or Nothing
+
+# Either: Two possibilities with rich context
+Either[APIError, User]  # Left(APIError) or Right(User)
+```
+
+**Rule of thumb**:
+- Use **Result** when you have explicit success/error cases
+- Use **Maybe** when a value might simply not exist (no error involved)
+- Use **Either** when Left/right are two distinct possibilities (beyond success/error)
 
 ## See Also
 
