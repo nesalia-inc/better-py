@@ -3,13 +3,9 @@
 The Validation monad represents either a success value or a collection
 of errors, allowing error accumulation during validation.
 
-New API (preferred):
+Usage:
     >>> valid = Valid(42)
     >>> invalid = Invalid(["Error 1", "Error 2"])
-
-Legacy API (still supported):
-    >>> valid = Validation.valid(42)
-    >>> invalid = Validation.invalid(["Error 1", "Error 2"])
 """
 
 from __future__ import annotations
@@ -32,35 +28,21 @@ U = TypeVar("U")
 class Validation(Mappable[T], Generic[E, T]):
     """Base class for Validation monad.
 
-    This class provides factory methods for creating Validation values.
-    For new code, prefer using Valid() and Invalid() directly.
-
     Type Parameters:
         E: The error type
         T: The success value type
 
-    Example (new API - preferred):
+    Usage:
         >>> valid = Valid(42)
         >>> invalid = Invalid(["error"])
-
-    Example (legacy API - still supported):
-        >>> valid = Validation.valid(42)
-        >>> invalid = Validation.invalid(["error"])
     """
 
     @staticmethod
     def valid(value: T) -> Validation[E, T]:
         """Create a Valid Validation containing a success value.
 
-        Args:
-            value: The success value
-
-        Returns:
-            A Valid variant containing the value
-
-        Example:
-            >>> Validation.valid(42)
-            Valid(42)
+        >>> Validation.valid(42)
+        Valid(42)
         """
         return Valid(value)
 
@@ -68,15 +50,8 @@ class Validation(Mappable[T], Generic[E, T]):
     def invalid(errors: list[E] | E) -> Validation[E, T]:
         """Create an Invalid Validation containing errors.
 
-        Args:
-            errors: List of errors or single error
-
-        Returns:
-            An Invalid variant containing the errors
-
-        Example:
-            >>> Validation.invalid(["Error 1", "Error 2"])
-            Invalid(['Error 1', 'Error 2'])
+        >>> Validation.invalid(["Error 1", "Error 2"])
+        Invalid(['Error 1', 'Error 2'])
         """
         if isinstance(errors, list):
             return Invalid(errors)
@@ -128,14 +103,11 @@ class Validation(Mappable[T], Generic[E, T]):
 class Valid(Validation[E, T], Generic[E, T]):
     """Valid variant of Validation, containing a success value.
 
-    Type Parameters:
-        E: The error type (for type compatibility)
-        T: The success value type
-
-    Example:
-        >>> valid = Valid(42)
-        >>> valid.is_valid()  # True
-        >>> valid.unwrap()  # 42
+    >>> valid = Valid(42)
+    >>> valid.is_valid()
+    True
+    >>> valid.unwrap()
+    42
     """
 
     _value: T
@@ -144,11 +116,8 @@ class Valid(Validation[E, T], Generic[E, T]):
     def is_valid(self) -> bool:
         """Check if this is Valid variant.
 
-        Returns:
-            True - this is Valid
-
-        Example:
-            >>> Valid(42).is_valid()  # True
+        >>> Valid(42).is_valid()
+        True
         """
         return True
 
@@ -156,11 +125,8 @@ class Valid(Validation[E, T], Generic[E, T]):
     def is_invalid(self) -> bool:
         """Check if this is Invalid variant.
 
-        Returns:
-            False - this is Valid
-
-        Example:
-            >>> Valid(42).is_invalid()  # False
+        >>> Valid(42).is_invalid()
+        False
         """
         return False
 
@@ -168,38 +134,22 @@ class Valid(Validation[E, T], Generic[E, T]):
     def unwrap(self) -> T:
         """Get the success value.
 
-        Returns:
-            The success value
-
-        Example:
-            >>> Valid(42).unwrap()  # 42
+        >>> Valid(42).unwrap()
+        42
         """
         return self._value
 
     @override
     def unwrap_errors(self) -> list[E]:
-        """Get the errors, raising an error.
-
-        Raises:
-            ValueError: Always, since Valid has no errors
-
-        Example:
-            >>> Valid(42).unwrap_errors()  # Raises ValueError
-        """
+        """Get the errors, raising an error."""
         raise ValueError("Cannot unwrap_errors Valid")
 
     @override
     def map(self, f: Callable[[T], U]) -> Validation[E, U]:
         """Apply a function to the success value.
 
-        Args:
-            f: Function to apply
-
-        Returns:
-            Valid(f(value))
-
-        Example:
-            >>> Valid(5).map(lambda x: x * 2)  # Valid(10)
+        >>> Valid(5).map(lambda x: x * 2)
+        Valid(10)
         """
         return Valid(f(self._value))
 
@@ -207,15 +157,8 @@ class Valid(Validation[E, T], Generic[E, T]):
     def map_errors(self, f: Callable[[list[E]], list[E]]) -> Validation[E, T]:
         """Apply a function to the errors (no-op for Valid).
 
-        Args:
-            f: Function to apply (ignored for Valid)
-
-        Returns:
-            This Valid
-
-        Example:
-            >>> Valid(42).map_errors(lambda errs: [f"! {e}" for e in errs])
-            Valid(42)
+        >>> Valid(42).map_errors(lambda errs: [f"! {e}" for e in errs])
+        Valid(42)
         """
         return self
 
@@ -223,36 +166,22 @@ class Valid(Validation[E, T], Generic[E, T]):
     def ap(self, other: Validation[E, T]) -> Validation[E, U]:
         """Apply this Validation (containing a function) to another Validation.
 
-        Args:
-            other: Validation containing a value
-
-        Returns:
-            Valid(f(value)) if other is Valid, otherwise Invalid
-
-        Example:
-            >>> add = Valid(lambda x: x + 1)
-            >>> val = Valid(5)
-            >>> add.ap(val)  # Valid(6)
+        >>> add = Valid(lambda x: x + 1)
+        >>> val = Valid(5)
+        >>> add.ap(val)
+        Valid(6)
         """
         if other.is_invalid():
             return Invalid(other.unwrap_errors())
-        # self contains the function, other contains the value
         return Valid(self._value(other.unwrap()))
 
     @override
     def flat_map(self, f: Callable[[T], Validation[E, U]]) -> Validation[E, U]:
         """Chain operations that return Validation.
 
-        Args:
-            f: Function that takes a value and returns a Validation
-
-        Returns:
-            The result of applying f
-
-        Example:
-            >>> def validate_positive(x): return Valid(x) if x > 0 else Invalid(["Not positive"])
-            >>> Valid(5).flat_map(validate_positive)  # Valid(5)
-            >>> Valid(-1).flat_map(validate_positive)  # Invalid(['Not positive'])
+        >>> def validate_positive(x): return Valid(x) if x > 0 else Invalid(["Not positive"])
+        >>> Valid(5).flat_map(validate_positive)
+        Valid(5)
         """
         return f(self._value)
 
@@ -260,19 +189,11 @@ class Valid(Validation[E, T], Generic[E, T]):
     def fold(self, on_invalid: Callable[[list[E]], U], on_valid: Callable[[T], U]) -> U:
         """Fold both cases into a single value.
 
-        Args:
-            on_invalid: Function to apply if Invalid (ignored)
-            on_valid: Function to apply if Valid
-
-        Returns:
-            Result of applying on_valid
-
-        Example:
-            >>> result = Valid(42).fold(
-            ...     on_invalid=lambda errs: f"Errors: {errs}",
-            ...     on_valid=lambda v: f"Value: {v}"
-            ... )
-            >>> "Value: 42"
+        >>> Valid(42).fold(
+        ...     on_invalid=lambda errs: f"Errors: {errs}",
+        ...     on_valid=lambda v: f"Value: {v}"
+        ... )
+        'Value: 42'
         """
         return on_valid(self._value)
 
@@ -280,11 +201,8 @@ class Valid(Validation[E, T], Generic[E, T]):
     def to_result(self) -> Result[T, E]:
         """Convert Validation to Result.
 
-        Returns:
-            Ok(value)
-
-        Example:
-            >>> Valid(42).to_result()  # Ok(42)
+        >>> Valid(42).to_result()
+        Ok(42)
         """
         from better_py.monads import Result
 
@@ -305,14 +223,11 @@ class Valid(Validation[E, T], Generic[E, T]):
 class Invalid(Validation[E, T], Generic[E, T]):
     """Invalid variant of Validation, containing a list of errors.
 
-    Type Parameters:
-        E: The error type
-        T: The success value type (for type compatibility)
-
-    Example:
-        >>> invalid = Invalid(["Error 1", "Error 2"])
-        >>> invalid.is_invalid()  # True
-        >>> invalid.unwrap_errors()  # ["Error 1", "Error 2"]
+    >>> invalid = Invalid(["Error 1", "Error 2"])
+    >>> invalid.is_invalid()
+    True
+    >>> invalid.unwrap_errors()
+    ['Error 1', 'Error 2']
     """
 
     _errors: list[E]
@@ -321,11 +236,8 @@ class Invalid(Validation[E, T], Generic[E, T]):
     def is_valid(self) -> bool:
         """Check if this is Valid variant.
 
-        Returns:
-            False - this is Invalid
-
-        Example:
-            >>> Invalid(["error"]).is_valid()  # False
+        >>> Invalid(["error"]).is_valid()
+        False
         """
         return False
 
@@ -333,35 +245,22 @@ class Invalid(Validation[E, T], Generic[E, T]):
     def is_invalid(self) -> bool:
         """Check if this is Invalid variant.
 
-        Returns:
-            True - this is Invalid
-
-        Example:
-            >>> Invalid(["error"]).is_invalid()  # True
+        >>> Invalid(["error"]).is_invalid()
+        True
         """
         return True
 
     @override
     def unwrap(self) -> T:
-        """Get the success value, raising an error.
-
-        Raises:
-            ValueError: Always, since Invalid has no success value
-
-        Example:
-            >>> Invalid(["error"]).unwrap()  # Raises ValueError
-        """
+        """Get the success value, raising an error."""
         raise ValueError(f"Cannot unwrap Invalid: {self._errors}")
 
     @override
     def unwrap_errors(self) -> list[E]:
         """Get the errors.
 
-        Returns:
-            The list of errors
-
-        Example:
-            >>> Invalid(["error"]).unwrap_errors()  # ["error"]
+        >>> Invalid(["error"]).unwrap_errors()
+        ['error']
         """
         return self._errors
 
@@ -369,14 +268,8 @@ class Invalid(Validation[E, T], Generic[E, T]):
     def map(self, f: Callable[[T], U]) -> Validation[E, U]:
         """Apply a function to the success value (no-op for Invalid).
 
-        Args:
-            f: Function to apply (ignored for Invalid)
-
-        Returns:
-            This Invalid
-
-        Example:
-            >>> Invalid(["error"]).map(lambda x: x * 2)  # Invalid(['error'])
+        >>> Invalid(["error"]).map(lambda x: x * 2)
+        Invalid(['error'])
         """
         return self
 
@@ -384,15 +277,8 @@ class Invalid(Validation[E, T], Generic[E, T]):
     def map_errors(self, f: Callable[[list[E]], list[E]]) -> Validation[E, T]:
         """Apply a function to the errors.
 
-        Args:
-            f: Function to apply
-
-        Returns:
-            Invalid(f(errors))
-
-        Example:
-            >>> Invalid(["error"]).map_errors(lambda errs: [f"! {e}" for e in errs])
-            Invalid(['! error'])
+        >>> Invalid(["error"]).map_errors(lambda errs: [f"! {e}" for e in errs])
+        Invalid(['! error'])
         """
         return Invalid(f(self._errors))
 
@@ -402,55 +288,29 @@ class Invalid(Validation[E, T], Generic[E, T]):
 
         For Invalid, this accumulates errors from both validations.
 
-        Args:
-            other: Validation containing a value
-
-        Returns:
-            Invalid with accumulated errors
-
-        Example:
-            >>> add = Valid(lambda x: x + 1)
-            >>> val = Invalid(["bad"])
-            >>> add.ap(val)  # Invalid(['bad'])
+        >>> add = Valid(lambda x: x + 1)
+        >>> val = Invalid(["bad"])
+        >>> add.ap(val)
+        Invalid(['bad'])
         """
         if other.is_invalid():
-            # Accumulate errors from both sides
             return Invalid(self._errors + other.unwrap_errors())
         return Invalid(self._errors)
 
     @override
     def flat_map(self, f: Callable[[T], Validation[E, U]]) -> Validation[E, U]:
-        """Chain operations that return Validation (short-circuits for Invalid).
-
-        Args:
-            f: Function (ignored for Invalid)
-
-        Returns:
-            This Invalid
-
-        Example:
-            >>> def validate_positive(x): return Valid(x) if x > 0 else Invalid(["Not positive"])
-            >>> Invalid(["bad"]).flat_map(validate_positive)  # Invalid(['bad'])
-        """
+        """Chain operations that return Validation (short-circuits for Invalid)."""
         return self
 
     @override
     def fold(self, on_invalid: Callable[[list[E]], U], on_valid: Callable[[T], U]) -> U:
         """Fold both cases into a single value.
 
-        Args:
-            on_invalid: Function to apply if Invalid
-            on_valid: Function to apply if Valid (ignored)
-
-        Returns:
-            Result of applying on_invalid
-
-        Example:
-            >>> result = Invalid(["error"]).fold(
-            ...     on_invalid=lambda errs: f"Errors: {errs}",
-            ...     on_valid=lambda v: f"Value: {v}"
-            ... )
-            >>> "Errors: ['error']"
+        >>> Invalid(["error"]).fold(
+        ...     on_invalid=lambda errs: f"Errors: {errs}",
+        ...     on_valid=lambda v: f"Value: {v}"
+        ... )
+        "Errors: ['error']"
         """
         return on_invalid(self._errors)
 
@@ -458,11 +318,8 @@ class Invalid(Validation[E, T], Generic[E, T]):
     def to_result(self) -> Result[T, E]:
         """Convert Validation to Result.
 
-        Returns:
-            Error(errors[0])
-
-        Example:
-            >>> Invalid(["error"]).to_result()  # Error('error')
+        >>> Invalid(["error"]).to_result()
+        Error('error')
         """
         from better_py.monads import Result
 
