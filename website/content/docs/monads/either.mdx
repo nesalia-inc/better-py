@@ -31,7 +31,7 @@ Checking variants is safe and doesn't require exception handling. Use these meth
 
 ## Transforming Values
 
-### `map(f)` - Transform Right Value
+### Transforming Right Values
 
 Apply a function to the Right value. Left passes through unchanged.
 
@@ -40,7 +40,7 @@ Right(5).map(lambda x: x * 2)      # Right(10)
 Left("error").map(lambda x: x * 2)  # Left("error")
 ```
 
-### `map_left(f)` - Transform Left Value
+### Transforming Left Values
 
 Apply a function to the Left value. Right passes through unchanged.
 
@@ -49,7 +49,7 @@ Left("error").map_left(str.upper)  # Left("ERROR")
 Right(42).map_left(str.upper)      # Right(42)
 ```
 
-### `swap()` - Swap Left and Right
+### Swapping Left and Right
 
 ```python
 Left(1).swap()   # Right(1)
@@ -83,7 +83,7 @@ This replaces nested if/else chains with a flat, readable pipeline.
 
 ## Combining Eithers
 
-### `zip(*eithers)` - Combine Multiple Eithers
+### Combining Multiple Eithers
 
 Combine multiple Either values into a tuple. Returns the first Left if any.
 
@@ -94,7 +94,7 @@ Either.zip(Right(1), Right(2), Right(3))          # Right((1, 2, 3))
 Either.zip(Right(1), Left("bad"), Right(3))      # Left("bad")
 ```
 
-### `ap(fn)` - Apply Either-Wrapped Function
+### Applying Wrapped Functions
 
 Apply a function wrapped in an Either to a value wrapped in an Either.
 
@@ -110,7 +110,7 @@ Left("bad").ap(add)   # Left("bad")
 value.ap(Left("bad")) # Left("bad")
 ```
 
-### `lift2`, `lift3` - Lift Functions
+### Lifting Regular Functions
 
 Lift regular functions to work with Either values.
 
@@ -126,7 +126,7 @@ Either.lift2(add, Right(5), Left("bad")) # Left("bad")
 
 ## Pattern Matching
 
-### `fold(on_left, on_right)` - Handle Both Cases
+### Handling Both Cases
 
 Transform both Left and Right into a common result type.
 
